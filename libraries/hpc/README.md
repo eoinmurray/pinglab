@@ -34,7 +34,8 @@ uv run python -m libraries.hpc deploy \
    experiment arguments too, for example `--stage analyse --input RUN_ID ... --
    --source RUN_ID`. Datasets and other files outside Git/Pingstore are not
    uploaded; provision them explicitly and pass the experiment's supported cache
-   arguments. MNIST is not assumed for generic deployments.
+   arguments, or use `--dataset-cache /shared/cache` to export
+   `PINGLAB_DATASET_CACHE` inside the allocation. MNIST is not assumed for generic deployments.
 6. The receipt is created before any remote mutation and records the acknowledged
    job ID. Never retry a receipt after a failed or ambiguous response: inspect
    its status, destination and Slurm first. Use a fresh destination and receipt

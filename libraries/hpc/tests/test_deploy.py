@@ -91,6 +91,7 @@ def test_preview_is_local_and_preserves_arguments(deployment, monkeypatch):
 def test_live_bundle_preserves_clean_commit_and_receipt(deployment, monkeypatch):
     repo, args = deployment
     args.live = True
+    args.dataset_cache = "/shared/data space's/$(false)"
     calls = local_ssh(monkeypatch, args)
     result = hpc.deploy(args, repo)
     checkout = Path(args.remote_dir) / "repo"
@@ -114,6 +115,20 @@ def test_live_bundle_preserves_clean_commit_and_receipt(deployment, monkeypatch)
     script = Path(args.remote_dir, "job.sbatch").read_text()
     assert "worker ../deployment.json" in script
     subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+    environment = subprocess.check_output(
+        [
+            "bash",
+            "-c",
+            next(
+                line
+                for line in script.splitlines()
+                if line.startswith("export PINGLAB_DATASET_CACHE=")
+            )
+            + '; printf "%s" "$PINGLAB_DATASET_CACHE"',
+        ],
+        text=True,
+    )
+    assert environment == args.dataset_cache
     import shlex
 
     command = shlex.split(calls[-1][2])

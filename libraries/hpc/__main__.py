@@ -104,6 +104,7 @@ def plan(args, repo=REPO):
         cpus=args.cpus,
         gpus=args.gpus,
         inputs=args.input,
+        dataset_cache=getattr(args, "dataset_cache", None),
         command=command,
     )
 
@@ -111,6 +112,13 @@ def plan(args, repo=REPO):
 def job_script(payload):
     """Install locked dependencies and execute only inside the allocation."""
     directory = shlex.quote(payload["remote_dir"] + "/repo")
+    dataset_environment = ""
+    if payload.get("dataset_cache"):
+        dataset_environment = (
+            "export PINGLAB_DATASET_CACHE="
+            + shlex.quote(payload["dataset_cache"])
+            + "\n"
+        )
     return f"""#!/bin/bash
 set -euo pipefail
 cd {directory}
@@ -122,7 +130,7 @@ export MKL_NUM_THREADS=$OMP_NUM_THREADS
 export SNNLAB_DEVICE={"cuda" if payload["gpus"] else "cpu"}
 export PINGLAB_NO_SYNC=1
 export PATH="$HOME/.local/bin:$PATH"
-uv sync --frozen
+{dataset_environment}uv sync --frozen
 exec .venv/bin/python -m libraries.hpc worker ../deployment.json
 """
 
@@ -260,6 +268,9 @@ def main(argv=None):
         "--receipt", type=Path, default=REPO / ".pingstore/hpc-deployment.json"
     )
     launch.add_argument("--live", action="store_true")
+    launch.add_argument(
+        "--dataset-cache", help="existing dataset cache path on the compute nodes"
+    )
     launch.add_argument(
         "arguments", nargs=argparse.REMAINDER, help="experiment arguments after --"
     )
