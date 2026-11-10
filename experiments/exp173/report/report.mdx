@@ -3,7 +3,7 @@ id: exp173
 title: "PING Inhibitory-Pool Size"
 author: "Eoin Murray"
 created_at: "2026-11-10T10:55:55Z"
-updated_at: "2026-11-10T12:01:02Z"
+updated_at: "2026-11-10T12:40:31Z"
 description: "Frozen TR02 (no rate penalty) PING firing rates and rasters under compensated inhibitory-pool reduction."
 collection: ["experiments"]
 tags: ["data"]
@@ -22,8 +22,8 @@ export const cfg = data?.configuration;
 
 ## Results
 
-<RunFigure report="exp173" experiment="exp173" file="rasters.svg" number={1} id="fig-rasters" alt="Four matched-input E/I rasters at different inhibitory-pool sizes." allowUnavailable={true}>
-  (A–D) One identical digit-zero input at each inhibitory-pool size, in ascending
+<RunFigure report="exp173" experiment="exp173" file="rasters.svg" number={1} id="fig-rasters" alt="Matched-input E/I rasters at different inhibitory-pool sizes." allowUnavailable={true}>
+  (A–{cfg ? String.fromCharCode(64 + cfg.pool_sizes.length) : 'unavailable'}) One identical digit-zero input at each inhibitory-pool size, in ascending
   order. The image is the first digit zero in source-validation order (index
   {cfg ? String(cfg.source_validation_index) : 'unavailable'}), encoded with the first
   source-validation encoder seed. Every E/I spike is a dot: black E below red I.
@@ -36,7 +36,7 @@ export const cfg = data?.configuration;
 </RunFigure>
 
 <RunFigure report="exp173" experiment="exp173" file="firing-rates.svg" number={2} id="fig-firing-rates" alt="Three panels showing population spike rates, test accuracy and E-to-I/I-to-E weight multipliers against inhibitory-pool size." allowUnavailable={true}>
-  (A) Population-wide spike rates from the exact four digit-zero trials in Figure 1:
+  (A) Population-wide spike rates from the matched digit-zero trials in Figure 1:
   E black, I red and total E+I cyan. Rates divide spike counts by realised trial
   duration in seconds, summing across neurons; readout spikes are excluded. Each
   trial starts from fresh state and reuses the same hash-checked input array.
@@ -54,7 +54,8 @@ export const cfg = data?.configuration;
   E→I black, I→E red. E→I weights remain unchanged; retained I→E weights are
   multiplied by original I-pool size divided by retained size. This compensates
   nominal summed inhibition for equal I activity, without guaranteeing matched
-  conductance or dynamics. All panels share the I-pool-size axis; lines connect
+  conductance or dynamics. All panels use log₂ I-pool-size axes; panel C also
+  uses a log₂ multiplier axis. Lines connect
   measured sizes. One trained network and one nested inhibitory-subset realization
   are shown; no across-seed uncertainty is estimated.
 </RunFigure>

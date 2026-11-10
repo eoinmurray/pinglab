@@ -21,7 +21,7 @@ def configuration(*, source_run, source_digest):
         checkpoint_role="final_epoch",
         seed=42,
         original_n_i=256,
-        pool_sizes=[32, 64, 128, 256],
+        pool_sizes=[1, 8, 16, 32, 64, 128, 256],
         batch_size=1,
         device="cpu",
         threads=1,
@@ -42,14 +42,14 @@ def configuration(*, source_run, source_digest):
         rate_definition="spike count / (population size * duration_s)",
         rate_aggregation="single-image population mean from the raster trial",
         encoding_policy="one CPU encoder seed; identical digit-zero input across sizes",
-        retention_estimate="<150 MB and <120 files: four bundles/start snapshots, single-trial counts, four sparse rasters, four diagrams; no full-dataset spike recordings",
+        retention_estimate="<200 MB and <200 files: seven bundles/start snapshots, single-trial counts, seven sparse rasters, seven diagrams; no full-dataset spike recordings",
     )
 
 
 def selected_indices(n_i, original_n_i=256, seed=42):
     import numpy as np
 
-    if n_i not in (32, 64, 128, original_n_i):
+    if type(n_i) is not int or n_i not in (1, 8, 16, 32, 64, 128, original_n_i):
         raise ValueError("Unsupported inhibitory-pool size")
     if n_i == original_n_i:
         return np.arange(original_n_i)

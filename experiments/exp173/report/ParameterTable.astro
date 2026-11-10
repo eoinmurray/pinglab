@@ -1,14 +1,14 @@
 ---
 import Table from '../../../site/src/components/Table.astro';
-import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
-const evidence = await reportSnapshots('exp173', { snapshots: {
-  i32: 'i32/start/snapshot.json', i64: 'i64/start/snapshot.json',
-  i128: 'i128/start/snapshot.json', i256: 'i256/start/snapshot.json',
-}, allowUnavailable: true });
+const data = await reportData('exp173', { allowUnavailable: true });
+const evidence = await reportSnapshots('exp173', { snapshots: Object.fromEntries(
+  (data?.configuration.pool_sizes ?? []).map(size => [`i${size}`, `i${size}/start/snapshot.json`])
+), allowUnavailable: true });
 const cfg = evidence?.configuration;
 const snapshots = Object.values(evidence?.snapshots ?? {});
-const available = cfg && snapshots.length === 4 && snapshots.every(Boolean);
+const available = cfg && snapshots.length === cfg.pool_sizes.length && snapshots.every(Boolean);
 const graph = index => snapshots[index].network;
 const pop = (index, id) => graph(index).populations.find(p => p.id === id);
 const math = id => ({ math: { E: 'E', I: 'I', readout: 'R', drive: 'X' }[id] });

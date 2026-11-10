@@ -1,4 +1,4 @@
-"""Run four frozen TR02 (no rate penalty) pool-size conditions locally with native evidence."""
+"""Run frozen TR02 (no rate penalty) pool-size conditions locally with native evidence."""
 
 import argparse
 import hashlib
@@ -179,7 +179,7 @@ def execute(cfg):
         source_validation_index=probe,
         protocol="single_matched_digit_zero",
         rate_aggregation="single-image, single-draw population mean; same trial as raster",
-        encoding_policy="one CPU Poisson draw shared exactly by all four conditions",
+        encoding_policy="one CPU Poisson draw shared exactly by all pool-size conditions",
     )
     cfg["dataset_sha256"] = hashlib.sha256(
         pixels.tobytes() + labels.tobytes()

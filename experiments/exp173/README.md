@@ -1,7 +1,7 @@
 # exp173 — PING inhibitory-pool size
 
-Run four matched single-image trials from the trained exp022 TR02 (no rate penalty) PING network,
-with 32, 64, 128 and the original 256 inhibitory neurons. Retain one raster per
+Run seven matched single-image trials from the trained exp022 TR02 (no rate penalty) PING network,
+with 1, 8, 16, 32, 64, 128 and the original 256 inhibitory neurons. Retain one raster per
 size and plot E, I and total population-wide spike rates from those exact same trials.
 These are single-image diagnostics, not dataset-wide averages. Accuracy uses the manuscript's ordered subset of 1,000 official MNIST test images,
 sampled uniformly without replacement using seed 42, without class stratification.
@@ -31,10 +31,11 @@ There is no retraining.
    retained through Pingstore with source pins, configuration and timings.
    Save the 1,000 official-test indices, labels and per-condition predictions;
    accuracy uses mean pre-reset output voltage, without retaining its rasters. Expected
-   retention is below 150 MB and 120 files. Preserve no full-dataset recordings.
-6. Render four rasters with red I dots above black E dots and common axes, plus
+   retention is below 200 MB and 200 files. Preserve no full-dataset recordings.
+6. Render seven rasters with red I dots above black E dots and common axes, plus
    E, I and total population spike rates (spikes/s) versus pool size, with
-   separate test accuracy (%) and E→I/I→E gain panels. Bind report parameters to the same selected
+   separate test accuracy (%) and E→I/I→E gain panels. Pool-size axes and
+   the gain panel’s multiplier axis use log₂ scaling. Bind report parameters to the same selected
    ancestry's native snapshots and recorded configuration.
 
 ## Run
@@ -54,4 +55,4 @@ uv run pytest experiments/exp173/test.py -q
 ```
 
 The initial full-validation attempts were stopped or failed and are not the
-source of the four-trial result. No backup, publication or cleanup is automatic.
+source of the single-image raster results. No backup, publication or cleanup is automatic.

@@ -23,7 +23,7 @@ def test_control_is_exact_and_subsets_share_the_same_neurons():
     for name, key in recipe.MAPPING.items():
         assert torch.equal(control[name], source[key])
     previous = set()
-    for size in (32, 64, 128):
+    for size in (1, 8, 16, 32, 64, 128):
         reduced, ids = recipe.resize_weights(source, size)
         assert previous.issubset(set(ids))
         previous = set(ids)

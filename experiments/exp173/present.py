@@ -1,4 +1,4 @@
-"""Render four matched TR02 (no rate penalty) rasters and single-trial E/I/total population spike-rate curves."""
+"""Render matched TR02 (no rate penalty) rasters and single-trial E/I/total population spike-rate curves."""
 
 import argparse
 import json
@@ -28,7 +28,11 @@ def circuit(bundle, path):
         native,
         title="Frozen TR02 (no rate penalty) PING",
         groups=(),
-        nodes=tuple(node for node in native.nodes if node.id in symbols),
+        nodes=tuple(
+            replace(node, detail=node.detail.replace("1 neurons", "1 neuron"))
+            for node in native.nodes
+            if node.id in symbols
+        ),
         edges=tuple(
             edge
             for edge in native.edges
@@ -130,6 +134,8 @@ def present(identity):
         configuration={
             "style": "experiments.theme paper; enlarged article typography",
             "font_scale": FONT_SCALE,
+            "pool_size_axis": "log2",
+            "gain_axis": "log2",
             "diagram_style": "house monospace and palette from experiments.theme",
             "raster_probe_index": cfg["raster_probe_index"],
             "rate_measure": "population spikes per second, summed across neurons",
@@ -143,8 +149,14 @@ def present(identity):
         },
     ) as run:
         shutil.copyfile(source.file("numbers.json"), run.export / "numbers.json")
-        fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
-        for ax, n_i in zip(axes.flat, cfg["pool_sizes"], strict=True):
+        rows = (len(cfg["pool_sizes"]) + 1) // 2
+        fig, grid = plt.subplots(
+            rows, 2, figsize=(12, 3.8 * rows), sharex=True, sharey=True, squeeze=False
+        )
+        axes = list(grid.flat)[: len(cfg["pool_sizes"])]
+        for unused in list(grid.flat)[len(cfg["pool_sizes"]) :]:
+            fig.delaxes(unused)
+        for ax, n_i in zip(axes, cfg["pool_sizes"], strict=True):
             with np.load(
                 compute.file(f"i{n_i}", "raster.npz"), allow_pickle=False
             ) as events:
@@ -164,17 +176,19 @@ def present(identity):
             ax.set(
                 xlim=(0, cfg["duration_ms"]),
                 ylim=(-0.5, cfg["n_e"] + cfg["original_n_i"] - 0.5),
-                title=f"{n_i} I neurons"
+                title=f"{n_i} I "
+                + ("neuron" if n_i == 1 else "neurons")
                 + (" (original)" if n_i == cfg["original_n_i"] else ""),
                 xlabel="Time (ms)",
                 ylabel="Neuron index (E below I)",
             )
             ax.spines[["top", "right"]].set_visible(False)
+            ax.tick_params(axis="x", labelbottom=True)
             bundle_path = compute.restore_bundle(
                 f"i{n_i}/network.bundle", run.scratch / f"i{n_i}.bundle"
             )
             circuit(lang.load_bundle(bundle_path), run.export / f"circuit-i{n_i}.svg")
-        for letter in theme.label_panels(axes.flat):
+        for letter in theme.label_panels(axes):
             letter.set_fontsize(theme.SIZE_PANEL * FONT_SCALE)
         fig.suptitle(
             "TR02 PING · no rate penalty",
@@ -228,13 +242,9 @@ def present(identity):
             accuracy_axis.annotate(
                 f"{percent:g}%",
                 (size, percent),
-                xytext=(0, -20 if index == 1 else 8),
+                xytext=(0, -20 if index % 2 else 8),
                 textcoords="offset points",
-                ha="left"
-                if index == 0
-                else "right"
-                if index == len(accuracy) - 1
-                else "center",
+                ha="left" if index == 0 else "center",
                 fontsize=theme.SIZE_ANNOTATION * FONT_SCALE,
                 color=theme.INK_BLACK,
             )
@@ -252,13 +262,25 @@ def present(identity):
             )
         gain_axis.set(
             ylabel="Weight multiplier (×)",
-            ylim=(0, None),
-            yticks=[0, 1, 2, 4, 8],
+            ylim=(0.75, max(row["ie_multiplier"] for row in numbers["rates"]) * 1.25),
             title="Connectivity gains",
         )
+        gain_axis.set_yscale("log", base=2)
+        gain_ticks = sorted(
+            {
+                row[key]
+                for row in numbers["rates"]
+                for key in ("ei_multiplier", "ie_multiplier")
+            }
+        )
+        gain_axis.set_yticks(gain_ticks, labels=[f"{value:g}" for value in gain_ticks])
         gain_axis.legend(frameon=False, loc="upper right")
         for panel in axes:
-            panel.set(xlabel="I-pool size (neurons)", xticks=cfg["pool_sizes"])
+            panel.set_xscale("log", base=2)
+            panel.set(xlabel="I-pool size (neurons)")
+            panel.set_xticks(
+                cfg["pool_sizes"], labels=[str(size) for size in cfg["pool_sizes"]]
+            )
             panel.spines[["top", "right"]].set_visible(False)
         for letter in theme.label_panels(axes):
             letter.set_fontsize(theme.SIZE_PANEL * FONT_SCALE)
