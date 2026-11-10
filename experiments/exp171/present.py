@@ -144,44 +144,110 @@ def ceiling_label(target):
     return "Off" if target is None else f"{target:g} Hz"
 
 
-def frontier_figure(cases):
-    fig, ax = plt.subplots(figsize=(6.5, 4.5), layout="constrained")
+def frontier_figure(cases, *, partition="validation"):
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(6.5, 3.4), layout="constrained")
+    offsets = {
+        "coba": {
+            1.0: ((-2, -8), "right", "top"),
+            2.5: ((5, -7), "left", "top"),
+            5.0: ((5, -5), "left", "top"),
+            10.0: ((5, -5), "left", "top"),
+            25.0: ((4, -8), "left", "top"),
+        },
+        "ping": {
+            1.0: ((-8, -2), "right", "top"),
+            2.5: ((-8, 3), "right", "bottom"),
+            5.0: ((-5, 8), "right", "bottom"),
+            10.0: ((0, 9), "center", "bottom"),
+            25.0: ((0, 9), "center", "bottom"),
+        },
+        "artificial": {
+            1.0: ((-7, 5), "right", "bottom"),
+            2.5: ((-7, 6), "right", "bottom"),
+            5.0: ((18, 0), "left", "center"),
+            10.0: ((5, 6), "left", "bottom"),
+            25.0: ((5, -8), "left", "top"),
+        },
+    }
+    xmax = 1.0
     for name, label, colour, marker in (
-        ("coba", "TR02 COBA (epoch 50)", theme.INK_BLACK, "o"),
-        ("ping", "TR02 PING (epoch 50)", theme.DEEP_RED, "s"),
-        (
-            "artificial",
-            "COBA + artificial I (final fine-tuning epoch)",
-            theme.ELECTRIC_CYAN,
-            "^",
-        ),
+        ("coba", "COBA", theme.DEEP_RED, "s"),
+        ("ping", "PING", theme.INK_BLACK, "D"),
+        ("artificial", "Artificial I", theme.ELECTRIC_CYAN, "^"),
     ):
-        points = [
-            c["history"][-1] if name == "artificial" else c["controls"][name]
-            for c in cases
-        ]
+        points = sorted(
+            [
+                (
+                    case["target_hz"],
+                    (case["test"] if "test" in case else case["history"][-1])
+                    if name == "artificial"
+                    else case["controls"][name],
+                )
+                for case in cases
+            ],
+            key=lambda item: item[1]["e_rate_hz"],
+        )
+        xmax = max(xmax, max(point["e_rate_hz"] for _, point in points))
         ax.plot(
-            [p["e_rate_hz"] for p in points],
-            [p["accuracy_pct"] for p in points],
+            [p["e_rate_hz"] for _, p in points],
+            [p["accuracy_pct"] for _, p in points],
             marker=marker,
+            ms=4,
+            lw=1.4,
             color=colour,
             label=label,
         )
-        for case, point in zip(cases, points, strict=True):
+        for target, point in points:
+            xy = (point["e_rate_hz"], point["accuracy_pct"])
+            if target is None:
+                ax.scatter(
+                    [xy[0]],
+                    [xy[1]],
+                    s=60,
+                    marker="*",
+                    color=colour,
+                    edgecolor=theme.INK_BLACK,
+                    linewidths=0.7,
+                    zorder=6,
+                )
+                offset, horizontal, vertical = (
+                    ((14, 5), "left", "bottom")
+                    if name == "ping"
+                    else ((-6, -8), "right", "top")
+                    if name == "coba"
+                    else ((8, -8), "left", "top")
+                )
+                text = f"{label}\n{xy[1]:.0f}% @ {xy[0]:.0f} Hz"
+            else:
+                offset, horizontal, vertical = offsets[name][target]
+                text = f"{target:g}"
             ax.annotate(
-                ceiling_label(case["target_hz"]),
-                (point["e_rate_hz"], point["accuracy_pct"]),
-                xytext=(4, 5),
+                text,
+                xy,
+                xytext=offset,
                 textcoords="offset points",
-                fontsize=8,
+                ha=horizontal,
+                va=vertical,
+                fontsize=theme.SIZE_ANNOTATION,
                 color=colour,
             )
     ax.set(
-        xlabel="Achieved validation E firing rate (Hz)",
-        ylabel="Validation accuracy (%)",
+        xlabel="test-set E firing rate (Hz)"
+        if partition == "test"
+        else "hidden E firing rate (Hz)",
+        ylabel=f"{partition} accuracy (%)",
+        xlim=(-xmax * 0.03, xmax * 1.12),
+        ylim=(40, 100),
     )
     ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(frameon=False, fontsize=8)
+    ax.legend(
+        frameon=False,
+        fontsize=theme.SIZE_LEGEND,
+        loc="lower right",
+        title="★ unpenalised",
+        title_fontsize=theme.SIZE_ANNOTATION,
+    )
     return fig
 
 
@@ -262,7 +328,7 @@ def present(identity, run_id=None):
     results = json.loads(analysis.file("results.json").read_text())
     inputs = {"analyse": analysis, "compute": computed}
     for role, pin in analysis.record["inputs"].items():
-        if role.startswith("cell_"):
+        if role.startswith(("cell_", "test_evaluation")):
             inputs[role] = source_run(
                 ROOT / ".pingstore",
                 pin["run_id"],
@@ -298,7 +364,10 @@ def present(identity, run_id=None):
                 fig.savefig(run.export / ("learning-curves." + ext), dpi=180)
             plt.close(fig)
             if "sweep" in results:
-                fig = frontier_figure(results["sweep"])
+                fig = frontier_figure(
+                    results.get("test_frontier", results["sweep"]),
+                    partition="test" if "test_frontier" in results else "validation",
+                )
                 for ext in ("svg", "png"):
                     fig.savefig(run.export / ("activity-frontier." + ext), dpi=180)
                 plt.close(fig)

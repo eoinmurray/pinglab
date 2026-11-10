@@ -2,10 +2,18 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import { reportData } from '../../../site/src/lib/report-data';
 const data = await reportData('exp171', { allowUnavailable: true });
+const testSet = Boolean(data?.test_frontier);
 ---
 {data?.sweep ? <RunFigure report="exp171" experiment="exp171" file="activity-frontier.svg"
-  number={3} id="fig-frontier" alt="Final validation accuracy versus achieved E firing rate across matched activity ceilings.">
-  Final validation accuracy versus E firing. Black: TR02 COBA; red: TR02 PING;
-  cyan: artificial-I fine-tuning. Labels give activity ceilings; Off disables
-  the penalty. Lines connect conditions. One seed; students receive extra training.
+  number={1} id="fig-frontier" alt={`Final ${testSet ? 'test' : 'validation'} accuracy versus achieved E firing rate across matched activity ceilings.`}>
+  Final {testSet ? 'test' : 'validation'} accuracy versus achieved mean per-neuron E firing.
+  Red squares: TR02 COBA; black diamonds: TR02 PING; cyan triangles:
+  artificial-I fine-tuning. Numeric labels give training ceilings in Hz;
+  stars mark unpenalised conditions. Lines connect conditions in firing-rate order.
+  Source controls use epoch 50; students receive ten additional fine-tuning epochs.
+  {testSet ? <>All curves use the same 1,000-image subset of the official MNIST test
+  partition and the manuscript sensory-encoding protocol. COBA/PING test measurements
+  are reused from the retained TR02 evaluation; only the fine-tuned endpoints are newly
+  evaluated. Seed 42 throughout; no across-seed error bars.</> : <>The source validation
+  split is reused; one seed, without replicate error bars.</>}
 </RunFigure> : <p>No completed sweep is selected.</p>}

@@ -364,3 +364,19 @@ def author_network(cfg, *, teacher=False, record_spikes=False):
     return lang.compile(
         net, training=training, target=None, refractory_timing=cfg["refractory_timing"]
     )
+
+
+def test_configuration():
+    """The manuscript TR02 endpoint protocol; independent inhibition draw."""
+    return dict(
+        schema="exp171.test/v1",
+        partition="official_mnist_test",
+        samples=1000,
+        subset_seed=42,
+        encoder_seed=20260415,
+        batch_size=64,
+        encoding_draws=1,
+        inhibition_seed=171006,
+        checkpoint_role="final_epoch",
+        precision="highest",
+    )

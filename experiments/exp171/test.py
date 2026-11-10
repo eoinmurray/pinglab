@@ -1717,3 +1717,106 @@ def test_encoding_profile_is_opt_in_and_preserves_values():
     assert ENCODING_PROFILE[-1]["images"] == 2
     assert ENCODING_PROFILE[-1]["seconds"] >= 0
     ENCODING_PROFILE.clear()
+
+
+def test_test_encoding_replays_manuscript_batch_stream_and_short_tail():
+    from experiments.exp171.compute import test_sensory
+    from snnlab import sim
+
+    cfg = dict(test_batch_size=4, steps=7, dt_ms=0.1, input_rate_hz=2500)
+    features = np.full((10, 3), 255, dtype=np.uint8)
+    gen = torch.Generator().manual_seed(20260415)
+    states = []
+    expected = []
+    for start in range(0, 10, 4):
+        states.append(gen.get_state().numpy().copy())
+        expected.append(
+            sim.encode_images_poisson(
+                torch.from_numpy(features[start : start + 4]).float() / 255,
+                7,
+                0.1,
+                2500,
+                generator=gen,
+            )
+        )
+    arrays = dict(features=features, test_rng_states=np.stack(states))
+    for index, start in enumerate(range(0, 10, 4)):
+        torch.testing.assert_close(
+            test_sensory(arrays, np.arange(start, min(start + 4, 10)), cfg, "cpu"),
+            expected[index],
+            rtol=0,
+            atol=0,
+        )
+    torch.testing.assert_close(
+        test_sensory(arrays, np.array([2, 0]), cfg, "cpu"),
+        expected[0][:, [2, 0]],
+        rtol=0,
+        atol=0,
+    )
+    with pytest.raises(ValueError, match="one manuscript batch"):
+        test_sensory(arrays, np.array([3, 4]), cfg, "cpu")
+
+
+def test_test_encoder_runs_native_inference_without_training(tmp_path):
+    from experiments.exp171.compute import dataset_binding, dataset_encoder
+    from snnlab import sim
+
+    cfg = recipe.configuration(
+        n_input=4,
+        n_e=3,
+        n_i=2,
+        n_output=2,
+        duration_ms=1.0,
+        inhibition_prehistory_ms=0.4,
+        train_images=1,
+        validation_images=1,
+    )
+    cfg.update(encoding_method="test_protocol_v1", test_batch_size=64)
+    path = tmp_path / "test.npz"
+    np.savez(
+        path,
+        features=np.full((3, 4), 200, dtype=np.uint8),
+        ids=np.array([17, 42, 99]),
+        labels=[0, 1, 0],
+        test_rng_states=torch.Generator()
+        .manual_seed(20260415)
+        .get_state()
+        .numpy()[None],
+        poisson_rate_hz=np.full((3, 3), 100.0),
+        amplitude=np.full((3, 3), 0.01, dtype=np.float32),
+    )
+    bundle = recipe.author_network(cfg)
+    encoder = dataset_encoder(bundle, cfg)
+    result = sim.simulate(
+        bundle=bundle,
+        input_bindings=[dataset_binding(path, encoder, "test", range(3))],
+        batch_size=64,
+        device="cpu",
+        performance=sim.Performance(compile_mode=None, precision="highest"),
+        diagnostics=False,
+    )
+    assert result.outputs["scores"].shape == (3, 2)
+    assert result.outputs["e_count"].shape == (3, 3)
+
+
+def test_test_frontier_uses_test_measurements_and_retains_test_axis():
+    import matplotlib.pyplot as plt
+    from experiments.exp171.present import frontier_figure
+
+    cases = [
+        dict(
+            target_hz=t,
+            test=dict(accuracy_pct=90 + i, e_rate_hz=2 + i),
+            history=[dict(accuracy_pct=10, e_rate_hz=200)],
+            controls=dict(
+                coba=dict(accuracy_pct=80, e_rate_hz=10 + i),
+                ping=dict(accuracy_pct=85, e_rate_hz=5 + i),
+            ),
+        )
+        for i, t in enumerate(recipe.RATE_TARGETS_HZ)
+    ]
+    fig = frontier_figure(cases, partition="test")
+    np.testing.assert_array_equal(fig.axes[0].lines[2].get_ydata(), np.arange(90, 96))
+    assert fig.axes[0].get_ylabel() == "test accuracy (%)"
+    assert fig.axes[0].get_xlabel() == "test-set E firing rate (Hz)"
+    plt.close(fig)

@@ -69,3 +69,24 @@ uv run pytest experiments/exp171/test.py -q
 4. `present.py` — generate figures and report assets.
 5. `report/` — report, appendix and supporting components.
 6. `test.py` — automated checks.
+
+## Held-out endpoint evaluation
+
+Prepare compact inputs with `analyse.py --prepare-test-inputs --baseline-source
+EXPLICIT_TR02_TEST_ANALYSE_ID`, repeating `--source TRAINING_COMPUTE_ID` for all
+six conditions. This exports final native checkpoints and frozen teacher inputs,
+plus existing seed-matched TR02 test measurements; it performs no simulation.
+
+Run `compute.py --test-inputs PREPARED_ANALYSE_ID` on a GPU. No optimizer runs.
+The fixed official MNIST test subset contains 1,000 images, selected without
+replacement by NumPy RandomState seed 42. Sensory encoding uses the manuscript's
+CPU Torch seed 20260415, 64-image batches, 200 ms at 0.1 ms, and 25 Hz maximum
+input rate. Saved RNG states preserve the exact time-major batch stream, including
+the short last batch. The frozen PING teacher supplies each test image's inhibition
+moments without labels; independently seeded Poisson inhibition is drawn once.
+Only test scoring reads the labels. Evaluation uses final-epoch weights and
+highest precision, with no test-driven checkpoint selection or tuning.
+
+Reanalyse the six training runs with `--test-source TEST_COMPUTE_ID`, then present
+that analysis. The accuracy–rate figure switches both series data and its axis to
+the official test evaluation. Existing validation learning curves remain distinct.

@@ -21,7 +21,7 @@ from experiments.exp171 import recipe
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
 from sklearn.model_selection import train_test_split
-from snnlab import extensions, sim
+from snnlab import extensions, lang, sim
 from torchvision.datasets import MNIST
 
 
@@ -918,12 +918,32 @@ def profile_preparation(cfg, context, name, device, prepare):
     return result
 
 
+def test_sensory(arrays, selected, cfg, device):
+    """Restore manuscript CPU RNG states, including time-major batch ordering."""
+    selected = np.asarray(selected)
+    batch = cfg["test_batch_size"]
+    if not len(selected):
+        raise ValueError("Empty test encoding batch")
+    start = int(selected[0]) // batch * batch
+    stop = min(start + batch, len(arrays["features"]))
+    if not len(selected) or np.any(selected < start) or np.any(selected >= stop):
+        raise ValueError("Test encoding must stay inside one manuscript batch")
+    gen = torch.Generator().set_state(
+        torch.from_numpy(arrays["test_rng_states"][start // batch].copy())
+    )
+    images = torch.from_numpy(arrays["features"][start:stop].copy()).float() / 255
+    drive = sim.encode_images_poisson(
+        images, cfg["steps"], cfg["dt_ms"], cfg["input_rate_hz"], generator=gen
+    )
+    return drive[:, selected - start].to(device)
+
+
 def encode_native(
     arrays, selected, *, dt_ms, channels, config, seed, context, device="cpu"
 ):
     cfg = config["recipe"]
     indices = np.asarray(context.sample_ids)
-    if cfg.get("encoding_method") == "torch_device_v1":
+    if cfg.get("encoding_method") in {"torch_device_v1", "test_protocol_v1"}:
         coordinate = (
             {"epoch": context.epoch + 1}
             if context.phase == "train"
@@ -955,8 +975,12 @@ def encode_native(
                     context,
                     "sensory",
                     device,
-                    lambda: sensory_device(
-                        arrays["features"][selected], indices, cfg, device
+                    lambda: (
+                        test_sensory(arrays, selected, cfg, device)
+                        if cfg["encoding_method"] == "test_protocol_v1"
+                        else sensory_device(
+                            arrays["features"][selected], indices, cfg, device
+                        )
                     ),
                 ),
                 "artificial": events,
@@ -968,7 +992,7 @@ def encode_native(
                 provenance={
                     "policy": "private_gaba_only",
                     "history_steps": cfg["inhibition_prehistory_steps"],
-                    "encoding_method": "torch_device_v1",
+                    "encoding_method": cfg["encoding_method"],
                 },
             ),
         )
@@ -1073,6 +1097,8 @@ def dataset_encoder(bundle, cfg):
         "final_training_draw",
         "profile_encoding",
     )
+    if cfg.get("encoding_method") == "test_protocol_v1":
+        keys += ("test_batch_size",)
     return sim.DatasetEncoder(
         "custom",
         definition=name,
@@ -1101,7 +1127,9 @@ def dataset_binding(path, encoder, split, positions):
     )
 
 
-def calibrate_dataset(bundle, checkpoint, pixels, indices, cfg, snapshot, timing=None):
+def calibrate_dataset(
+    bundle, checkpoint, pixels, indices, cfg, snapshot, timing=None, drive_encoder=None
+):
     rows, i_counts = [], []
     model = None
     pending = deque()
@@ -1135,15 +1163,19 @@ def calibrate_dataset(bundle, checkpoint, pixels, indices, cfg, snapshot, timing
             tick = time.perf_counter()
             ids = indices[start : start + batch]
             drive = (
-                sensory_device(pixels[ids], ids, cfg, cfg["device"])
-                if cfg.get("encoding_method") == "torch_device_v1"
-                else torch.from_numpy(
-                    np.stack(
-                        [
-                            sensory(pixels[index] / np.float32(255), index, cfg)
-                            for index in ids
-                        ],
-                        axis=1,
+                drive_encoder(pixels[ids], ids, start)
+                if drive_encoder
+                else (
+                    sensory_device(pixels[ids], ids, cfg, cfg["device"])
+                    if cfg.get("encoding_method") == "torch_device_v1"
+                    else torch.from_numpy(
+                        np.stack(
+                            [
+                                sensory(pixels[index] / np.float32(255), index, cfg)
+                                for index in ids
+                            ],
+                            axis=1,
+                        )
                     )
                 )
             )
@@ -1667,6 +1699,211 @@ def compute(
     return run.run_id
 
 
+def evaluate_test_inputs(identity, run_id=None):
+    """Evaluate frozen final students; PING runs only to calibrate their input."""
+    started = time.perf_counter()
+    package = source_run(
+        ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="analyse"
+    )
+    spec = json.loads(package.file("test-inputs.json").read_text())
+    protocol = recipe.test_configuration()
+    if spec["protocol"] != protocol:
+        raise ValueError("Unsupported test protocol")
+    device = os.environ.get("SNNLAB_DEVICE", "cpu")
+    threads = int(os.environ.get("OMP_NUM_THREADS", "1"))
+    torch.set_num_threads(threads)
+    dataset = MNIST(
+        root=os.environ.get("PINGLAB_DATASET_CACHE", "/tmp/mnist"),
+        train=False,
+        download=True,
+    )
+    pixels = dataset.data.numpy().reshape(-1, 784)
+    labels = dataset.targets.numpy().astype(np.int64)
+    if pixels.shape != (10000, 784) or labels.shape != (10000,):
+        raise ValueError("Expected untouched official MNIST test partition")
+    indices = np.random.RandomState(protocol["subset_seed"]).choice(
+        10000, protocol["samples"], replace=False
+    )
+    configuration = dict(
+        protocol=protocol,
+        checkpoint_role="final_epoch",
+        device=device,
+        dataset_sha256=dict(pixels=digest(pixels), labels=digest(labels)),
+        training_runs=[c["training"] for c in spec["cases"]],
+    )
+    cases = []
+    with stage_run(
+        ROOT,
+        recipe.SLUG,
+        "compute",
+        inputs={"test_inputs": package},
+        configuration=configuration,
+        operation="test-final-checkpoints",
+        run_id=run_id,
+    ) as run:
+        np.savez_compressed(
+            run.export / "test-subset.npz",
+            indices=indices,
+            labels=labels[indices],
+            features=pixels[indices],
+        )
+        snapshot_stages = {}
+        for case in spec["cases"]:
+            label = case["label"]
+            out = run.export / label
+            out.mkdir()
+            cfg = dict(
+                case["configuration"],
+                device=device,
+                threads=threads,
+                precision="highest",
+                compile_mode="default" if device == "cuda" else None,
+                calibration_batch_size=protocol["batch_size"],
+                profile_encoding=False,
+                encoding_method="test_protocol_v1",
+                test_batch_size=protocol["batch_size"],
+                validation_seed=protocol["inhibition_seed"],
+                final_training_draw=0,
+            )
+            if cfg["inhibition_method"] != recipe.POISSON_METHOD:
+                raise ValueError(
+                    "Endpoint evaluation requires the Poisson-trained students"
+                )
+            teacher = lang.load_bundle(
+                package.restore_bundle(
+                    label + "/teacher.bundle", run.scratch / label / "teacher.bundle"
+                )
+            )
+            student = lang.load_bundle(
+                package.restore_bundle(
+                    label + "/network.bundle", run.scratch / label / "network.bundle"
+                )
+            )
+            teacher.write(out / "teacher.bundle", visualise=False)
+            student.write(out / "network.bundle", visualise=False)
+            if not cases:
+                teacher.visualise(run.export / "teacher-circuit.svg", view="circuit")
+                student.visualise(run.export / "network-circuit.svg", view="circuit")
+            teacher_state = sim.NetworkSnapshot.read(
+                package.restore_bundle(
+                    label + "/teacher/start", run.scratch / label / "teacher/start"
+                ),
+                parameters=True,
+            ).load_parameters()
+            teacher_checkpoint = run.scratch / label / "teacher.pt"
+            parameter_file(teacher, teacher_state, cfg, teacher_checkpoint)
+            final_path = package.restore_bundle(
+                label + "/final.checkpoint", run.scratch / label / "final.checkpoint"
+            )
+            final = sim.load_training_checkpoint(final_path)
+            if final.data_state["epoch"] != case["configuration"]["epochs"]:
+                raise ValueError("Test weights must be the final training epoch")
+            states, hashes = [], []
+            gen = torch.Generator().manual_seed(protocol["encoder_seed"])
+
+            def encode(
+                images, ids, start, *, states=states, gen=gen, cfg=cfg, hashes=hashes
+            ):
+                states.append(gen.get_state().numpy().copy())
+                drive = sim.encode_images_poisson(
+                    torch.from_numpy(images).float() / 255,
+                    cfg["steps"],
+                    cfg["dt_ms"],
+                    cfg["input_rate_hz"],
+                    generator=gen,
+                )
+                hashes.append(digest(drive.numpy()))
+                return drive.to(device)
+
+            timing = {}
+            tick = time.perf_counter()
+            rates, amplitude, mu, sd, _, _, error, i_counts, _ = calibrate_dataset(
+                teacher,
+                teacher_checkpoint,
+                pixels,
+                indices,
+                cfg,
+                out / "teacher/start",
+                timing,
+                drive_encoder=encode,
+            )
+            calibration_seconds = time.perf_counter() - tick
+            dataset_path = out / "dataset.npz"
+            np.savez_compressed(
+                dataset_path,
+                ids=indices,
+                labels=labels[indices],
+                features=pixels[indices],
+                poisson_rate_hz=rates,
+                amplitude=amplitude,
+                test_rng_states=np.stack(states),
+            )
+            np.savez_compressed(
+                out / "calibration.npz",
+                target_mean=mu,
+                target_sd=sd,
+                max_relative_sd_error=error,
+                teacher_i_spike_count=i_counts,
+            )
+            encoder = dataset_encoder(student, cfg)
+            tick = time.perf_counter()
+            with torch.no_grad():
+                evaluated = sim.simulate(
+                    bundle=student,
+                    checkpoint=final_path,
+                    input_bindings=[
+                        dataset_binding(
+                            dataset_path, encoder, "test", range(len(indices))
+                        )
+                    ],
+                    batch_size=protocol["batch_size"],
+                    seed=protocol["encoder_seed"],
+                    device=device,
+                    performance=performance(cfg),
+                    snapshot=sim.SnapshotSpec(out / "student/start", stage="start"),
+                    diagnostics=False,
+                    retain_parameters=False,
+                    retain_final_state=False,
+                    retain_runtime_state=False,
+                )
+            scores = evaluated.outputs["scores"].detach().cpu().float().numpy()
+            counts = evaluated.outputs["e_count"].detach().cpu().float().numpy()
+            np.savez_compressed(
+                out / "measurements.npz", scores=scores, e_counts=counts
+            )
+            summary = dict(
+                label=label,
+                target_hz=cfg["rate_target_hz"],
+                training=case["training"],
+                checkpoint_epoch=final.data_state["epoch"],
+                samples=len(indices),
+                correct=int((scores.argmax(-1) == labels[indices]).sum()),
+                accuracy_pct=float(100 * (scores.argmax(-1) == labels[indices]).mean()),
+                e_rate_hz=float(counts.mean() / (cfg["duration_ms"] / 1000)),
+                sensory_sha256=hashes,
+                calibration_seconds=calibration_seconds,
+                evaluation_seconds=time.perf_counter() - tick,
+                performance=evaluated.metrics["performance"],
+            )
+            cases.append(summary)
+            snapshot_stages.update(
+                {label + "/teacher": ["start"], label + "/student": ["start"]}
+            )
+            print(
+                f"test {label}: {summary['accuracy_pct']:.2f}%, {summary['e_rate_hz']:.3f} Hz",
+                flush=True,
+            )
+            del evaluated, final
+        write_json(
+            run.export / "test-results.json", dict(protocol=protocol, cases=cases)
+        )
+        run.record["scientific_artifacts"] = {"snapshot_stages": snapshot_stages}
+        run.record["execution"].update(
+            no_simulation=False, elapsed_seconds=time.perf_counter() - started
+        )
+    return run.run_id
+
+
 def first_correct_position(labels, scores):
     labels, scores = np.asarray(labels), np.asarray(scores)
     if (
@@ -1747,6 +1984,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--profile", action="store_true", help="record synchronized encoding timings"
     )
+    parser.add_argument(
+        "--test-inputs",
+        help="evaluate final checkpoints from an explicit compact test-input run",
+    )
     parser.add_argument("--run-id")
     parser.add_argument("--source", help="explicit compact exp022 input run")
     parser.add_argument("--source-digest", help="pinned payload digest of --source")
@@ -1780,6 +2021,28 @@ if __name__ == "__main__":
         help="Optional physical batch cap; default uses full batches",
     )
     args = parser.parse_args()
+    if args.test_inputs:
+        if (
+            any(
+                [
+                    args.sweep,
+                    args.raster_source,
+                    args.source,
+                    args.source_digest,
+                    args.calibration_source,
+                    args.profile,
+                    args.seed,
+                    args.rate_target_hz,
+                    args.epochs,
+                    args.train_images,
+                    args.microbatch_size,
+                ]
+            )
+            or args.compile_mode != "auto"
+        ):
+            parser.error("Test evaluation uses only its pinned input package")
+        evaluate_test_inputs(args.test_inputs, args.run_id)
+        sys.exit(0)
     if args.sweep:
         if (
             args.run_id

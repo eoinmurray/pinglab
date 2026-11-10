@@ -17,6 +17,7 @@ from experiments.exp171.compute import (
     artificial,
     check_calibration_configuration,
     dataset_event_counts,
+    digest,
     event_counts,
     filtered,
     first_correct_position,
@@ -31,6 +32,7 @@ from experiments.exp171.compute import (
     write_json,
 )
 from pingstore.library import file_sha256, source_run, stage_run
+from snnlab import sim
 from snnlab.sim import NetworkSnapshot, load_runtime_state, load_training_checkpoint
 
 
@@ -967,7 +969,212 @@ def source_controls(computed):
     return controls
 
 
-def analyse(identity, run_id=None, *, raster_source=None):
+def prepare_test_inputs(identities, baseline_id, run_id=None):
+    """Retain compact native endpoints and existing matched TR02 test metrics."""
+    started = time.perf_counter()
+    sources = [
+        source_run(ROOT / ".pingstore", i, experiment=recipe.SLUG, stage="compute")
+        for i in identities
+    ]
+    configs = [s.record["execution"]["configuration"] for s in sources]
+    validate_sweep_configurations(configs)
+    baseline = source_run(
+        ROOT / ".pingstore", baseline_id, experiment="exp025", stage="analyse"
+    )
+    original = source_bank(configs[0], root=ROOT)[1]
+    if baseline.record["inputs"].get("bank") != original:
+        raise ValueError("Test baselines do not pin the training bank")
+    controls = json.loads(baseline.file("results.json").read_text())["results"]
+    inputs = {
+        "baseline": baseline,
+        **{
+            "training_" + recipe.target_label(c["rate_target_hz"]): s
+            for s, c in zip(sources, configs, strict=True)
+        },
+    }
+    cases = []
+    with stage_run(
+        ROOT,
+        recipe.SLUG,
+        "analyse",
+        inputs=inputs,
+        run_id=run_id,
+        operation="prepare-test-inputs",
+        configuration=recipe.test_configuration(),
+    ) as run:
+        snapshots = {}
+        for training, cfg in zip(sources, configs, strict=True):
+            label = recipe.target_label(cfg["rate_target_hz"])
+            selected = {}
+            for kind in ("coba", "ping"):
+                rows = [
+                    r
+                    for r in controls
+                    if r["cell_name"] == cfg[kind + "_cell"]
+                    and r["seed"] == cfg["seed"]
+                ]
+                if len(rows) != 1:
+                    raise ValueError("Missing unique matched TR02 test control")
+                row = rows[0]
+                if (
+                    row["evaluation_partition"] != "official_mnist_test"
+                    or row["evaluation_samples"] != 1000
+                    or row["checkpoint_role"] != "final_epoch"
+                ):
+                    raise ValueError(
+                        "Baseline is not the final-checkpoint 1000-image test evaluation"
+                    )
+                selected[kind] = dict(
+                    accuracy_pct=row["final_acc"],
+                    e_rate_hz=row["rate_e"],
+                    seed=row["seed"],
+                    samples=row["evaluation_samples"],
+                    cell_name=row["cell_name"],
+                )
+            for prefix in (
+                "final.checkpoint",
+                "teacher/start",
+                "teacher.bundle",
+                "network.bundle",
+            ):
+                training.restore_bundle(prefix, run.export / label / prefix)
+            snapshots[label + "/teacher"] = ["start"]
+            cases.append(
+                dict(
+                    label=label,
+                    training=training.reference,
+                    configuration=cfg,
+                    controls=selected,
+                )
+            )
+        write_json(
+            run.export / "test-inputs.json",
+            dict(
+                protocol=recipe.test_configuration(),
+                cases=cases,
+                baseline=baseline.reference,
+                original_bank=original,
+            ),
+        )
+        run.record["scientific_artifacts"] = {"snapshot_stages": snapshots}
+        run.record["execution"].update(
+            no_simulation=True, elapsed_seconds=time.perf_counter() - started
+        )
+    return run.run_id
+
+
+def validate_test_evaluation(evaluated, computations):
+    if evaluated.record["execution"]["operation"] != "test-final-checkpoints":
+        raise ValueError("Expected final-checkpoint test evaluation")
+    package = source_run(
+        ROOT / ".pingstore",
+        evaluated.record["inputs"]["test_inputs"]["run_id"],
+        reference=evaluated.record["inputs"]["test_inputs"],
+        experiment=recipe.SLUG,
+        stage="analyse",
+    )
+    spec = json.loads(package.file("test-inputs.json").read_text())
+    results = json.loads(evaluated.file("test-results.json").read_text())
+    protocol = recipe.test_configuration()
+    if results["protocol"] != protocol or spec["protocol"] != protocol:
+        raise ValueError("Test protocol changed")
+    expected = {
+        recipe.target_label(c.record["execution"]["configuration"]["rate_target_hz"]): c
+        for c in computations
+    }
+    if len(results["cases"]) != 6 or {c["label"] for c in results["cases"]} != set(
+        expected
+    ):
+        raise ValueError("Incomplete test grid")
+    with np.load(evaluated.file("test-subset.npz")) as data:
+        ids = data["indices"]
+        labels = data["labels"]
+        features = data["features"]
+        np.testing.assert_array_equal(
+            ids, np.random.RandomState(42).choice(10000, 1000, replace=False)
+        )
+        if labels.shape != (1000,) or features.shape != (1000, 784):
+            raise ValueError("Invalid test dataset")
+    packages = {c["label"]: c for c in spec["cases"]}
+    cases = []
+    reference_hashes = None
+    for row in results["cases"]:
+        label = row["label"]
+        training = expected[label]
+        cfg = training.record["execution"]["configuration"]
+        entry = packages[label]
+        if (
+            row["training"] != training.reference
+            or entry["training"] != training.reference
+            or row["checkpoint_epoch"] != cfg["epochs"]
+            or row["target_hz"] != cfg["rate_target_hz"]
+        ):
+            raise ValueError("Test checkpoint provenance changed")
+        with np.load(evaluated.file(label, "measurements.npz")) as data:
+            scores = data["scores"]
+            counts = data["e_counts"]
+        if (
+            scores.shape != (1000, 10)
+            or counts.shape != (1000, cfg["n_e"])
+            or not np.isfinite(scores).all()
+            or not np.isfinite(counts).all()
+            or np.any(counts < 0)
+        ):
+            raise ValueError("Invalid test measurements")
+        correct = int((scores.argmax(-1) == labels).sum())
+        accuracy = 100 * correct / 1000
+        rate = float(counts.mean() / (cfg["duration_ms"] / 1000))
+        if correct != row["correct"] or row["samples"] != 1000:
+            raise ValueError("Test sample accounting changed")
+        np.testing.assert_allclose(
+            [accuracy, rate], [row["accuracy_pct"], row["e_rate_hz"]], rtol=1e-6
+        )
+        with (
+            np.load(evaluated.file(label, "dataset.npz")) as data,
+            np.load(evaluated.file(label, "calibration.npz")) as cal,
+        ):
+            np.testing.assert_array_equal(data["ids"], ids)
+            np.testing.assert_array_equal(data["labels"], labels)
+            np.testing.assert_array_equal(data["features"], features)
+            mean, sd = poisson_expected_moments(
+                data["poisson_rate_hz"], data["amplitude"], cfg
+            )
+            np.testing.assert_allclose(mean, cal["target_mean"], rtol=1e-6, atol=1e-10)
+            np.testing.assert_allclose(sd, cal["target_sd"], rtol=1e-6, atol=1e-10)
+            hashes = []
+            rng = torch.Generator().manual_seed(protocol["encoder_seed"])
+            for start in range(0, 1000, protocol["batch_size"]):
+                np.testing.assert_array_equal(
+                    data["test_rng_states"][start // 64], rng.get_state().numpy()
+                )
+                images = torch.from_numpy(features[start : start + 64]).float() / 255
+                drive = sim.encode_images_poisson(
+                    images,
+                    cfg["steps"],
+                    cfg["dt_ms"],
+                    cfg["input_rate_hz"],
+                    generator=rng,
+                )
+                hashes.append(digest(drive.numpy()))
+            if hashes != row["sensory_sha256"]:
+                raise ValueError("Test sensory inputs changed")
+            if reference_hashes is not None and hashes != reference_hashes:
+                raise ValueError("Unpaired test sensory inputs")
+            reference_hashes = hashes
+        cases.append(
+            dict(
+                target_hz=row["target_hz"],
+                test=dict(accuracy_pct=accuracy, e_rate_hz=rate),
+                controls=entry["controls"],
+                training=training.reference,
+            )
+        )
+    evaluated.check_unchanged()
+    package.check_unchanged()
+    return sorted(cases, key=lambda c: recipe.RATE_TARGETS_HZ.index(c["target_hz"]))
+
+
+def analyse(identity, run_id=None, *, raster_source=None, test_source=None):
     start = time.perf_counter()
     identities = [identity] if isinstance(identity, str) else list(identity)
     computations = [
@@ -1016,6 +1223,13 @@ def analyse(identity, run_id=None, *, raster_source=None):
                     )
                 )
         results["sweep"] = cases
+    if test_source:
+        evaluated = source_run(
+            ROOT / ".pingstore", test_source, experiment=recipe.SLUG, stage="compute"
+        )
+        results["test_frontier"] = validate_test_evaluation(evaluated, computations)
+        results["test_protocol"] = recipe.test_configuration()
+        inputs["test_evaluation"] = evaluated
     if raster_source:
         recorded = source_run(
             ROOT / ".pingstore",
@@ -1059,5 +1273,23 @@ if __name__ == "__main__":
     )
     parser.add_argument("--run-id")
     parser.add_argument("--raster-source")
+    parser.add_argument("--test-source")
+    parser.add_argument("--prepare-test-inputs", action="store_true")
+    parser.add_argument(
+        "--baseline-source",
+        help="retained TR02 test analysis; no new baseline inference",
+    )
     args = parser.parse_args()
-    analyse(args.source, args.run_id, raster_source=args.raster_source)
+    if args.prepare_test_inputs:
+        if not args.baseline_source or args.test_source or args.raster_source:
+            parser.error(
+                "Preparing test inputs requires only sources and --baseline-source"
+            )
+        prepare_test_inputs(args.source, args.baseline_source, args.run_id)
+    else:
+        analyse(
+            args.source,
+            args.run_id,
+            raster_source=args.raster_source,
+            test_source=args.test_source,
+        )
