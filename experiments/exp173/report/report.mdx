@@ -1,0 +1,60 @@
+---
+id: exp173
+title: "PING Inhibitory-Pool Size"
+author: "Eoin Murray"
+created_at: "2026-11-10T10:55:55Z"
+updated_at: "2026-11-10T12:01:02Z"
+description: "Frozen TR02 (no rate penalty) PING firing rates and rasters under compensated inhibitory-pool reduction."
+collection: ["experiments"]
+tags: ["data"]
+inputs: ["exp173"]
+thumbnail: rasters.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp173', { allowUnavailable: true });
+export const cfg = data?.configuration;
+
+## Abstract
+
+{data ? <p>A frozen TR02 (no rate penalty) PING network was evaluated at {cfg.pool_sizes.join(', ')} inhibitory neurons, including its original {cfg.original_n_i}-neuron pool. Excitatory population size and trained sensory/readout weights were fixed. I→E weights were multiplied by the original-to-retained pool-size ratio; E→I strengths were unchanged. For one identical digit-zero presentation, E firing rates ranged from {round(Math.min(...data.rates.map(row => row.E.mean_hz)), 2)} to {round(Math.max(...data.rates.map(row => row.E.mean_hz)), 2)} Hz. This is one trained network and one nested inhibitory-subset realization; the comparison measures compensated pool reduction.</p> : <p>No completed evidence is selected.</p>}
+
+## Results
+
+<RunFigure report="exp173" experiment="exp173" file="rasters.svg" number={1} id="fig-rasters" alt="Four matched-input E/I rasters at different inhibitory-pool sizes." allowUnavailable={true}>
+  (A–D) One identical digit-zero input at each inhibitory-pool size, in ascending
+  order. The image is the first digit zero in source-validation order (index
+  {cfg ? String(cfg.source_validation_index) : 'unavailable'}), encoded with the first
+  source-validation encoder seed. Every E/I spike is a dot: black E below red I.
+  The neuron axis retains the same scale across panels; unoccupied I rows indicate
+  neurons removed from that condition. Smaller pools use nested subsets of original
+  I neurons, renumbered locally. The original control preserves source neuron order.
+  All panels cover the full {cfg ? cfg.duration_ms : 'unavailable'} ms presentation
+  from fresh neuronal/synaptic state, with no burn-in. Firing rates in Figure 2
+  are measured from these same single-image rasters.
+</RunFigure>
+
+<RunFigure report="exp173" experiment="exp173" file="firing-rates.svg" number={2} id="fig-firing-rates" alt="Three panels showing population spike rates, test accuracy and E-to-I/I-to-E weight multipliers against inhibitory-pool size." allowUnavailable={true}>
+  (A) Population-wide spike rates from the exact four digit-zero trials in Figure 1:
+  E black, I red and total E+I cyan. Rates divide spike counts by realised trial
+  duration in seconds, summing across neurons; readout spikes are excluded. Each
+  trial starts from fresh state and reuses the same hash-checked input array.
+  (B) Accuracy on the same {cfg ? cfg.accuracy_images.toLocaleString() : 'unavailable'}
+  official MNIST test images at every size, sampled uniformly without replacement
+  using seed {cfg ? String(cfg.accuracy_sample_seed) : 'unavailable'}, without class
+  stratification. The ordered image subset matches Manuscript Figure 3D's
+  post-training evaluation protocol. One matched Poisson draw per image uses encoder
+  seed {cfg ? String(cfg.accuracy_encoder_seed) : 'unavailable'} and batches of
+  {cfg ? cfg.accuracy_batch_size : 'unavailable'}. Classification takes the largest
+  trial-mean pre-reset readout voltage. These accuracy trials are separate from
+  the digit-zero spike-rate probe. Results use one trained checkpoint, with no
+  retraining; no across-training-seed uncertainty is estimated.
+  (C) Per-connection strength multipliers relative to the original network:
+  E→I black, I→E red. E→I weights remain unchanged; retained I→E weights are
+  multiplied by original I-pool size divided by retained size. This compensates
+  nominal summed inhibition for equal I activity, without guaranteeing matched
+  conductance or dynamics. All panels share the I-pool-size axis; lines connect
+  measured sizes. One trained network and one nested inhibitory-subset realization
+  are shown; no across-seed uncertainty is estimated.
+</RunFigure>

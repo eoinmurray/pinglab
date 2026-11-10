@@ -1,0 +1,17 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp173', { allowUnavailable: true });
+
+## A. Native architectures
+
+{(data?.configuration.pool_sizes ?? []).map((size, index) => <RunFigure report="exp173" experiment="exp173" file={`circuit-i${size}.svg`} number={`A${index + 1}`} id={`fig-circuit-i${size}`} alt={`Native architecture with ${size} inhibitory neurons.`} allowUnavailable={true}>
+  Native compiled circuit at {size} I neurons. All conditions retain the same
+  sensory input, E population and spiking readout. Executed weights are preserved
+  in the corresponding simulation-start snapshot; diagram arrows indicate the
+  compiled pathways. No training or fitted coupling search was performed.
+</RunFigure>)}
+
+## B. Parameters
+
+<ParameterTable />
