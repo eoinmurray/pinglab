@@ -317,17 +317,6 @@ def used_window_configuration():
     )
 
 
-def representative_configuration(reference):
-    """Extend only the displayed seed-186 trial; retain the circuit and drive rates."""
-    cfg = copy.deepcopy(reference)
-    cfg.update(duration_ms=5000.0, switch_ms=2500.0, seeds=[186])
-    cfg["stability_search"]["windows_ms"] = [[250.0, 2400.0], [2750.0, 4900.0]]
-    cfg["windows_ms"] = [[1950.0, 2400.0], [4450.0, 4900.0]]
-    validate_inputs(cfg)
-    validate_weights(cfg)
-    return cfg
-
-
 def contrast_rate_profiles(cfg, ratio, swap=False):
     """Two epochs of spatial rates: attended Gaussian excess is ratio times larger."""
     if not np.isfinite(ratio) or ratio < 1:

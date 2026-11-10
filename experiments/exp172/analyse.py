@@ -2010,8 +2010,6 @@ def used_window_analysis_run(computed, run_id=None):
         method="All observed sender packets deleted on their native C E pathway. Persistent effect is the minimum of own-pattern and own-minus-competing-pattern count-amplitude losses over one and two fixed baseline C cycles, normalized per cycle. Shade phase bins with >=3 packets and median effect >=half the positive supported peak.",
         limitation="Used transmission phases in one saved trial, not a universal receptive gate. Sparse bins are unmeasured, not proven inaccessible. Packets and cycle states are correlated; leave-one-packet-out effects include recurrent competition. No dominance labels select packets or shaded phases.",
     )
-    if "reference_trial_compute" in plan:
-        measured["reference_trial_compute"] = plan["reference_trial_compute"]
     measured["sensitivity"] = [
         dict(
             phase_bin_count=bins,
@@ -2061,56 +2059,6 @@ def used_window_analysis_run(computed, run_id=None):
     return run.run_id
 
 
-def representative_analysis_run(computed, run_id=None):
-    started = perf_counter()
-    descriptor = json.loads(computed.file("representative-trial.json").read_text())
-    trial = descriptor["trial_id"]
-    cfg = json.loads(computed.file(trial, "configuration.json").read_text())
-    with np.load(computed.file(trial, "spikes.npz")) as z:
-        spikes = dict(z)
-    assert all(
-        len(values) == round(cfg["duration_ms"] / cfg["dt_ms"])
-        for values in spikes.values()
-    )
-    assert all(np.isin(values, [0, 1]).all() for values in spikes.values())
-    ref = computed.record["inputs"]["reference_compute"]
-    prior = source_run(
-        REPO / ".pingstore",
-        ref["run_id"],
-        experiment="exp172",
-        stage="compute",
-        reference=ref,
-    )
-    with np.load(prior.file(descriptor["original_trial"], "spikes.npz")) as old:
-        stop = round(descriptor["prefix_verified_ms"] / cfg["dt_ms"])
-        for key in old.files:
-            np.testing.assert_array_equal(spikes[key][:stop], old[key][:stop])
-    cycle_metrics = cycle_selection_metrics(
-        spikes, cfg, **cycle_analysis_configuration()
-    )
-    record = json.loads(computed.file("summary.json").read_text())["trials"][0]
-    with stage_run(
-        REPO,
-        "exp172",
-        "analyse",
-        run_id=run_id,
-        inputs={"compute": computed},
-        configuration=dict(
-            method="five-second representative trial; native prefix and cycle decoder"
-        ),
-    ) as run:
-        dump(
-            run.export / "results.json",
-            dict(
-                representative=record,
-                cycle_selection={trial: cycle_metrics},
-                prefix_verified_ms=descriptor["prefix_verified_ms"],
-            ),
-        )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
-    return run.run_id
-
-
 def main(source, run_id=None):
     started = perf_counter()
     settings = cycle_analysis_configuration()
@@ -2121,8 +2069,6 @@ def main(source, run_id=None):
         stage="compute",
     )
     cfg = computed.record["execution"]["configuration"]
-    if cfg.get("stage_mode") == "representative_trial":
-        return representative_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "used_window":
         return used_window_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "probe_window":

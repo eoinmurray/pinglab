@@ -990,63 +990,6 @@ def compute_probe_window(source_id, run_id=None):
     return run.run_id
 
 
-def compute_representative(source_id, run_id=None):
-    """Run the displayed seed for five seconds with its cue switch at 2.5 s."""
-    started = perf_counter()
-    torch.set_num_threads(1)
-    source = source_run(
-        REPO / ".pingstore", source_id, experiment="exp172", stage="compute"
-    )
-    prior = json.loads(source.file("phase-inhibition-plan.json").read_text())[
-        "trial_id"
-    ]
-    reference = json.loads(source.file(prior, "configuration.json").read_text())
-    cfg = recipe.representative_configuration(reference)
-    item = dict(reference["trial"], id="representative-seed186-5s", seed=186)
-    parameters = NetworkSnapshot.read(
-        source.file(prior, "start/snapshot.json")
-    ).load_parameters()
-    with stage_run(
-        REPO,
-        "exp172",
-        "compute",
-        run_id=run_id,
-        inputs={"reference_compute": source},
-        configuration=dict(cfg, stage_mode="representative_trial"),
-    ) as run:
-        record = execute(cfg, parameters, item, run.export, diagram=True)
-        with (
-            np.load(source.file(prior, "spikes.npz")) as original,
-            np.load(run.export / item["id"] / "spikes.npz") as fresh,
-        ):
-            stop = round(min(reference["switch_ms"], cfg["switch_ms"]) / cfg["dt_ms"])
-            for key in original.files:
-                np.testing.assert_array_equal(original[key][:stop], fresh[key][:stop])
-        fresh_parameters = NetworkSnapshot.read(
-            run.export / item["id"] / "start/snapshot.json"
-        ).load_parameters()
-        for key in parameters:
-            torch.testing.assert_close(
-                parameters[key], fresh_parameters[key], rtol=0, atol=0
-            )
-        dump(
-            run.export / "representative-trial.json",
-            dict(
-                trial_id=item["id"],
-                reference_trial=item["id"],
-                seed=186,
-                prefix_verified_ms=stop * cfg["dt_ms"],
-                original_trial=prior,
-            ),
-        )
-        dump(run.export / "summary.json", dict(trials=[record]))
-        run.record["scientific_artifacts"] = dict(
-            snapshot_stages={item["id"]: ["start"]}
-        )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
-    return run.run_id
-
-
 def compute_used_window(source_id, run_id=None):
     """Delete each naturally occurring sender packet on its native path to C."""
 
@@ -1057,13 +1000,7 @@ def compute_used_window(source_id, run_id=None):
     source = source_run(
         REPO / ".pingstore", source_id, experiment="exp172", stage="compute"
     )
-    descriptor_name = (
-        "representative-trial.json"
-        if source.record["execution"]["configuration"].get("stage_mode")
-        == "representative_trial"
-        else "phase-inhibition-plan.json"
-    )
-    descriptor = json.loads(source.file(descriptor_name).read_text())
+    descriptor = json.loads(source.file("phase-inhibition-plan.json").read_text())
     trial = descriptor["trial_id"]
     cfg = json.loads(source.file(trial, "configuration.json").read_text())
     settings = recipe.used_window_configuration()
@@ -1213,7 +1150,6 @@ def compute_used_window(source_id, run_id=None):
                 reference_trial=descriptor["reference_trial"],
                 reference_seed=cfg["trial"]["seed"],
                 reference_background=source.record["inputs"]["reference_compute"],
-                reference_trial_compute=source.reference,
             ),
         )
         dump(
@@ -1239,10 +1175,7 @@ def compute(
     phase_inhibition_source=None,
     probe_source=None,
     used_window_source=None,
-    representative_source=None,
 ):
-    if representative_source is not None:
-        return compute_representative(representative_source, run_id)
     if used_window_source is not None:
         return compute_used_window(used_window_source, run_id)
     if probe_source is not None:
@@ -1360,7 +1293,6 @@ if __name__ == "__main__":
     modes.add_argument("--phase-inhibition-source")
     modes.add_argument("--probe-source")
     modes.add_argument("--used-window-source")
-    modes.add_argument("--representative-source")
     parser.add_argument("--arrival-candidate-source")
     parser.add_argument("--contrast-extend-source")
     parser.add_argument("--parallel", action="store_true")

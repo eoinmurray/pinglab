@@ -5,8 +5,7 @@ import { formatTableNumber as n } from '../../../site/src/lib/table-number';
 const data = await reportData('exp172', { allowUnavailable: true });
 const evidence = data ? await reportSnapshots('exp172', {
   snapshots: { trial: `${data.selection.trial_id}/start/snapshot.json` },
-  analysisInput: data.selection.source_role === 'representative_compute' ? 'representative_analyse' : 'analyse',
-  computeInput: data.selection.source_role === 'representative_compute' ? 'representative_compute' : 'compute', allowUnavailable: true,
+  analysisInput: 'analyse', computeInput: 'compute', allowUnavailable: true,
 }) : undefined;
 const net = evidence?.snapshots.trial?.network;
 const cfg = evidence?.configuration;
@@ -58,7 +57,7 @@ const matrix = net && data ? sources.map(source => [math(source.id), ...targets.
 })]) : [];
 ---
 <Table headers={['Parameter','Spatial relay']} groups={groups} number="B1" id="parameters" label="Recorded spatial relay parameters">
-  E/I paired values apply to every circuit. Input and population identifiers remain exact. These settings describe the selected trial in Figures 2–3 (input seed {data?.selection?.seed ?? 'unavailable'}). The earlier sweeps retain their separately recorded duration and cue-switch protocol, with the same circuit weights.
+  E/I paired values apply to every circuit. Input and population identifiers remain exact. These settings describe the original seed-185 trial; Figure 2 uses input seed {data?.figure2_selection?.seed ?? 'unavailable'} with the same parameters and weights.
 </Table>
 <Table headers={['Source ↓ / target →',...targets.map(p => math(p.id))]} rows={matrix} rowHeaders number="B2" label="Executed source-to-target connectivity">
   Cells show the mean saved weight per matrix entry in µS, including zero entries, calculated as the mean incoming sum divided by the number of source rows. These are measured statistics of the retained conductance arrays loaded over the compiled initializer. Intrapopulation self-connections are disabled where the native graph disallows autapses; zero entries also include inherited masks and disabled pathways. A/B cue projection gains are complementary, switching at the recorded cue-switch time. Absent means no projection exists.
