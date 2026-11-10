@@ -285,3 +285,31 @@ def test_worker_restores_reserved_identity_before_compute(deployment, monkeypatc
     args.arguments[-1] = "exp999-r999-compute"
     with pytest.raises(ValueError, match="reserved run"):
         hpc.plan(args, repo)
+
+
+def test_reused_environment_is_lock_checked_without_installation(deployment):
+    import sys
+
+    repo, args = deployment
+    (repo / "uv.lock").write_text("fixture lock")
+    environment = repo.parent / "old repo's/.venv"
+    (environment / "bin").mkdir(parents=True)
+    (environment / "bin/python").symlink_to(sys.executable)
+    lock = environment.parent / "uv.lock"
+    lock.write_text("fixture lock")
+    args.environment = str(environment)
+    payload = hpc.plan(args, repo)
+    script = hpc.job_script(payload)
+    assert "uv sync" not in script
+    assert "uv pip check" in script
+    assert "environment lock differs" in script
+    assert "export PYTHONPATH=" in script
+    assert payload["environment_lock_sha256"] == hpc.file_sha256(repo / "uv.lock")
+    subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+    check = next(line for line in script.splitlines() if " -c " in line)
+    subprocess.run(["bash", "-c", check], check=True)
+    lock.write_text("changed lock")
+    assert subprocess.run(["bash", "-c", check], capture_output=True).returncode != 0
+    args.environment = "relative/.venv"
+    with pytest.raises(ValueError, match="environment"):
+        hpc.plan(args, repo)

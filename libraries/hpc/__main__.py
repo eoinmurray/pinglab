@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 
 from pingstore.library import (
     PingstoreError,
+    file_sha256,
     initialize_layout,
     load_json,
     source_run,
@@ -72,6 +73,11 @@ def plan(args, repo=REPO):
     if not re.fullmatch(r"(?:[0-9]+-)?[0-9]+:[0-5][0-9]:[0-5][0-9]", args.walltime):
         raise ValueError("walltime must be [days-]hours:minutes:seconds")
     arguments = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
+    environment = getattr(args, "environment", None)
+    if environment:
+        path = PurePosixPath(environment)
+        if not path.is_absolute() or ".." in path.parts or str(path) == "/":
+            raise ValueError("environment must be an absolute existing virtualenv path")
     reservation = None
     if identity := getattr(args, "reserved_run", None):
         reservation = stage_reservation(
@@ -127,6 +133,8 @@ def plan(args, repo=REPO):
         inputs=args.input,
         include_input_ancestry=not getattr(args, "direct_inputs_only", False),
         dataset_cache=getattr(args, "dataset_cache", None),
+        environment=environment,
+        environment_lock_sha256=file_sha256(repo / "uv.lock") if environment else None,
         command=command,
     )
 
@@ -141,6 +149,19 @@ def job_script(payload):
             + shlex.quote(payload["dataset_cache"])
             + "\n"
         )
+    launch = "uv sync --frozen\nexec .venv/bin/python -m libraries.hpc worker ../deployment.json"
+    if environment := payload.get("environment"):
+        python = shlex.quote(str(PurePosixPath(environment) / "bin/python"))
+        lock = shlex.quote(str(PurePosixPath(environment).parent / "uv.lock"))
+        check = shlex.quote(
+            "import hashlib,sys; assert hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest() == sys.argv[2], 'environment lock differs from deployment'"
+        )
+        launch = (
+            f"{python} -c {check} {lock} {shlex.quote(payload['environment_lock_sha256'])}\n"
+            f"uv pip check --python {python}\n"
+            f'export PYTHONPATH="$PWD:$PWD/libraries${{PYTHONPATH:+:$PYTHONPATH}}"\n'
+            f"exec {python} -m libraries.hpc worker ../deployment.json"
+        )
     return f"""#!/bin/bash
 set -euo pipefail
 cd {directory}
@@ -152,8 +173,7 @@ export MKL_NUM_THREADS=$OMP_NUM_THREADS
 export SNNLAB_DEVICE={"cuda" if payload["gpus"] else "cpu"}
 export PINGLAB_NO_SYNC=1
 export PATH="$HOME/.local/bin:$PATH"
-{dataset_environment}uv sync --frozen
-exec .venv/bin/python -m libraries.hpc worker ../deployment.json
+{dataset_environment}{launch}
 """
 
 
@@ -309,6 +329,10 @@ def main(argv=None):
     )
     launch.add_argument(
         "--reserved-run", help="transfer an existing local stage reservation"
+    )
+    launch.add_argument(
+        "--environment",
+        help="reuse an existing locked virtualenv; never sync or copy it",
     )
     launch.add_argument("--live", action="store_true")
     launch.add_argument(

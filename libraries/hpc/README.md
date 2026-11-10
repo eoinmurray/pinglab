@@ -23,6 +23,10 @@ uv run python -m libraries.hpc deploy \
    Slurm allocation. Workers load the maintained Wilkes3 module stack. SL2 selects
    `OLEARY-SL2-GPU` / `gpu1`; SL3 selects `OLEARY-SL3-GPU` / `gpu2`, both on `ampere`.
    GPU count, CPU threads, memory and walltime are explicit resource options.
+   `--environment /existing/repo/.venv` reuses a complete environment without
+   installing or copying dependencies. Its adjacent `uv.lock` must match the
+   submitted lock; dependency consistency is checked inside the allocation.
+   Deployment sources take precedence over editable project paths in that environment.
    `--gpus 0` selects CPU execution within this same partition.
 4. Choose `--stage compute`, `--stage analyse` or `--stage present`. Arguments after
    `--` are passed unchanged to that entrypoint. Scientific configuration remains
