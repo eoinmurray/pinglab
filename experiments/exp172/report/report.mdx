@@ -3,7 +3,7 @@ id: exp172
 title: "Spatial Gaussian Selective Relay"
 author: "Eoin Murray"
 created_at: "2026-11-04T17:24:22Z"
-updated_at: "2026-11-10T14:53:44Z"
+updated_at: "2026-11-10T16:10:44Z"
 description: "A rate cue selects between competing spatial Gaussian patterns in an A/B → C spiking circuit."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.32.1"]
@@ -60,9 +60,19 @@ export const backgroundHighRate = data?.background_sweep?.settings.rates_hz.at(-
 
 ## Mechanism
 
-<RunFigure report="exp172" experiment="exp172" file="relative-phase.svg" number={3} id="fig-relative-phase" alt="Unwrapped and wrapped sender-minus-C phase, with dots marking cycles dominated by each sender’s spatial pattern." allowUnavailable={true}>
-  Same trial as Figure 2. Sender-minus-C phase in cycles: (A) unwrapped; (B) wrapped. A black, B red. Lines sample each C E peak; dots mark the dominant spatial pattern in C. Grey: measured used-transmission window. Dashed line: cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms. Phase is peak-interpolated, without delay correction; wrapped traces break at ±0.5 cycles.
+<RunFigure report="exp172" experiment="exp172" file="relative-phase.svg" number={3} id="fig-relative-phase" alt="Unwrapped and wrapped sender-minus-C phase above a local phase-locking time course; dots mark spatial dominance." allowUnavailable={true}>
+  Same trial as Figure 2. Sender-minus-C phase in cycles: (A) unwrapped; (B) wrapped. (C) Local phase locking E(t), using the latest {figure2?.entrainment ? figure2.entrainment.window_cycles : 'unavailable'} C-cycle samples. A black, B red. Lines sample each C E peak; dots mark the dominant spatial pattern in C. Grey: measured used-transmission window. Dashed line: cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms. Phase is peak-interpolated, without delay correction; wrapped traces break at ±0.5 cycles.
 </RunFigure>
+
+<p><strong>Local phase locking, $E(t)$</strong></p>
+
+<span id="eq-local-phase-locking" />
+
+$$
+E_s(t_k)=\left|\frac{1}{m}\sum_{j=k-m+1}^{k}\exp\!\left(i\,2\pi\Delta\phi_{s,j}\right)\right|.
+$$
+
+<p>Here $s\in\{A,B\}$ is the sender, $t_k$ is the time of C’s $k$th excitatory peak, $\Delta\phi_{s,j}$ is the sender-minus-C phase in cycles at peak $j$, $m$ is the trailing sample count (here {figure2?.entrainment ? figure2.entrainment.window_cycles : 'unavailable'}), and $i$ is the imaginary unit. The sum includes the current sample; initial or incomplete windows are unavailable. Values near 1 mean a stable phase relationship; values near 0 mean phases spread around the cycle. This is a moving-window <a href="https://doi.org/10.1002/%28SICI%291097-0193%281999%298:4%3C194::AID-HBM4%3E3.0.CO;2-C">phase-locking value</a>, not a measure of spatial dominance or proof of causal entrainment. Integer cycle slips are invisible to it; panel A retains that information.</p>
 
 <p><strong>How the receptive phase was measured</strong></p>
 

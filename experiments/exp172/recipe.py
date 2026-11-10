@@ -292,6 +292,11 @@ def phase_plot_configuration():
     return dict(seed=186, profile_samples=241, low_inhibition_fraction=0.5)
 
 
+def entrainment_configuration():
+    """Trailing local phase-locking value, one sample per receiver cycle."""
+    return dict(window_cycles=5)
+
+
 def probe_configuration():
     """A fixed weak AMPA volley; measure net extra C E spikes within 5 ms."""
     return dict(

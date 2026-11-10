@@ -24,7 +24,10 @@ from experiments.exp172.analyse import (
     cycle_spatial_fits,
     materialise_compute,
 )
-from experiments.exp172.recipe import phase_plot_configuration
+from experiments.exp172.recipe import (
+    entrainment_configuration,
+    phase_plot_configuration,
+)
 from pingstore.library import source_run, stage_run
 
 sys.path.insert(0, str(REPO))
@@ -262,6 +265,46 @@ def relative_phases(spikes, cfg):
     return t[peaks], {c: (phases[c] - phases["C"])[peaks] for c in "AB"}
 
 
+def local_phase_locking(relative_radians, window_cycles):
+    """Causal PLV over complete trailing windows; missing phases break a window."""
+    if (
+        not isinstance(window_cycles, int)
+        or isinstance(window_cycles, bool)
+        or window_cycles < 2
+    ):
+        raise ValueError("Phase locking requires at least two cycle samples")
+    values = np.asarray(relative_radians, dtype=float)
+    if values.ndim != 1:
+        raise ValueError("Relative phases must be one-dimensional")
+    result = np.full(values.shape, np.nan)
+    if len(values) < window_cycles:
+        return result
+    windows = np.lib.stride_tricks.sliding_window_view(values, window_cycles)
+    valid = np.isfinite(windows).all(axis=1)
+    tail = result[window_cycles - 1 :]
+    tail[valid] = np.clip(np.abs(np.exp(1j * windows[valid]).mean(axis=1)), 0, 1)
+    return result
+
+
+def entrainment_evidence(spikes, cfg):
+    times, relative = relative_phases(spikes, cfg)
+    settings = entrainment_configuration()
+    return dict(
+        settings,
+        time_ms=times.tolist(),
+        values={
+            sender: [
+                float(v) if np.isfinite(v) else None
+                for v in local_phase_locking(
+                    relative[sender], settings["window_cycles"]
+                )
+            ]
+            for sender in "AB"
+        },
+        method="Trailing phase-locking value at C E peaks; full finite windows only",
+    )
+
+
 def amplitude_panel(ax, course, cfg, *, softmax_scale_hz=None):
     rows = course["points"]
     amplitudes = np.array([[r[c + "_amplitude_hz"] for c in "AB"] for r in rows])
@@ -381,8 +424,8 @@ def attention_figures(
         ax = attention_fig.add_subplot(attention_grid[0, col])
         raster_panel(ax, spikes, population, cfg)
         attention_axes.append(ax)
-    phase_fig = plt.figure(figsize=(12, 4.3), layout="constrained")
-    phase_grid = phase_fig.add_gridspec(1, 2)
+    phase_fig = plt.figure(figsize=(12, 9), layout="constrained")
+    phase_grid = phase_fig.add_gridspec(3, 1, height_ratios=[1, 1, 0.65])
     phase_axes = []
     t, relative = relative_phases(spikes, cfg)
     dominant = {
@@ -390,7 +433,10 @@ def attention_figures(
         for cycle in cycle_spatial_fits(spikes, cfg, swap)
     }
     for column, wrapped in enumerate((False, True)):
-        ax = phase_fig.add_subplot(phase_grid[0, column])
+        ax = phase_fig.add_subplot(
+            phase_grid[column, 0],
+            sharex=phase_axes[0] if phase_axes else None,
+        )
         phase_axes.append(ax)
         for c, color in zip("AB", colors, strict=False):
             values = relative[c] / (2 * np.pi)
@@ -416,10 +462,11 @@ def attention_figures(
         ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
         ax.set(
             title=("Wrapped" if wrapped else "Unwrapped") + " phase per C cycle",
-            xlabel="Time (ms)",
+            xlabel="",
             ylabel="Sender − C phase (cycles)",
             xlim=(0, cfg["duration_ms"]),
         )
+        ax.tick_params(axis="x", labelbottom=False)
         if wrapped:
             ax.set_ylim(-0.5, 0.5)
             shading = (
@@ -448,6 +495,26 @@ def attention_figures(
                     )
         if not wrapped:
             ax.legend(loc="upper right", fontsize=theme.SIZE_TITLE)
+    locking_ax = phase_fig.add_subplot(phase_grid[2, 0], sharex=phase_axes[0])
+    phase_axes.append(locking_ax)
+    window = entrainment_configuration()["window_cycles"]
+    for sender, color in zip("AB", colors, strict=True):
+        locking_ax.plot(
+            t,
+            local_phase_locking(relative[sender], window),
+            color=color,
+            lw=1.2,
+            label=f"{sender} − C",
+        )
+    locking_ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
+    locking_ax.set(
+        title=f"Local phase locking · trailing {window} C cycles",
+        xlabel="Time (ms)",
+        ylabel="E(t)",
+        ylim=(-0.02, 1.02),
+        xlim=(0, cfg["duration_ms"]),
+    )
+    locking_ax.legend(loc="lower right", fontsize=theme.SIZE_TITLE)
     return [
         ("rasters", attention_fig, attention_axes),
         ("relative-phase", phase_fig, phase_axes),
@@ -514,6 +581,7 @@ def render(data, output, argv=None):
         figure.savefig(output / f"{name}.png", dpi=240)
         figure.savefig(output / f"{name}.svg")
         plt.close(figure)
+    selection_metadata["entrainment"] = entrainment_evidence(spikes, cfg)
     return selection_metadata
 
 
@@ -988,6 +1056,7 @@ def render_phase_example(
         maximum_detected_interval_ms={
             p: float(np.diff(v).max() * cfg["dt_ms"]) for p, v in peaks.items()
         },
+        entrainment=entrainment_evidence(spikes, cfg),
     )
 
 
@@ -1304,6 +1373,7 @@ def present(
             seed=seed,
             figure2_seed=figure2_seed,
             phase_plot=phase_plot_configuration(),
+            entrainment=entrainment_configuration(),
             spatial_window_ms=100.0,
             spatial_hop_ms=5.0,
         ),

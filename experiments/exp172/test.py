@@ -11,6 +11,36 @@ from experiments.exp172.analyse import copy_fidelity, fit_profile, spatial_timec
 from experiments.exp172.recipe import configuration, gaussian, topographic
 
 
+def test_local_phase_locking_distinguishes_constant_phase_from_drift():
+    from experiments.exp172.present import local_phase_locking
+
+    for window in [3, 5, 10]:
+        # Integer slips preserve wrapped phase and therefore must remain invisible to PLV.
+        locked = 2 * np.pi * (0.1 + np.arange(20))
+        measured = local_phase_locking(locked, window)
+        assert np.isnan(measured[: window - 1]).all()
+        np.testing.assert_allclose(measured[window - 1 :], 1)
+        drifting = 2 * np.pi * np.arange(20) / window
+        np.testing.assert_allclose(
+            local_phase_locking(drifting, window)[window - 1 :], 0, atol=1e-14
+        )
+
+
+def test_local_phase_locking_is_causal_and_rejects_incomplete_windows():
+    from experiments.exp172.present import local_phase_locking
+
+    phases = np.array([0, 0, 0, 0, 0, np.nan, 1, 1, 1, 1, 1, 2, 3], dtype=float)
+    result = local_phase_locking(phases, 5)
+    np.testing.assert_allclose(
+        result[:8], local_phase_locking(phases[:8], 5), equal_nan=True
+    )
+    assert np.isnan(result[5:10]).all()
+    assert result[4] == pytest.approx(1) and result[10] == pytest.approx(1)
+    assert np.isnan(local_phase_locking([0, 0], 5)).all()
+    with pytest.raises(ValueError):
+        local_phase_locking(phases, 1)
+
+
 def test_relative_phase_samples_c_cycles_and_preserves_accumulated_drift():
     from experiments.exp172.present import relative_phases
 
