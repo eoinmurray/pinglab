@@ -11,6 +11,7 @@ const articleSchema = z.object({
   author: z.string(),
   description: z.string(),
   abstract: z.string().optional(),
+  sidebar: z.boolean().default(true),
   created_at: z.union([z.string().datetime({ precision: 0 }), z.string().date()]),
   updated_at: z.string().datetime({ precision: 0 }),
   collection: collectionSchema,

@@ -1,16 +1,30 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import ParameterTable from './ParameterTable.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp172', { allowUnavailable: true });
 
-## A. Network and measurements
+## Used-Transmission Measurement
 
-<RunFigure report="exp172" experiment="exp172" file="circuit.svg" number="A1" id="fig-circuit" alt="Native compiled A/B/C excitatory and inhibitory network with sensory and cue inputs." allowUnavailable={true}>
-  Native compiled architecture from the selected trial's saved bundle. E populations are black; I populations are red and placed above E. Each circuit contains 400 E and 100 I neurons; each input has 1024 channels. Sensory inputs are X; cue inputs are U. The label W with subscripts target, source denotes the corresponding executed weight matrix in the native start snapshot. Complementary gates g_A(t) and g_B(t) route the shared cue train before and after the switch. Grey sender E→C I pathways have zero executed weights. C E→E uses local Gaussian weights. Recording aliases are omitted.
+1. Use the exact seed-{data?.used_window ? data.used_window.seed : 'unavailable'} trial in Figures 2–3. Detect whole A/B excitatory volleys with the same 1-ms-smoothed peak detector and trough boundaries used for C decoding. Test every observed packet whose complete one- and two-cycle C outcome lies within a settled measurement window. No packet is selected using C’s dominant pattern.
+2. Replay the saved A/B spikes only on their existing E→C E projections, preserving native weights, delays, original sender activity and all other drive. Every unperturbed prefix, control continuation and final tail must reproduce the original spike arrays exactly. For each deletion, restore the identical native state and omit only one observed sender packet; verify unchanged sender spikes and unchanged C activity before the omitted input could arrive.
+3. Fit the existing nonnegative background and A/B spatial templates to integrated C E spike counts over one complete baseline C cycle and then over that cycle plus the next. Keep fixed baseline boundaries for both continuations. Subtract deleted-packet amplitudes from control amplitudes; divide two-cycle differences by two. For each horizon, retain both the removed sender’s own-pattern loss and its own-minus-competing-pattern loss. The persistent contribution is the minimum of these four signed differences. It is positive only if the sender supports its own spatial representation and its relative advantage at both horizons. Negative effects remain negative. Within-cycle timing shifts alone leave integrated counts unchanged; the second horizon checks persistence beyond the first cycle.
+4. Assign each packet the sender-minus-C phase plotted at the associated receiver peak, retaining native delays during execution. Divide wrapped phase into {data?.used_window ? data.used_window.settings.phase_bins : 'unavailable'} equal bins. Shade only bins with at least {data?.used_window ? data.used_window.settings.minimum_events : 'unavailable'} actual packets and a median persistent contribution at least half the positive supported peak. Bin boundaries represent finite resolution, not precise physiological thresholds. This defines strong used transmission; it does not exclude weaker contributions elsewhere.
+5. Retain every packet-level outcome, phase occupancy and signed effect. Check bin counts 12/16/24, quarter/half/three-quarter peak cutoffs, separate sender/cue summaries, leave-one-receiver-state-out stability and packet-strength-normalised effects. These are descriptive sensitivity checks on correlated states from one seed, not independent validation. Sparse phases are under-sampled, not proven dynamically inaccessible. Packet deletion measures causal contribution in the operating circuit, including recurrent competition; it is not a sufficiency test for arbitrary input pulses.
+
+## Network Diagrams
+
+<RunFigure report="exp172" experiment="exp172" file="flicker-circuit.svg" number="A1" id="fig-replay-circuit" alt="Native compiled replay architecture for the timing intervention." allowUnavailable={true}>
+  Archived timing-intervention replay circuit. The 400-channel replay_B input replaces only B_E→C_E’s source. Original B and all other pathways continue normally; all weights are unchanged. The earlier timing intervention is not displayed in the main report.
 </RunFigure>
 
-<RunFigure report="exp172" experiment="exp172" file="flicker-circuit.svg" number="A2" id="fig-replay-circuit" alt="Native compiled replay architecture for the timing intervention." allowUnavailable={true}>
-  Native replay architecture used for Figure 5. The virtual replay_B input has 400 spike channels corresponding exactly to B E neurons and replaces only the source of the existing B_E→C_E projection. The unshifted and delayed cases use this same architecture; all weight arrays remain identical to those in Figure A1 and the parameter table. The original B population and every other pathway continue running normally. Replay timing and its fixed packet window are reported in Figure 5.
+<RunFigure report="exp172" experiment="exp172" file="probe-circuit.svg" number="A2" id="fig-probe-circuit" alt="Native circuit with an additional uniform excitatory probe input to C E cells." allowUnavailable={true}>
+  Archived uniform phase-probe circuit; its response window is no longer used for Figure 3B. One input channel adds the same brief AMPA conductance to every C E cell, while the original network pathways remain active. This earlier probe used 0.05 µS conductance, a 0.75-ms AMPA time constant and a 2-ms delay; original parameters are listed below.
 </RunFigure>
 
-## B. Parameters
+<RunFigure report="exp172" experiment="exp172" file="used-window-circuit.svg" number="A3" id="fig-used-window-circuit" alt="Native circuit with recorded A/B source spikes replayed on the existing projections into C E." allowUnavailable={true}>
+  Natural-volley deletion circuit. Two 400-channel replay sources drive the original A_E→C_E and B_E→C_E projections with their exact saved spikes. Their native weights and delays are unchanged. One packet is omitted per intervention; the original A/B networks and all other pathways remain active. Controls reproduce the native trial exactly.
+</RunFigure>
+
+## Parameter Tables
 
 <ParameterTable />

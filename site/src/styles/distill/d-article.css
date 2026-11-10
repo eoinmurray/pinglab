@@ -88,8 +88,8 @@ d-article h3 {
   font-weight: 700;
   font-size: 18px;
   line-height: 1.4em;
-  margin-bottom: 1em;
-  margin-top: 2em;
+  margin-bottom: 0.5em;
+  margin-top: 1.25em;
 }
 
 @media(min-width: 1024px) {
@@ -105,6 +105,17 @@ d-article h4 {
   text-transform: uppercase;
   font-size: 14px;
   line-height: 1.4em;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+/* Grid-item margins add together instead of collapsing between blocks. */
+d-article > figure:has(+ :is(h3, h4)) {
+  margin-bottom: 0;
+}
+
+d-article > figure:has(+ :is(ul, ol)) {
+  margin-bottom: 1em;
 }
 
 d-article a {

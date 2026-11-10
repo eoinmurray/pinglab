@@ -287,6 +287,56 @@ def cycle_analysis_configuration():
     return dict(sustained_cycles=3)
 
 
+def phase_plot_configuration():
+    """Operational low-inhibition proxy, independent of decoded dominance."""
+    return dict(seed=186, profile_samples=241, low_inhibition_fraction=0.5)
+
+
+def probe_configuration():
+    """A fixed weak AMPA volley; measure net extra C E spikes within 5 ms."""
+    return dict(
+        anchor_ms=[400, 600, 800, 1000, 1500, 1700, 1900, 2100],
+        phases_cycles=np.linspace(-0.5, 0.5, 16, endpoint=False).tolist(),
+        conductance_us=0.05,
+        tau_ms=0.75,
+        delay_ms=2.0,
+        response_ms=5.0,
+        window_fraction=0.5,
+    )
+
+
+def used_window_configuration():
+    """Natural-volley deletion; require a spatial effect over one and two cycles."""
+    return dict(
+        phase_bins=16,
+        minimum_events=3,
+        window_fraction=0.5,
+        effect_tolerance=1e-6,
+        sensitivity_phase_bins=[12, 16, 24],
+        sensitivity_window_fractions=[0.25, 0.5, 0.75],
+    )
+
+
+def contrast_rate_profiles(cfg, ratio, swap=False):
+    """Two epochs of spatial rates: attended Gaussian excess is ratio times larger."""
+    if not np.isfinite(ratio) or ratio < 1:
+        raise ValueError("Contrast ratio must be finite and at least one")
+    x = np.arange(cfg["network"]["input_channels"]) / cfg["network"]["input_channels"]
+    centres = cfg["centres"][::-1] if swap else cfg["centres"]
+    rates = {}
+    for sender, centre in zip("AB", centres, strict=True):
+        g = gaussian(x, centre, cfg["spatial_sigma"])
+        bump = (cfg["spatial_mean_hz"] - cfg["spatial_baseline_hz"]) * g / g.mean()
+        rates["X_" + sender] = np.stack(
+            [
+                cfg["spatial_baseline_hz"]
+                + (ratio if sender == "AB"[epoch] else 1) * bump
+                for epoch in range(2)
+            ]
+        )
+    return rates
+
+
 def inputs(cfg, seed, cue, swap, active="AB"):
     steps = round(cfg["duration_ms"] / cfg["dt_ms"])
     n = cfg["network"]["input_channels"]
@@ -301,16 +351,44 @@ def inputs(cfg, seed, cue, swap, active="AB"):
         )
         if name not in active:
             rates["X_" + name] = np.zeros(n)
+    if "contrast_ratio" in cfg:
+        if active != "AB" or cue != 0:
+            raise ValueError("Contrast cue requires both senders and no uniform cue")
+        rates.update(contrast_rate_profiles(cfg, cfg["contrast_ratio"], swap))
     rates["X_C"] = np.full(n, cfg["background_hz"])
     rates["U"] = np.full(n, cue)
     arrays = {}
     for i, (key, hz) in enumerate(rates.items()):
         rng = np.random.default_rng([seed, 700 + i])
-        arrays[key] = (
-            rng.random((steps, 1, n), dtype=np.float32)
-            < hz[None, None, :] * cfg["dt_ms"] / 1000
-        ).astype(np.uint8)
+        uniform = rng.random((steps, 1, n), dtype=np.float32)
+        if hz.ndim == 2:
+            split = round(cfg["switch_ms"] / cfg["dt_ms"])
+            arrays[key] = np.empty((steps, 1, n), dtype=np.uint8)
+            for epoch, window in enumerate((slice(0, split), slice(split, steps))):
+                arrays[key][window] = (
+                    uniform[window] < hz[epoch][None, None, :] * cfg["dt_ms"] / 1000
+                )
+        else:
+            arrays[key] = (uniform < hz[None, None, :] * cfg["dt_ms"] / 1000).astype(
+                np.uint8
+            )
     return arrays, rates
+
+
+def arrival_distribution_configuration():
+    """Cycle-normalised arrival histograms for the exact Fig1/Fig6 trials."""
+    return dict(
+        rate_smoothing_ms=1.0,
+        minimum_peak_spacing_ms=15.0,
+        peak_prominence_fraction=0.1,
+        histogram_bins=24,
+        smoothing_bins=1.0,
+        profile_samples=240,
+        reference="C inhibitory conductance minimum",
+        gate_threshold=None,
+        seed=185,
+        cue_hz=3.0,
+    )
 
 
 def background_sweep_configuration():
@@ -337,6 +415,79 @@ def background_sweep_plan(settings):
         )
         for seed in settings["seeds"]
         for rate in settings["rates_hz"]
+    ]
+
+
+def cue_sweep_configuration():
+    """Cue dose response at the best joint background-screen setting."""
+    return dict(
+        seeds=[185, 186, 187, 188, 189],
+        rates_hz=[float(v) for v in range(7)],
+        reference_cue_hz=3.0,
+        selection="Highest mean S across attend A/B, then lowest mean F, then lowest mean observed latency",
+        spread="sample standard deviation across input seeds",
+    )
+
+
+def best_background(summary):
+    """Rank both attention conditions equally; disclose selection on these seeds."""
+    rates = sorted({row["background_hz"] for row in summary})
+    scores = []
+    for rate in rates:
+        rows = [row for row in summary if row["background_hz"] == rate]
+        if sorted(row["attended"] for row in rows) != ["A", "B"]:
+            raise ValueError("Expected attend-A and attend-B summaries")
+        scores.append(
+            (
+                -np.mean([row["S"]["mean"] for row in rows]),
+                np.mean([row["F"]["mean"] for row in rows]),
+                np.mean([row["latency_cycles"]["mean"] for row in rows]),
+                rate,
+            )
+        )
+    return float(min(scores)[-1])
+
+
+def cue_sweep_plan(settings):
+    return [
+        dict(
+            id=f"cue-seed{seed}-rate{rate:g}",
+            seed=seed,
+            cue_hz=rate,
+            swap=False,
+            active="AB",
+            background_hz=settings["background_hz"],
+        )
+        for seed in settings["seeds"]
+        for rate in settings["rates_hz"]
+    ]
+
+
+def contrast_sweep_configuration():
+    return dict(
+        seeds=[185, 186, 187, 188, 189],
+        rates_hz=[1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0],
+        example_ratios=[1.25, 3.0],
+        cue_hz=0.0,
+        reference_ratio=1.0,
+        definition="Attended/unattended Gaussian excess-amplitude ratio above a fixed uniform baseline",
+        spread="sample standard deviation across input seeds",
+    )
+
+
+def contrast_sweep_plan(settings):
+    return [
+        dict(
+            id=f"contrast-seed{seed}-ratio{ratio:g}",
+            seed=seed,
+            contrast_ratio=ratio,
+            cue_hz=0.0,
+            background_hz=settings["background_hz"],
+            swap=False,
+            active="AB",
+        )
+        for seed in settings["seeds"]
+        for ratio in settings["rates_hz"]
     ]
 
 
@@ -381,7 +532,7 @@ def shifted_packet(spikes, dt_ms, settings):
     return result
 
 
-def author_network(cfg, *, replay_sender=None):
+def author_network(cfg, *, replay_sender=None, probe=None, replay_both=False):
     n = cfg["network"]
     net = lang.Network("spatial_gaussian_relay", dt=n["dt_ms"] * lang.ms)
     source_weights = cfg["incoming_weights_us"]
@@ -465,6 +616,21 @@ def author_network(cfg, *, replay_sender=None):
             unit="spike",
         )
     )
+    replay_sources = (
+        {
+            c: net.input(
+                "replay_" + c,
+                shape=("time", "batch", n["populations"]["E"]["size"]),
+                signal_type="spikes",
+                unit="spike",
+            )
+            for c in "AB"
+        }
+        if replay_both
+        else {}
+    )
+    if replay_both and replay_sender is not None:
+        raise ValueError("Choose single-sender or dual-sender replay")
     for c in "AB":
         cue = net.input(
             "U_" + c,
@@ -486,11 +652,27 @@ def author_network(cfg, *, replay_sender=None):
         )
         for p in "EI":
             connect(
-                replay if replay_sender == c and p == "E" else cells[c]["E"].spikes,
+                (replay_sources[c] if replay_both else replay)
+                if p == "E" and (replay_both or replay_sender == c)
+                else cells[c]["E"].spikes,
                 cells["C"][p].excitatory,
                 c + "_E_to_C_" + p,
                 cfg["reference_coupling_us"],
                 n["cross"]["tau_ms"],
                 delay=n["cross"]["delay_ms"],
             )
+    if probe is not None:
+        source = net.input(
+            "probe", shape=("time", "batch", 1), signal_type="spikes", unit="spike"
+        )
+        net.connect(
+            source,
+            cells["C"]["E"].excitatory,
+            name="probe_to_C_E",
+            synapse=lang.AMPA(tau=probe["tau_ms"] * lang.ms),
+            weight=lang.Constant(probe["conductance_us"]),
+            initialization_scaling="direct",
+            constraint=lang.NonNegative(),
+            delay=probe["delay_ms"] * lang.ms,
+        )
     return lang.compile(net, target=None), weights

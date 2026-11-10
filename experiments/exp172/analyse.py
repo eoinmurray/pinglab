@@ -15,6 +15,7 @@ from experiments.exp172.recipe import (
     gaussian,
     selected_parameters,
     trial_plan,
+    used_window_configuration,
 )
 from pingstore.library import canonical_export_file, source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
@@ -287,8 +288,8 @@ def cycle_switch_latency(
     )
 
 
-def cycle_selection_metrics(spikes, cfg, swap=False, *, sustained_cycles):
-    """Decode whole C volleys in trough-to-trough receiver PING cycles."""
+def cycle_spatial_fits(spikes, cfg, swap=False):
+    """Decode all complete C E trough-to-trough cycles, including transients."""
     dt = cfg["dt_ms"]
     s = spikes["C_E"]
     t = np.arange(len(s)) * dt
@@ -336,6 +337,12 @@ def cycle_selection_metrics(spikes, cfg, swap=False, *, sustained_cycles):
                 dominant=dominant,
             )
         )
+    return all_cycles
+
+
+def cycle_selection_metrics(spikes, cfg, swap=False, *, sustained_cycles):
+    """Score whole C volleys within the declared measurement windows."""
+    all_cycles = cycle_spatial_fits(spikes, cfg, swap)
     epochs = []
     for attended, window in zip(
         "AB", cfg["stability_search"]["windows_ms"], strict=True
@@ -551,6 +558,31 @@ def validate(data, original_parameters, source_configuration):
     return cfg, summary
 
 
+def receptive_window_evidence(arrays):
+    """Sample native inhibition at volley centres; no receptivity threshold."""
+    cases = {}
+    for case in ["original", "delayed"]:
+        points = []
+        for sender in "AB":
+            index = int(np.argmax(arrays[case + "_arrival_" + sender]))
+            points.append(
+                dict(
+                    sender=sender,
+                    time_ms=float(arrays["time_ms"][index]),
+                    inhibition_us=float(arrays[case + "_inhibition_us"][index]),
+                )
+            )
+        points.sort(key=lambda point: point["time_ms"])
+        assert points[0]["inhibition_us"] < points[1]["inhibition_us"]
+        cases[case] = points
+    return dict(
+        cases=cases,
+        hard_receptivity_threshold=None,
+        arrival_reference="Peak of the displayed 1-ms-smoothed sender arrival rate, not the first afferent spike",
+        interpretation="Low inhibition is a measured proxy for receptivity; membrane state and excitatory input also matter",
+    )
+
+
 def analyse_mechanism(data, output):
     """Validate the packet-only intervention and export its measured time series."""
     from experiments.exp172.recipe import shifted_packet
@@ -674,6 +706,7 @@ def analyse_mechanism(data, output):
         settings=settings,
         outcomes=outcomes,
         attended_arrival_peak_ms=reference,
+        receptive_window=receptive_window_evidence(arrays),
         identical_control=True,
         identical_weights=True,
         conserved_packet_counts=True,
@@ -802,16 +835,16 @@ def seed_summary(values):
     )
 
 
-def aggregate_background(rows, settings):
+def aggregate_background(rows, settings, control_key="background_hz"):
     expected = {
         (seed, rate, att)
         for seed in settings["seeds"]
         for rate in settings["rates_hz"]
         for att in "AB"
     }
-    identities = [(r["seed"], r["background_hz"], r["attended"]) for r in rows]
+    identities = [(r["seed"], r[control_key], r["attended"]) for r in rows]
     if len(set(identities)) != len(rows) or set(identities) != expected:
-        raise ValueError("Missing or duplicate background seed/condition")
+        raise ValueError("Missing or duplicate sweep seed/condition")
     result = []
     for att in "AB":
         for rate in settings["rates_hz"]:
@@ -820,7 +853,7 @@ def aggregate_background(rows, settings):
                     r
                     for r in rows
                     if r["seed"] == seed
-                    and r["background_hz"] == rate
+                    and r[control_key] == rate
                     and r["attended"] == att
                 )
                 for seed in settings["seeds"]
@@ -828,7 +861,7 @@ def aggregate_background(rows, settings):
             result.append(
                 dict(
                     attended=att,
-                    background_hz=rate,
+                    **{control_key: rate},
                     **{
                         key: seed_summary([r[key] for r in selected])
                         for key in ["S", "F", "latency_cycles", "C_E_hz", "C_I_hz"]
@@ -960,6 +993,1072 @@ def background_analysis_run(computed, run_id=None):
     return run.run_id
 
 
+def cue_analysis_run(computed, run_id=None):
+    """Validate fixed inputs/weights and exact 3-Hz controls before averaging."""
+    from experiments.exp172.recipe import best_background, cue_sweep_plan
+
+    started = perf_counter()
+    descriptor = json.loads(computed.file("cue-plan.json").read_text())
+    settings = descriptor["settings"]
+    plan = cue_sweep_plan(settings)
+    compare_metrics(plan, descriptor["trials"])
+    ref = computed.record["inputs"]["reference_compute"]
+    reference = source_run(
+        REPO / ".pingstore",
+        ref["run_id"],
+        experiment="exp172",
+        stage="compute",
+        reference=ref,
+    )
+    ref_analysis = computed.record["inputs"]["background_analyse"]
+    background_analysis = source_run(
+        REPO / ".pingstore",
+        ref_analysis["run_id"],
+        experiment="exp172",
+        stage="analyse",
+        reference=ref_analysis,
+    )
+    background = json.loads(background_analysis.file("results.json").read_text())[
+        "background_sweep"
+    ]
+    assert background_analysis.record["inputs"]["compute"] == ref
+    assert settings["background_hz"] == best_background(background["summary"])
+    baseline_cfg = json.loads(
+        reference.file(descriptor["baseline_trial"], "configuration.json").read_text()
+    )
+    parameters = NetworkSnapshot.read(
+        reference.file(descriptor["baseline_trial"], "start/snapshot.json")
+    ).load_parameters()
+    with np.load(reference.file(descriptor["baseline_trial"], "input_rates.npz")) as z:
+        fixed_rates = {k: z[k] for k in ("X_A", "X_B", "X_C")}
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        inputs={"compute": computed},
+        run_id=run_id,
+        configuration=dict(
+            method="equal-weight five-input-seed cue means and sample SD",
+            latency_missing="conditional mean with observed-seed counts",
+        ),
+    ) as run:
+        rows = []
+        for item in plan:
+            cfg = json.loads(
+                computed.file(item["id"], "configuration.json").read_text()
+            )
+            compare_metrics(cfg["trial"], item)
+            for key, value in baseline_cfg.items():
+                if key not in {"trial", "input_seed_sequences", "cue_hz", "stage_mode"}:
+                    compare_metrics(cfg[key], value)
+            assert cfg["cue_hz"] == item["cue_hz"]
+            actual = NetworkSnapshot.read(
+                computed.file(item["id"], "start/snapshot.json")
+            ).load_parameters()
+            assert set(actual) == set(parameters)
+            for key in actual:
+                np.testing.assert_array_equal(actual[key], parameters[key])
+            with np.load(computed.file(item["id"], "input_rates.npz")) as z:
+                for key, rates in fixed_rates.items():
+                    np.testing.assert_array_equal(z[key], rates)
+                np.testing.assert_array_equal(
+                    z["U"], np.full_like(z["U"], item["cue_hz"])
+                )
+            with np.load(computed.file(item["id"], "spikes.npz")) as z:
+                spikes = dict(z)
+            assert set(spikes) == {c + "_" + p for c in "ABC" for p in "EI"}
+            for key, array in spikes.items():
+                assert array.shape == (
+                    round(cfg["duration_ms"] / cfg["dt_ms"]),
+                    cfg["network"]["populations"][key[-1]]["size"],
+                )
+            if item["cue_hz"] == settings["reference_cue_hz"]:
+                original = next(
+                    r["trial_id"]
+                    for r in background["seed_rows"]
+                    if r["seed"] == item["seed"]
+                    and r["background_hz"] == settings["background_hz"]
+                )
+                with np.load(reference.file(original, "spikes.npz")) as z:
+                    for key in spikes:
+                        np.testing.assert_array_equal(spikes[key], z[key])
+            measured = cycle_selection_metrics(
+                spikes, cfg, False, **cycle_analysis_configuration()
+            )
+            for epoch in measured["epochs"]:
+                lo, hi = [round(v / cfg["dt_ms"]) for v in epoch["window_ms"]]
+                states = [c["dominant"] for c in epoch["cycles"]]
+                pairs = [
+                    (a, b)
+                    for a, b in zip(states, states[1:], strict=False)
+                    if a is not None and b is not None
+                ]
+                rows.append(
+                    dict(
+                        trial_id=item["id"],
+                        seed=item["seed"],
+                        cue_hz=item["cue_hz"],
+                        attended=epoch["attended"],
+                        S=epoch["switching_success"],
+                        F=epoch["flicker_fraction"],
+                        latency_cycles=epoch["switching_latency"]["cycles"],
+                        cycles=len(states),
+                        resolved_cycles=sum(s is not None for s in states),
+                        changes=sum(a != b for a, b in pairs),
+                        eligible_pairs=len(pairs),
+                        C_E_hz=float(spikes["C_E"][lo:hi].mean() * 1000 / cfg["dt_ms"]),
+                        C_I_hz=float(spikes["C_I"][lo:hi].mean() * 1000 / cfg["dt_ms"]),
+                    )
+                )
+        export = dict(
+            settings=settings,
+            configuration=baseline_cfg,
+            seed_rows=rows,
+            summary=aggregate_background(rows, settings, control_key="cue_hz"),
+            unchanged_weights=True,
+            unchanged_sensory_background_rates=True,
+            reference_cue_reproduced_all_seeds=True,
+            decoder_version="trough-to-trough/v1",
+            limitation="Background selected and cue assessed on the same five input seeds in one fixed circuit; not held-out validation",
+        )
+        dump(
+            run.export / "results.json",
+            dict(cue_sweep=export, elapsed_seconds=perf_counter() - started),
+        )
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
+def contrast_analysis_run(computed, run_id=None):
+    """Validate contrast profiles, fixed weights and exact equal-contrast controls."""
+    from experiments.exp172.recipe import contrast_rate_profiles, contrast_sweep_plan
+
+    started = perf_counter()
+    descriptor = json.loads(computed.file("contrast-plan.json").read_text())
+    settings = descriptor["settings"]
+    plan = contrast_sweep_plan(settings)
+    previous_rows = []
+    if "previous_analyse" in computed.record["inputs"]:
+        previous_ref = computed.record["inputs"]["previous_analyse"]
+        previous = source_run(
+            REPO / ".pingstore",
+            previous_ref["run_id"],
+            experiment="exp172",
+            stage="analyse",
+            reference=previous_ref,
+        )
+        old = json.loads(previous.file("results.json").read_text())["contrast_sweep"]
+        assert old["equal_contrast_reproduced_all_seeds"] and old["unchanged_weights"]
+        assert {k: v for k, v in old["settings"].items() if k != "rates_hz"} == {
+            k: v for k, v in settings.items() if k != "rates_hz"
+        }
+        previous_compute_ref = previous.record["inputs"]["compute"]
+        previous_compute = source_run(
+            REPO / ".pingstore",
+            previous_compute_ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=previous_compute_ref,
+        )
+        assert (
+            previous_compute.record["inputs"]["cue_analyse"]
+            == computed.record["inputs"]["cue_analyse"]
+        )
+        previous_rows = old["seed_rows"]
+        plan = [
+            item
+            for item in plan
+            if item["contrast_ratio"] not in old["settings"]["rates_hz"]
+        ]
+    compare_metrics(plan, descriptor["trials"])
+    ref = computed.record["inputs"]["reference_compute"]
+    reference = source_run(
+        REPO / ".pingstore",
+        ref["run_id"],
+        experiment="exp172",
+        stage="compute",
+        reference=ref,
+    )
+    ref_analysis = computed.record["inputs"]["cue_analyse"]
+    cue_analysis = source_run(
+        REPO / ".pingstore",
+        ref_analysis["run_id"],
+        experiment="exp172",
+        stage="analyse",
+        reference=ref_analysis,
+    )
+    cue = json.loads(cue_analysis.file("results.json").read_text())["cue_sweep"]
+    assert cue_analysis.record["inputs"]["compute"] == ref
+    assert settings["background_hz"] == cue["settings"]["background_hz"]
+    baseline_cfg = json.loads(
+        reference.file(descriptor["baseline_trial"], "configuration.json").read_text()
+    )
+    parameters = NetworkSnapshot.read(
+        reference.file(descriptor["baseline_trial"], "start/snapshot.json")
+    ).load_parameters()
+    with np.load(reference.file(descriptor["baseline_trial"], "input_rates.npz")) as z:
+        fixed_rates = {k: z[k] for k in ("X_C",)}
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        inputs={
+            "compute": computed,
+            **({"previous_analyse": previous} if previous_rows else {}),
+        },
+        run_id=run_id,
+        configuration=dict(
+            method="equal-weight five-input-seed contrast-cue means and sample SD",
+            latency_missing="conditional mean with observed-seed counts",
+        ),
+    ) as run:
+        rows = list(previous_rows)
+        for item in plan:
+            cfg = json.loads(
+                computed.file(item["id"], "configuration.json").read_text()
+            )
+            compare_metrics(cfg["trial"], item)
+            for key, value in baseline_cfg.items():
+                if key not in {"trial", "input_seed_sequences", "cue_hz", "stage_mode"}:
+                    compare_metrics(cfg[key], value)
+            assert cfg["cue_hz"] == item["cue_hz"]
+            actual = NetworkSnapshot.read(
+                computed.file(item["id"], "start/snapshot.json")
+            ).load_parameters()
+            assert set(actual) == set(parameters)
+            for key in actual:
+                np.testing.assert_array_equal(actual[key], parameters[key])
+            with np.load(computed.file(item["id"], "input_rates.npz")) as z:
+                for key, rates in fixed_rates.items():
+                    np.testing.assert_array_equal(z[key], rates)
+                assert item["cue_hz"] == cfg["cue_hz"] == 0
+                assert cfg["contrast_ratio"] == item["contrast_ratio"]
+                np.testing.assert_array_equal(z["U"], np.zeros_like(z["U"]))
+                for key, expected in contrast_rate_profiles(
+                    cfg, item["contrast_ratio"]
+                ).items():
+                    np.testing.assert_array_equal(z[key], expected)
+            with np.load(computed.file(item["id"], "spikes.npz")) as z:
+                spikes = dict(z)
+            assert set(spikes) == {c + "_" + p for c in "ABC" for p in "EI"}
+            for key, array in spikes.items():
+                assert array.shape == (
+                    round(cfg["duration_ms"] / cfg["dt_ms"]),
+                    cfg["network"]["populations"][key[-1]]["size"],
+                )
+            if item["contrast_ratio"] == settings["reference_ratio"]:
+                original = next(
+                    r["trial_id"]
+                    for r in cue["seed_rows"]
+                    if r["seed"] == item["seed"] and r["cue_hz"] == 0
+                )
+                with np.load(reference.file(original, "spikes.npz")) as z:
+                    for key in spikes:
+                        np.testing.assert_array_equal(spikes[key], z[key])
+            measured = cycle_selection_metrics(
+                spikes, cfg, False, **cycle_analysis_configuration()
+            )
+            for epoch in measured["epochs"]:
+                lo, hi = [round(v / cfg["dt_ms"]) for v in epoch["window_ms"]]
+                states = [c["dominant"] for c in epoch["cycles"]]
+                pairs = [
+                    (a, b)
+                    for a, b in zip(states, states[1:], strict=False)
+                    if a is not None and b is not None
+                ]
+                rows.append(
+                    dict(
+                        trial_id=item["id"],
+                        seed=item["seed"],
+                        contrast_ratio=item["contrast_ratio"],
+                        attended=epoch["attended"],
+                        S=epoch["switching_success"],
+                        F=epoch["flicker_fraction"],
+                        latency_cycles=epoch["switching_latency"]["cycles"],
+                        cycles=len(states),
+                        resolved_cycles=sum(s is not None for s in states),
+                        changes=sum(a != b for a, b in pairs),
+                        eligible_pairs=len(pairs),
+                        C_E_hz=float(spikes["C_E"][lo:hi].mean() * 1000 / cfg["dt_ms"]),
+                        C_I_hz=float(spikes["C_I"][lo:hi].mean() * 1000 / cfg["dt_ms"]),
+                    )
+                )
+        export = dict(
+            settings=settings,
+            configuration=baseline_cfg,
+            seed_rows=rows,
+            summary=aggregate_background(rows, settings, control_key="contrast_ratio"),
+            unchanged_weights=True,
+            verified_contrast_profiles=True,
+            unchanged_background_rates=True,
+            uniform_cue_disabled=True,
+            equal_contrast_reproduced_all_seeds=True,
+            decoder_version="trough-to-trough/v1",
+            examples=[
+                dict(
+                    trial_id=next(
+                        r["id"]
+                        for r in contrast_sweep_plan(settings)
+                        if r["seed"] == settings["seeds"][0]
+                        and r["contrast_ratio"] == ratio
+                    ),
+                    seed=settings["seeds"][0],
+                    contrast_ratio=ratio,
+                )
+                for ratio in settings["example_ratios"]
+            ],
+            limitation="Contrast cues change both spatial contrast and mean sensory drive; five tuning input seeds in one fixed circuit, not held-out validation",
+        )
+        dump(
+            run.export / "results.json",
+            dict(contrast_sweep=export, elapsed_seconds=perf_counter() - started),
+        )
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
+def circular_arrival_density(phases, bins, smoothing_bins):
+    """Normalised circular histogram; never condition on successful selection."""
+    values = (np.asarray(phases, dtype=float) + 0.5) % 1 - 0.5
+    if not np.isfinite(values).all():
+        raise ValueError("Non-finite arrival phase")
+    edges = np.linspace(-0.5, 0.5, bins + 1)
+    if not len(values):
+        return dict(n=0, edges=edges.tolist(), density=None)
+    counts, _ = np.histogram(values, bins=edges)
+    density = gaussian_filter1d(counts.astype(float), smoothing_bins, mode="wrap")
+    density /= density.sum() * (edges[1] - edges[0])
+    vector = np.exp(2j * np.pi * values).mean()
+    return dict(
+        n=len(values),
+        edges=edges.tolist(),
+        density=density.tolist(),
+        circular_mean_cycles=float(np.angle(vector) / (2 * np.pi)),
+        concentration=float(abs(vector)),
+    )
+
+
+def arrival_case_distribution(spikes, inhibition, cfg, graph, settings):
+    dt = cfg["dt_ms"]
+    time = np.arange(len(inhibition)) * dt
+    smooth = gaussian_filter1d(inhibition, settings["rate_smoothing_ms"] / dt)
+    prominence = max(
+        1e-9, settings["peak_prominence_fraction"] * np.ptp(smooth[time > 500])
+    )
+    peaks, _ = find_peaks(
+        smooth,
+        distance=round(settings["minimum_peak_spacing_ms"] / dt),
+        prominence=prominence,
+    )
+    troughs = []
+    for left, right in zip(peaks[:-1], peaks[1:], strict=True):
+        valley = inhibition[left + 1 : right]
+        minima = np.flatnonzero(valley == valley.min()) + left + 1
+        troughs.append(int(minima[np.argmin(abs(minima - (left + right) / 2))]))
+    arrivals = {}
+    delays = {}
+    for sender in "AB":
+        rate = gaussian_filter1d(
+            spikes[sender + "_E"].mean(1) * 1000 / dt,
+            settings["rate_smoothing_ms"] / dt,
+        )
+        detected, _ = find_peaks(
+            rate,
+            distance=round(settings["minimum_peak_spacing_ms"] / dt),
+            prominence=max(
+                0.05, settings["peak_prominence_fraction"] * np.ptp(rate[time > 500])
+            ),
+        )
+        projection = next(
+            p for p in graph["projections"] if p["id"] == sender + "_E_to_C_E"
+        )
+        assert projection["delay"]["unit"] == "ms"
+        delays[sender] = projection["delay"]["value"]
+        arrivals[sender] = time[detected] + delays[sender]
+    profiles = []
+    rows = []
+    cycles = []
+    phase_grid = np.linspace(-0.5, 0.5, settings["profile_samples"], endpoint=False)
+    for attended, window in zip(
+        "AB", cfg["stability_search"]["windows_ms"], strict=True
+    ):
+        for lo, hi in zip(troughs[:-1], troughs[1:], strict=True):
+            start, end = lo * dt, hi * dt
+            if start < window[0] or end > window[1]:
+                continue
+            cycles.append(dict(start_ms=start, end_ms=end, attended=attended))
+            profiles.append(
+                np.interp(
+                    start + np.mod(phase_grid, 1) * (end - start), time, inhibition
+                )
+            )
+            for sender in "AB":
+                selected = arrivals[sender][
+                    (arrivals[sender] >= start - 1e-8) & (arrivals[sender] < end - 1e-8)
+                ]
+                for arrival in selected:
+                    phase = ((arrival - start) / (end - start) + 0.5) % 1 - 0.5
+                    rows.append(
+                        dict(
+                            sender=sender,
+                            role="attended" if sender == attended else "unattended",
+                            cue_attended=attended,
+                            arrival_ms=float(arrival),
+                            phase_cycles=float(phase),
+                            cycle_start_ms=start,
+                            cycle_end_ms=end,
+                            inhibition_us=float(np.interp(arrival, time, inhibition)),
+                        )
+                    )
+    assert len({(r["sender"], r["arrival_ms"]) for r in rows}) == len(rows)
+    if not profiles:
+        raise ValueError("No complete C inhibitory cycles in the settled windows")
+    distributions = []
+    for sender in "AB":
+        for role in ["attended", "unattended"]:
+            subset = [r for r in rows if r["sender"] == sender and r["role"] == role]
+            distributions.append(
+                dict(
+                    sender=sender,
+                    role=role,
+                    **circular_arrival_density(
+                        [r["phase_cycles"] for r in subset],
+                        settings["histogram_bins"],
+                        settings["smoothing_bins"],
+                    ),
+                )
+            )
+    return dict(
+        background_hz=cfg["background_hz"],
+        seed=settings["seed"],
+        distributions=distributions,
+        arrivals=rows,
+        cycles=cycles,
+        phase_grid=phase_grid.tolist(),
+        mean_inhibition_us=np.mean(profiles, axis=0).tolist(),
+        delays_ms=delays,
+    )
+
+
+def arrivals_analysis_run(computed, run_id=None):
+    started = perf_counter()
+    descriptor = json.loads(computed.file("arrival-plan.json").read_text())
+    settings = descriptor["settings"]
+    inputs = {"compute": computed}
+    sources = {}
+    for case in descriptor["cases"]:
+        ref = computed.record["inputs"][case["reference_role"]]
+        sources[case["label"]] = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        inputs=inputs,
+        run_id=run_id,
+        configuration=dict(
+            method="circular sender arrival density relative to native C inhibitory troughs",
+            settings=settings,
+        ),
+    ) as run:
+        panels = []
+        reference_senders = None
+        reference_parameters = None
+        for case in descriptor["cases"]:
+            source = sources[case["label"]]
+            trial = case["trial_id"]
+            reference_trial = case["reference_trial"]
+            cfg = json.loads(computed.file(trial, "configuration.json").read_text())
+            parameters = NetworkSnapshot.read(
+                computed.file(trial, "start/snapshot.json")
+            ).load_parameters()
+            pinned = NetworkSnapshot.read(
+                source.file(reference_trial, "start/snapshot.json")
+            ).load_parameters()
+            for key in parameters:
+                np.testing.assert_array_equal(parameters[key], pinned[key])
+            with np.load(computed.file(trial, "spikes.npz")) as z:
+                spikes = dict(z)
+            with np.load(source.file(reference_trial, "spikes.npz")) as z:
+                for key in z.files:
+                    np.testing.assert_array_equal(spikes[key], z[key])
+            if reference_senders is None:
+                reference_senders = {k: spikes[k] for k in ["A_E", "A_I", "B_E", "B_I"]}
+                reference_parameters = parameters
+            else:
+                for key in reference_senders:
+                    np.testing.assert_array_equal(spikes[key], reference_senders[key])
+                for key in parameters:
+                    np.testing.assert_array_equal(
+                        parameters[key], reference_parameters[key]
+                    )
+            recording = RecordingData.read(computed.file(trial, "recording"))
+            key = "C_I_to_E.conductance"
+            info = recording.info[key]
+            array = recording.signals[key]
+            assert (
+                info.unit == "uS"
+                and info.dt_ms == cfg["dt_ms"]
+                and tuple(info.axes) == ("time", "batch", "cell")
+            )
+            assert (
+                array.shape == (len(spikes["C_E"]), 1, spikes["C_E"].shape[1])
+                and np.isfinite(array).all()
+                and (array >= 0).all()
+            )
+            inhibition = array[:, 0, :].mean(1, dtype=np.float64)
+            graph = json.loads(
+                computed.file(trial, "network.bundle/graph.json").read_text()
+            )
+            panel = arrival_case_distribution(spikes, inhibition, cfg, graph, settings)
+            panels.append(dict(panel, figure=1 if case["label"] == "figure1" else 6))
+        measured = dict(
+            settings=settings,
+            panels=panels,
+            reference_pins=computed.record["inputs"],
+            exact_replay=True,
+            limitation="Exact single seed-185 trials of Figures 1 and 6; all arrivals included, not just successful transmissions. Cycles and arrivals are correlated. Inhibitory trough is a phase reference and proxy, not a measured hard receptive-window boundary.",
+        )
+        dump(
+            run.export / "results.json",
+            dict(
+                arrival_distribution=measured, elapsed_seconds=perf_counter() - started
+            ),
+        )
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
+def low_inhibition_intervals(phase, inhibition, fraction):
+    """Threshold a measured mean profile; interpolate crossings in phase."""
+    phase, inhibition = np.asarray(phase), np.asarray(inhibition)
+    if not (0 < fraction < 1) or not np.isfinite(inhibition).all():
+        raise ValueError("Invalid inhibition profile or threshold fraction")
+    if (
+        len(phase) != len(inhibition)
+        or len(phase) < 2
+        or not (np.diff(phase) > 0).all()
+    ):
+        raise ValueError("Phase grid must increase and match the profile")
+    lo, hi = float(inhibition.min()), float(inhibition.max())
+    threshold = lo + fraction * (hi - lo)
+    intervals = []
+    if hi > lo:
+        inside = inhibition <= threshold
+        start = float(phase[0]) if inside[0] else None
+        for i in np.flatnonzero(inside[1:] != inside[:-1]):
+            cross = float(
+                phase[i]
+                + (phase[i + 1] - phase[i])
+                * (threshold - inhibition[i])
+                / (inhibition[i + 1] - inhibition[i])
+            )
+            if inside[i]:
+                intervals.append([start, cross])
+                start = None
+            else:
+                start = cross
+        if start is not None:
+            intervals.append([start, float(phase[-1])])
+    return dict(
+        bounds_cycles=intervals, threshold_us=threshold, minimum_us=lo, maximum_us=hi
+    )
+
+
+def measured_inhibition_profile(time, inhibition, cycles, windows, phase, delay):
+    """Average conductance in reversed C peak phase, shifted by sender delay."""
+    peaks = np.array([c["peak_ms"] for c in cycles])
+    counts = np.arange(len(peaks))
+    profiles, cycle_times = [], []
+    for i, cycle in enumerate(cycles):
+        if not any(
+            cycle["start_ms"] >= lo and cycle["end_ms"] <= hi for lo, hi in windows
+        ):
+            continue
+        # A positive sender-minus-C phase means a sender volley precedes C.
+        emission = np.interp(i - phase, counts, peaks, left=np.nan, right=np.nan)
+        arrival = emission + delay
+        if (
+            not np.isfinite(arrival).all()
+            or arrival.min() < 0
+            or arrival.max() > time[-1]
+        ):
+            continue
+        profiles.append(np.interp(arrival, time, inhibition))
+        cycle_times.append(cycle["peak_ms"])
+    if not profiles:
+        raise ValueError("No complete measured inhibition profiles")
+    return np.mean(profiles, axis=0), cycle_times
+
+
+def phase_inhibition_analysis_run(computed, run_id=None):
+    """Measure native C inhibition in the same peak reference as Figure 3."""
+    started = perf_counter()
+    plan = json.loads(computed.file("phase-inhibition-plan.json").read_text())
+    trial, settings = plan["trial_id"], plan["settings"]
+    cfg = json.loads(computed.file(trial, "configuration.json").read_text())
+    ref = computed.record["inputs"]["reference_compute"]
+    source = source_run(
+        REPO / ".pingstore",
+        ref["run_id"],
+        experiment="exp172",
+        stage="compute",
+        reference=ref,
+    )
+    with np.load(computed.file(trial, "spikes.npz")) as z:
+        spikes = dict(z)
+    with np.load(source.file(plan["reference_trial"], "spikes.npz")) as original:
+        assert set(original.files) == set(spikes)
+        for key in original.files:
+            np.testing.assert_array_equal(spikes[key], original[key])
+    recording = RecordingData.read(computed.file(trial, "recording"))
+    info = recording.info["C_I_to_E.conductance"]
+    values = recording.signals["C_I_to_E.conductance"]
+    assert info.unit == "uS" and info.dt_ms == cfg["dt_ms"]
+    assert tuple(info.axes) == ("time", "batch", "cell")
+    assert values.shape == (len(spikes["C_E"]), 1, spikes["C_E"].shape[1])
+    assert np.isfinite(values).all() and (values >= 0).all()
+    inhibition = values[:, 0, :].mean(1, dtype=np.float64)
+    graph = json.loads(computed.file(trial, "network.bundle/graph.json").read_text())
+    delays = [
+        next(p for p in graph["projections"] if p["id"] == c + "_E_to_C_E")["delay"]
+        for c in "AB"
+    ]
+    assert delays[0] == delays[1] and delays[0]["unit"] == "ms"
+    delay = delays[0]["value"]
+    cycles = cycle_spatial_fits(spikes, cfg)
+    phase = np.linspace(-0.5, 0.5, settings["profile_samples"])
+    time = np.arange(len(inhibition)) * cfg["dt_ms"]
+    profile, cycle_times = measured_inhibition_profile(
+        time,
+        inhibition,
+        cycles,
+        cfg["stability_search"]["windows_ms"],
+        phase,
+        delay,
+    )
+    measured = dict(
+        **low_inhibition_intervals(phase, profile, settings["low_inhibition_fraction"]),
+        phase_cycles=phase.tolist(),
+        mean_inhibition_us=profile.tolist(),
+        cycles=len(cycle_times),
+        cycle_peaks_ms=cycle_times,
+        delay_ms=delay,
+        reference_trial=plan["reference_trial"],
+        seed=cfg["trial"]["seed"],
+        source_reference=ref,
+        settings=settings,
+        exact_replay=True,
+        method="Mean native C_I_to_E conductance over complete settled C E cycles; reverse peak-interpolated C phase plus native sender delay; half dynamic-range threshold",
+        limitation="Low inhibition is a receptivity proxy, not a measured transmission threshold. Mapping to sender-minus-C phase assumes locally matched sender/C periods; dominance is not used.",
+    )
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        run_id=run_id,
+        inputs={"compute": computed},
+        configuration=settings,
+    ) as run:
+        dump(run.export / "results.json", dict(phase_inhibition=measured))
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
+def probe_response_window(phase, response, fraction):
+    """Half-maximum of positive net extra spikes; interpolate phase crossings."""
+    phase, response = np.asarray(phase, dtype=float), np.asarray(response, dtype=float)
+    if len(phase) != len(response) or len(phase) < 2 or not (np.diff(phase) > 0).all():
+        raise ValueError("Probe phase grid must increase and match response")
+    if not np.isfinite(response).all() or not 0 < fraction < 1:
+        raise ValueError("Invalid response profile")
+    peak = float(response.max())
+    if peak <= 0:
+        return dict(
+            bounds_cycles=[], threshold_extra_spikes=None, peak_extra_spikes=peak
+        )
+    threshold = fraction * peak
+    inside = response >= threshold
+    intervals = []
+    start = float(phase[0]) if inside[0] else None
+    for i in np.flatnonzero(inside[1:] != inside[:-1]):
+        cross = float(
+            phase[i]
+            + (phase[i + 1] - phase[i])
+            * (threshold - response[i])
+            / (response[i + 1] - response[i])
+        )
+        if inside[i]:
+            intervals.append([start, cross])
+            start = None
+        else:
+            start = cross
+    if start is not None:
+        intervals.append([start, float(phase[-1])])
+    return dict(
+        bounds_cycles=intervals,
+        threshold_extra_spikes=threshold,
+        peak_extra_spikes=peak,
+    )
+
+
+def probe_analysis_run(computed, run_id=None):
+    started = perf_counter()
+    plan = json.loads(computed.file("probe-plan.json").read_text())
+    cfg = computed.record["execution"]["configuration"]
+    settings = plan["settings"]
+    dt = cfg["dt_ms"]
+    assert plan["exact_control"]
+    count = len(plan["anchors"])
+    phases = np.array(settings["phases_cycles"])
+    excess = np.full((count, len(phases)), np.nan)
+    records = []
+    with np.load(computed.file("probe-spikes.npz")) as z:
+        for row in plan["trials"]:
+            control = z[f"control{row['anchor']:02d}_C_E"]
+            probed = z[row["id"] + "_C_E"]
+            start = (
+                row["probe_step"] + round(settings["delay_ms"] / dt) - row["start_step"]
+            )
+            end = start + round(settings["response_ms"] / dt)
+            assert 0 <= start < end <= len(probed) and probed.shape == control.shape
+            # C cannot respond to the new path before its native delay elapses.
+            np.testing.assert_array_equal(probed[:start], control[:start])
+            actual, baseline = (
+                int(probed[start:end].sum()),
+                int(control[start:end].sum()),
+            )
+            value = actual - baseline
+            assert np.isnan(excess[row["anchor"], row["phase_index"]])
+            excess[row["anchor"], row["phase_index"]] = value
+            records.append(
+                dict(
+                    row,
+                    response_spikes=actual,
+                    control_spikes=baseline,
+                    extra_spikes=value,
+                )
+            )
+    assert np.isfinite(excess).all()
+    profile = excess.mean(0)
+    # The last endpoint repeats the first circular phase bin for interpolation.
+    grid = np.r_[phases, 0.5]
+    response = np.r_[profile, profile[0]]
+    maximum_phase_error = max(
+        abs(row["phase_cycles"] - phases[row["phase_index"]]) for row in records
+    )
+    measured = dict(
+        **probe_response_window(grid, response, settings["window_fraction"]),
+        phase_cycles=grid.tolist(),
+        mean_extra_spikes=response.tolist(),
+        sd_extra_spikes=np.r_[excess.std(0, ddof=1), excess.std(0, ddof=1)[0]].tolist(),
+        per_cycle_extra_spikes=excess.tolist(),
+        trials=records,
+        anchors=plan["anchors"],
+        cue_profiles={
+            c: excess[[a["attended"] == c for a in plan["anchors"]]].mean(0).tolist()
+            for c in "AB"
+        },
+        cycles=count,
+        probes=len(records),
+        maximum_phase_error_cycles=maximum_phase_error,
+        reference_trial=plan["reference_trial"],
+        seed=plan["reference_seed"],
+        reference_background=plan["reference_background"],
+        settings=settings,
+        exact_control=True,
+        method="Fixed uniform AMPA volley at 16 C peak phases in 8 native states; paired net extra C E spikes in first 5 ms after native delivery; shade mean response >= half its positive peak",
+        limitation="Single input seed, eight correlated cycle states. Probe amplitude and response horizon define the window; it is not a universal transmission boundary. Phase uses unperturbed C peak timing with locally matched sender/C periods.",
+    )
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        run_id=run_id,
+        inputs={"compute": computed},
+        configuration=settings,
+    ) as run:
+        dump(run.export / "results.json", dict(probe_window=measured))
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
+def population_volley_cycles(values, dt):
+    """Whole observed volleys, with the same peak/trough rules as C decoding."""
+    time = np.arange(len(values)) * dt
+    rate = gaussian_filter1d(values.mean(1) * 1000 / dt, 1 / dt)
+    peaks, _ = find_peaks(
+        rate,
+        distance=round(15 / dt),
+        prominence=max(0.05, 0.1 * np.ptp(rate[time > 500])),
+    )
+    boundaries = []
+    for left, right in zip(peaks[:-1], peaks[1:], strict=True):
+        valley = rate[left + 1 : right]
+        minima = np.flatnonzero(valley == valley.min()) + left + 1
+        boundaries.append(int(minima[np.argmin(abs(minima - (left + right) / 2))]))
+    return [
+        dict(start_step=lo, end_step=hi, peak_step=int(peak))
+        for lo, hi, peak in zip(
+            boundaries[:-1], boundaries[1:], peaks[1:-1], strict=True
+        )
+    ]
+
+
+def natural_volley_plan(spikes, cfg):
+    """All native packets with complete one/two-cycle outcomes in settled windows."""
+    dt = cfg["dt_ms"]
+    receiver = population_volley_cycles(spikes["C_E"], dt)
+    cpeaks = np.array([row["peak_step"] for row in receiver])
+    delay_steps = round(cfg["network"]["cross"]["delay_ms"] / dt)
+    events = []
+    for sender in "AB":
+        volleys = population_volley_cycles(spikes[sender + "_E"], dt)
+        peaks = np.array([row["peak_step"] for row in volleys])
+        for packet in volleys:
+            arrival = packet["peak_step"] + delay_steps
+            candidates = [
+                i
+                for i, cycle in enumerate(receiver[:-1])
+                if cycle["start_step"] <= arrival < cycle["end_step"]
+            ]
+            if not candidates:
+                continue
+            index = candidates[0]
+            cycle, following = receiver[index : index + 2]
+            first = min(packet["start_step"], cycle["start_step"])
+            last = max(packet["end_step"] + delay_steps, following["end_step"])
+            if not any(
+                first * dt >= lo and last * dt <= hi
+                for lo, hi in cfg["stability_search"]["windows_ms"]
+            ):
+                continue
+            if last != following["end_step"]:
+                continue
+            phase = (
+                np.interp(cpeaks[index], peaks, np.arange(len(peaks))) - index + 0.5
+            ) % 1 - 0.5
+            count = int(
+                spikes[sender + "_E"][packet["start_step"] : packet["end_step"]].sum()
+            )
+            if count == 0:
+                continue
+            events.append(
+                dict(
+                    id=f"delete{sender}-{packet['peak_step']:06d}",
+                    sender=sender,
+                    packet_start=packet["start_step"],
+                    packet_end=packet["end_step"],
+                    packet_peak=packet["peak_step"],
+                    packet_spikes=count,
+                    phase_cycles=float(phase),
+                    reference_peak_ms=float(cpeaks[index] * dt),
+                    start_step=first - 1,
+                    end_step=following["end_step"],
+                    response_start=cycle["start_step"],
+                    response_end=cycle["end_step"],
+                    response_end_two=following["end_step"],
+                    attended="A" if cpeaks[index] * dt < cfg["switch_ms"] else "B",
+                )
+            )
+    return sorted(events, key=lambda row: (row["start_step"], row["id"]))
+
+
+def spatial_count_amplitudes(spikes, cfg):
+    """Existing spatial templates fitted to integrated spikes, not a short rate bin."""
+    sigma = np.sqrt(
+        sum(
+            cfg[key] ** 2
+            for key in ["spatial_sigma", "sensory_kernel_sigma", "cross_kernel_sigma"]
+        )
+    )
+    x = np.arange(spikes.shape[1]) / spikes.shape[1]
+    design = np.column_stack(
+        [np.ones(len(x)), *[gaussian(x, centre, sigma) for centre in cfg["centres"]]]
+    )
+    return nnls(design, spikes.sum(0, dtype=np.float64))[0][1:]
+
+
+def used_phase_summary(events, settings):
+    """Shade only sampled phase bins with a strong median persistent spatial effect."""
+    edges = np.linspace(-0.5, 0.5, settings["phase_bins"] + 1)
+    bins = []
+    for lo, hi in zip(edges[:-1], edges[1:], strict=True):
+        subset = [event for event in events if lo <= event["phase_cycles"] < hi]
+        scores = [event["persistent_effect"] for event in subset]
+        bins.append(
+            dict(
+                lo=float(lo),
+                hi=float(hi),
+                n=len(subset),
+                median_effect=float(np.median(scores)) if scores else None,
+                positive_events=sum(
+                    score > settings["effect_tolerance"] for score in scores
+                ),
+                sender_counts={
+                    c: sum(event["sender"] == c for event in subset) for c in "AB"
+                },
+                cue_counts={
+                    c: sum(event["attended"] == c for event in subset) for c in "AB"
+                },
+            )
+        )
+    supported = [
+        row["median_effect"] for row in bins if row["n"] >= settings["minimum_events"]
+    ]
+    peak = max(supported, default=0)
+    threshold = (
+        settings["window_fraction"] * peak
+        if peak > settings["effect_tolerance"]
+        else None
+    )
+    bounds = []
+    for row in bins:
+        row["selected"] = bool(
+            threshold is not None
+            and row["n"] >= settings["minimum_events"]
+            and row["median_effect"] >= threshold
+            and row["median_effect"] > settings["effect_tolerance"]
+        )
+        if row["selected"]:
+            if bounds and np.isclose(bounds[-1][1], row["lo"]):
+                bounds[-1][1] = row["hi"]
+            else:
+                bounds.append([row["lo"], row["hi"]])
+    return dict(
+        bounds_cycles=bounds,
+        phase_bins=bins,
+        threshold_effect=threshold,
+        peak_effect=peak,
+    )
+
+
+def used_window_analysis_run(computed, run_id=None):
+    started = perf_counter()
+    plan = json.loads(computed.file("used-window-plan.json").read_text())
+    cfg = computed.record["execution"]["configuration"]
+    settings = plan["settings"]
+    analysis_protocol = used_window_configuration()
+    for key, value in settings.items():
+        if key not in ("sensitivity_phase_bins", "sensitivity_window_fractions"):
+            assert analysis_protocol[key] == value
+    settings = dict(
+        settings,
+        **{
+            key: analysis_protocol[key]
+            for key in ["sensitivity_phase_bins", "sensitivity_window_fractions"]
+        },
+    )
+    events = []
+    with np.load(computed.file("used-window-spikes.npz")) as z:
+        for event in plan["events"]:
+            control, deleted = z[event["control_id"]], z[event["id"]]
+            lo = event["start_step"]
+            unaffected = (
+                event["packet_start"]
+                + round(cfg["network"]["cross"]["delay_ms"] / cfg["dt_ms"])
+                - lo
+            )
+            np.testing.assert_array_equal(control[:unaffected], deleted[:unaffected])
+            effects = []
+            outcomes = []
+            own = "AB".index(event["sender"])
+            for horizon, endpoint in [
+                (1, event["response_end"]),
+                (2, event["response_end_two"]),
+            ]:
+                start, end = event["response_start"] - lo, endpoint - lo
+                assert 0 <= start < end <= len(control)
+                baseline = spatial_count_amplitudes(control[start:end], cfg)
+                removal = spatial_count_amplitudes(deleted[start:end], cfg)
+                delta = (baseline - removal) / horizon
+                own_effect, contrast_effect = (
+                    float(delta[own]),
+                    float(delta[own] - delta[1 - own]),
+                )
+                effects.extend([own_effect, contrast_effect])
+                outcomes.append(
+                    dict(
+                        cycles=horizon,
+                        control_amplitudes=baseline.tolist(),
+                        deleted_amplitudes=removal.tolist(),
+                        own_effect=own_effect,
+                        contrast_effect=contrast_effect,
+                        net_spikes=int(control[start:end].sum())
+                        - int(deleted[start:end].sum()),
+                    )
+                )
+            events.append(
+                dict(event, persistent_effect=min(effects), outcomes=outcomes)
+            )
+    measured = dict(
+        **used_phase_summary(events, settings),
+        events=events,
+        packets=len(events),
+        states=plan["states"],
+        reference_trial=plan["reference_trial"],
+        seed=plan["reference_seed"],
+        reference_background=plan["reference_background"],
+        settings=settings,
+        exact_control=plan["exact_control"],
+        phase_bins_count=settings["phase_bins"],
+        method="All observed sender packets deleted on their native C E pathway. Persistent effect is the minimum of own-pattern and own-minus-competing-pattern count-amplitude losses over one and two fixed baseline C cycles, normalized per cycle. Shade phase bins with >=3 packets and median effect >=half the positive supported peak.",
+        limitation="Used transmission phases in one saved trial, not a universal receptive gate. Sparse bins are unmeasured, not proven inaccessible. Packets and cycle states are correlated; leave-one-packet-out effects include recurrent competition. No dominance labels select packets or shaded phases.",
+    )
+    measured["sensitivity"] = [
+        dict(
+            phase_bin_count=bins,
+            window_fraction=fraction,
+            **used_phase_summary(
+                events, dict(settings, phase_bins=bins, window_fraction=fraction)
+            ),
+        )
+        for bins in settings["sensitivity_phase_bins"]
+        for fraction in settings["sensitivity_window_fractions"]
+    ]
+    measured["leave_one_state_out"] = [
+        dict(
+            omitted_peak_ms=peak,
+            **used_phase_summary(
+                [row for row in events if row["reference_peak_ms"] != peak], settings
+            ),
+        )
+        for peak in sorted({row["reference_peak_ms"] for row in events})
+    ]
+    measured["condition_summaries"] = {
+        field: {
+            value: used_phase_summary(
+                [row for row in events if row[field] == value], settings
+            )
+            for value in "AB"
+        }
+        for field in ["sender", "attended"]
+    }
+    measured["strength_normalised_sensitivity"] = used_phase_summary(
+        [
+            dict(row, persistent_effect=row["persistent_effect"] / row["packet_spikes"])
+            for row in events
+        ],
+        settings,
+    )
+    with stage_run(
+        REPO,
+        "exp172",
+        "analyse",
+        run_id=run_id,
+        inputs={"compute": computed},
+        configuration=settings,
+    ) as run:
+        dump(run.export / "results.json", dict(used_window=measured))
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+    return run.run_id
+
+
 def main(source, run_id=None):
     started = perf_counter()
     settings = cycle_analysis_configuration()
@@ -970,6 +2069,18 @@ def main(source, run_id=None):
         stage="compute",
     )
     cfg = computed.record["execution"]["configuration"]
+    if cfg.get("stage_mode") == "used_window":
+        return used_window_analysis_run(computed, run_id)
+    if cfg.get("stage_mode") == "probe_window":
+        return probe_analysis_run(computed, run_id)
+    if cfg.get("stage_mode") == "phase_inhibition":
+        return phase_inhibition_analysis_run(computed, run_id)
+    if cfg.get("stage_mode") == "arrival_distribution":
+        return arrivals_analysis_run(computed, run_id)
+    if cfg.get("stage_mode") == "contrast_sweep":
+        return contrast_analysis_run(computed, run_id)
+    if cfg.get("stage_mode") == "cue_sweep":
+        return cue_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "background_sweep":
         return background_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "candidate":

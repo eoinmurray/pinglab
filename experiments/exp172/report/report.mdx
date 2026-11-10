@@ -3,22 +3,22 @@ id: exp172
 title: "Spatial Gaussian Selective Relay"
 author: "Eoin Murray"
 created_at: "2026-11-04T17:24:22Z"
-updated_at: "2026-11-09T21:15:47Z"
+updated_at: "2026-11-10T14:53:44Z"
 description: "A rate cue selects between competing spatial Gaussian patterns in an A/B → C spiking circuit."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.32.1"]
 inputs: ["exp172"]
 thumbnail: rasters.png
+sidebar: false
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
 import { reportData, round } from '../../../site/src/lib/report-data';
 export const data = await reportData('exp172', { allowUnavailable: true });
 export const cfg = data?.configuration;
+export const figure2 = data?.figure2_selection;
 export const epochs = data?.metrics.epochs;
-export const cycle = data?.cycle_selection;
 export const metricRows = value => {
   const cases = ['A', 'B'].map(attended => value?.epochs.find(epoch => epoch.attended === attended));
   return [
@@ -27,68 +27,104 @@ export const metricRows = value => {
     ['Switching latency', ...cases.map(epoch => epoch?.switching_latency ? (epoch.switching_latency.cycles === null ? 'Not observed' : `${n(epoch.switching_latency.cycles)} cycles`) : 'Unavailable'), 'First cycle of three consecutive attended-pattern cycles; lower is faster'],
   ];
 };
-export const cycleRows = metricRows(cycle);
-export const candidateRows = metricRows(data?.candidate?.cycle_selection);
+export const baselineRows = metricRows(data?.cycle_selection);
 export const backgroundPoint = (attended, rate) => data?.background_sweep?.summary.find(row => row.attended === attended && row.background_hz === rate);
 export const backgroundHighRate = data?.background_sweep?.settings.rates_hz.at(-1);
 
 ## Abstract
 
-{data ? <p>Can a uniform rate cue select which of two spatial patterns a receiving spiking circuit represents? A and B receive different Gaussian sensory patterns and project through identical spatial weight matrices to C. Extra drive switches from A to B at {cfg.switch_ms} ms. At the selected cue of {data.selection.cue_hz} Hz/channel, the attended Gaussian fractions are {round(epochs[0].er, 3)} and {round(epochs[1].er, 3)}; direct source-to-C profile scores are {round(epochs[0].fidelity.copy_r_squared, 3)} and {round(epochs[1].fidelity.copy_r_squared, 3)}. Brief competing-pattern excursions remain. This tuned single-seed demonstration uses cue, inhibition and coupling settings selected on the displayed seed; it does not establish generalisation or isolate a causal communication-through-coherence mechanism. {data.background_sweep ? 'A separate five-input-seed background sweep assesses input variability in the same fixed circuit.' : null}</p> : <p>No completed evidence is selected.</p>}
+{data ? <p>A uniform rate cue selects which Gaussian spatial pattern C represents, but brief competing responses remain. Dominant spatial patterns cluster around a preferred relative phase; this association does not establish a receptive-window boundary. Raising C’s background input improves the tuned example; a five-input-seed sweep reveals a trade-off between attention conditions.</p> : <p>No completed evidence is selected.</p>}
 
-## Results
+## Question and Circuit
 
-<RunFigure report="exp172" experiment="exp172" file="rasters.svg" number={1} id="fig-rasters" alt="A, B and C E/I spike rasters in one row." allowUnavailable={true}>
-  (A–C) All neurons in sender A, sender B and receiver C. Individual E spikes are black; I spikes are red above E. Dashed vertical lines mark the cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms; dotted lines bound the measurement windows. Figures 1–4 use the same seed {data ? data.selection.seed : 'unavailable'}, spatial assignment and selected cue of {data ? data.selection.cue_hz : 'unavailable'} Hz/channel. No seed averaging or uncertainty intervals are shown.
+<p>Can a uniform cue select between two simultaneous Gaussian spatial inputs, and why does C sometimes flicker toward the unattended pattern?</p>
+
+<RunFigure report="exp172" experiment="exp172" file="circuit.svg" number={1} id="fig-circuit" alt="Native compiled A/B/C excitatory and inhibitory network with sensory and cue inputs." allowUnavailable={true}>
+  Saved native A/B/C circuit: 400 E (black) and 100 I (red) neurons per population; 1024 channels per input. X denotes sensory input, U cue input. Complementary gates route the cue. W labels executed weights by target/source. Grey sender E→C I paths have zero weights.
 </RunFigure>
 
-<Table headers={['Figure 1C metric', 'Attend A', 'Attend B', 'Interpretation']} rows={cycleRows} number={1} id="cycle-selection-metrics" label="PING-cycle selection and flickering">
-  Scores use the same recorded trial as Figure 1, reported separately for each attended pattern. S and F use complete trough-to-trough C PING cycles in the recorded stability windows, excluding settling. Boundaries are population-rate minima between detected peaks, so each fitted cycle contains a whole volley rather than combining halves of adjacent volleys. Latency starts at initial cue onset (0 ms) for A and the cue switch ({cfg ? cfg.switch_ms : 'unavailable'} ms) for B; A therefore measures initial acquisition, not a B→A switch. Each run must finish within its cue period.
-</Table>
+### Key Details
 
-- <span id="eq-switching-success" /> **Switching success:** $S_e=N_{\mathrm{correct},e}/N_e$, where $e$ identifies the attend-A or attend-B period, $N_e$ counts its retained complete C PING cycles, and $N_{\mathrm{correct},e}$ counts cycles dominated by its attended pattern. Unresolved cycles count as failures; 1 means perfect selection.
-- <span id="eq-cycle-flickering" /> **Flickering:** $F=N_{\mathrm{changes}}/N_{\mathrm{pairs}}$, where $N_{\mathrm{changes}}$ counts dominant-pattern changes across $N_{\mathrm{pairs}}$ adjacent, resolved PING-cycle pairs within the specified cue period. Unresolved cycles break adjacency. Zero means stable selection; 1 means alternation every cycle. With no eligible pairs, F is unavailable.
-- <span id="eq-switching-latency" /> **Switching latency:** $L_e=\min\{k\ge1:z_{e,k}=z_{e,k+1}=z_{e,k+2}=a_e\}$, where $z_{e,k}$ is the dominant pattern in C PING cycle $k$ of period $e$, and $a_e$ its attended pattern. Cycle 1 is the first complete trough-to-trough cycle starting at or after that period’s cue onset; the straddling cycle is excluded. Report the first cycle of the three-cycle run, not its confirmation cycle. Unresolved cycles break the run; no qualifying run means “Not observed”.
+1. **Spatial input:** A and B receive simultaneous Gaussian bumps in firing rate, centred at different positions on a circular spatial map.
+2. **Input→A/B weights:** Fixed sensory weights blend a Gaussian connectivity kernel favouring nearby spatial positions with the original connectivity, preserving each target’s total incoming strength. Weights are not learned.
+3. **A/B→C weights:** A→C and B→C use identical fixed Gaussian weight matrices, favouring nearby spatial positions with matched incoming strength. Weights are not learned.
+4. **Cue:** A spatially uniform spike input adds {data ? data.selection.cue_hz : 'unavailable'} Hz/channel to the attended sender, switching from A to B at {cfg ? n(cfg.switch_ms) : 'unavailable'} ms. Both sensory inputs remain present.
+5. **Local competition:** A, B and C contain excitatory and inhibitory neurons. Input reaching C recruits inhibition, which can suppress a later competing burst.
 
-<RunFigure report="exp172" experiment="exp172" file="profiles.svg" number={2} id="fig-profiles" alt="Excitatory and inhibitory spatial profiles for A, B and C, arranged in three rows and two columns." allowUnavailable={true}>
-  Rows show A, B and C; the left column shows E and the right I. Black is attend A and red attend B. Faint lines are raw rates; solid lines use two-neuron Gaussian smoothing. Dashed E curves are Gaussian fits; C's dotted and dash-dot curves show fitted A and B components plus background. Rates use the recorded {cfg ? cfg.windows_ms[0].join('–') : 'unavailable'} and {cfg ? cfg.windows_ms[1].join('–') : 'unavailable'} ms measurement windows. ER is the attended fitted Gaussian amplitude divided by the sum of both amplitudes; totals below 1 Hz are unresolved. Direct-copy R² compares eight-neuron source and C rate bins without fitting a gain, offset or shift.
+## C Selects the Attended Spatial Pattern
+
+<RunFigure report="exp172" experiment="exp172" file="rasters.svg" number={2} id="fig-rasters" alt="One row of A/B/C excitatory and inhibitory spike rasters." allowUnavailable={true}>
+  (A–C) A/B/C rasters: E black, I red. Dashed lines: cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms; dotted lines: measurement windows. Seed {figure2 ? figure2.seed : 'unavailable'}, cue {figure2 ? figure2.cue_hz : 'unavailable'} Hz/channel. The same trial appears in Figure 3; it was selected after inspecting seeds 185–189 for smoother detected phase, not for higher selection scores.
+  External rates (Hz/channel): A_E and B_E each receive Gaussian sensory input with baseline {cfg ? n(cfg.spatial_baseline_hz) : 'unavailable'} and spatial mean {cfg ? n(cfg.spatial_mean_hz) : 'unavailable'}. Applied cue rates before → after the switch are A_E: {data ? n(data.selection.cue_hz) : 'unavailable'} → 0; B_E: 0 → {data ? n(data.selection.cue_hz) : 'unavailable'}. C_E receives uniform independent input at {cfg ? n(cfg.background_hz) : 'unavailable'}, with no cue. Each external stream has {cfg ? cfg.network.input_channels : 'unavailable'} channels. A_I, B_I and C_I have no direct external input. Sender-to-C and recurrent inputs are network-generated spike trains, not fixed-rate drives.
 </RunFigure>
 
-<RunFigure report="exp172" experiment="exp172" file="selection.svg" number={3} id="fig-selection" alt="Unwrapped phase differences, time-resolved C spatial amplitudes and their two-component softmax in one row." allowUnavailable={true}>
-  (A) Continuous sender-minus-C E-population phase differences in cycles: black A−C, red B−C. One cycle is one complete relative rotation. Phase is interpolated between E population-rate peaks after 1 ms Gaussian smoothing, with at least 15 ms peak spacing. No transmission-delay correction is applied.
-  (B) Nonnegative A-like and B-like Gaussian amplitudes fitted jointly with a uniform background in overlapping {data ? data.selection.spatial_window_ms : 'unavailable'} ms windows, stepped every {data ? data.selection.spatial_hop_ms : 'unavailable'} ms. Spatial resemblance does not identify causal input origin; temporal averaging blurs brief excursions. Dashed lines mark the cue switch; grey bands mark measurement windows. Overlapping fits are not independent observations.
-  (C) Softmax across the two amplitudes in B at each time point: each amplitude is divided by a 1 Hz scale, exponentiated and divided by the sum of both exponentials. The dimensionless weights sum to one; equal amplitudes give 0.5 each, including when both are zero. These are display weights, not calibrated probabilities or the amplitude fractions reported above. Colours, windows and cue-switch markers match B.
-  {data ? <span>The worst-window competing-or-unresolved fraction is {round(100*data.metrics.stability.worst_window_wrong_fraction, 1)}%, assessed with separate 40 ms fits in the broader 250–1100 and 1450–2300 ms windows. The current cue, inhibition and coupling settings were selected from single-seed sweeps; this is not held-out validation, and excursions remain.</span> : null}
+## Mechanism
 
+<RunFigure report="exp172" experiment="exp172" file="relative-phase.svg" number={3} id="fig-relative-phase" alt="Unwrapped and wrapped sender-minus-C phase, with dots marking cycles dominated by each sender’s spatial pattern." allowUnavailable={true}>
+  Same trial as Figure 2. Sender-minus-C phase in cycles: (A) unwrapped; (B) wrapped. A black, B red. Lines sample each C E peak; dots mark the dominant spatial pattern in C. Grey: measured used-transmission window. Dashed line: cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms. Phase is peak-interpolated, without delay correction; wrapped traces break at ±0.5 cycles.
 </RunFigure>
 
-<RunFigure report="exp172" experiment="exp172" file="weights.svg" number={4} id="fig-weights" alt="Executed A E to C E and B E to C E weight matrices in one row." allowUnavailable={true}>
-  (A–B) Executed A_E→C_E and B_E→C_E weights from the selected trial's native start snapshot. Rows are sources, columns targets; both share a linear µS colour scale. The Gaussian bands wrap around the circular spatial boundary. Snapshot arrays, rather than bundle initializers, define the executed weights.
+<p><strong>How the receptive phase was measured</strong></p>
+
+- Remove each of {data?.used_window ? data.used_window.packets : 'unavailable'} naturally occurring A/B volleys separately from its input to C. Test every eligible packet in the settled windows, without selecting on dominance.
+- Compare each removal with an exact matched continuation from the same native state. Preserve all other inputs, weights and delays; controls reproduce the original spikes.
+- Fit C’s spatial pattern over one and two complete cycles. Measure the loss of the removed sender’s pattern and its advantage over the competing pattern. Use the smallest effect across both measures and horizons, normalising the two-cycle result per cycle.
+- Shade phase bins with at least {data?.used_window ? data.used_window.settings.minimum_events : 'unavailable'} observed packets and a median effect at least half the positive supported peak. Bin width is 1/{data?.used_window ? data.used_window.settings.phase_bins : 'unavailable'} cycle; the Appendix gives the full method and sensitivity checks.
+- This identifies strong transmission phases used in this trial. Weaker effects outside the band remain possible; sparsely sampled phases are unmeasured, not proven inaccessible.
+
+## Metrics
+
+1. <span id="eq-switching-success" /> **Success:**
+
+   $$
+   S_e=\frac{N_{\mathrm{correct},e}}{N_e}
+   $$
+
+   For cue period $e$, $N_e$ counts retained C cycles and $N_{\mathrm{correct},e}$ counts attended-dominant cycles. Unresolved cycles fail; 1 is perfect.
+
+1. <span id="eq-cycle-flickering" /> **Flickering:**
+
+   $$
+   F=\frac{N_{\mathrm{changes}}}{N_{\mathrm{pairs}}}
+   $$
+
+   $N_{\mathrm{changes}}$ counts dominance changes across $N_{\mathrm{pairs}}$ adjacent resolved cycle pairs within each cue period. Unresolved cycles break adjacency; no pairs means unavailable. Zero is stable; 1 is continuous alternation.
+
+1. <span id="eq-switching-latency" /> **Latency:**
+
+   $$
+   L_e=\min\{k\ge1:z_{e,k}=z_{e,k+1}=z_{e,k+2}=a_e\}
+   $$
+
+   Here $z_{e,k}$ is cycle $k$’s dominant pattern and $a_e$ the attended pattern in period $e$. Count complete post-cue cycles, excluding the straddling cycle; report the first of three consecutive correct cycles within the cue period. Unresolved cycles break the run; no run means “Not observed”.
+
+## Sweep: Stimulus Contrast Cue
+
+<p>The contrast advantage is now the cue: A’s Gaussian bump is stronger before the switch, B’s afterwards. The unattended bump, uniform sensory baseline, widths and weights stay fixed; the separate uniform cue is off. Contrast ratio means Gaussian excess amplitude above baseline, not total firing-rate ratio.</p>
+
+<RunFigure report="exp172" experiment="exp172" file="contrast-examples.svg" number={4} id="fig-contrast-examples" alt="Two spatial input-rate examples, showing lower and higher contrast cues." allowUnavailable={true}>
+  Saved input-rate profiles before the switch: A attended (red, solid), B unattended (blue, dashed). Left: {data?.contrast_sweep ? data.contrast_sweep.settings.example_ratios[0] : 'unavailable'}× bump contrast; right: {data?.contrast_sweep ? data.contrast_sweep.settings.example_ratios[1] : 'unavailable'}×. Dotted line: fixed {cfg ? n(cfg.spatial_baseline_hz) : 'unavailable'} Hz/channel baseline. At {cfg ? n(cfg.switch_ms) : 'unavailable'} ms, B gains the higher contrast and A returns to the unattended profile.
 </RunFigure>
 
-
-{data?.mechanism ? <p>A competitor volley can win when it reaches C before the attended volley and recruits inhibition. Figure 5 tests this route by delaying only one competitor packet, preserving its spikes and weights. This is one demonstrated route to flickering; premature inhibition driven by C’s independent background activity is a separate route.</p> : null}
-
-<RunFigure report="exp172" experiment="exp172" file="flicker-mechanism.svg" number={5} id="fig-flicker-mechanism" alt="Original and delayed-competitor trials showing sender arrivals, C rasters and measured inhibitory conductance." allowUnavailable={true}>
-  Left: original attend-A excursion. Right: the same competitor B packet delayed by {data?.mechanism ? data.mechanism.settings.delay_ms : 'unavailable'} ms only on B_E→C_E. Top: sender E-population spike rates at arrival after native transmission delay, displayed with 1 ms Gaussian smoothing; A is red and B blue. Middle: individual C spikes in green, with inhibitory cells above excitatory cells; horizontal guides identify the A and B spatial patterns. Bottom: native C_I→C_E inhibitory conductance, averaged over all C E neurons, in µS. The dotted line marks the original attended A arrival-rate peak and is identical across columns.
-  The earlier B packet activates C and recruits inhibition before A; after the delay, A establishes the response first and the late B packet encounters stronger inhibition. Per-neuron packet counts, all weight arrays, sender trajectories and the pre-intervention C trajectory are checked unchanged. An unshifted replay control reproduces every original spike and inhibitory conductance sample. The fixed source-packet window is {data?.mechanism ? data.mechanism.settings.packet_window_ms.join('–') : 'unavailable'} ms; the plotted reference peak is {data?.mechanism ? round(data.mechanism.attended_arrival_peak_ms, 1) : 'unavailable'} ms. The representative seed and cue match Figure 1. This post hoc single-trial intervention illustrates timing-dependent competition, not a universal explanation of every excursion.
+<RunFigure report="exp172" experiment="exp172" file="contrast-sweep.svg" number={5} id="fig-contrast-sweep" alt="Selection, flicker, latency and C firing rates versus contrast-cue ratio with no uniform cue." allowUnavailable={true}>
+  Same panels and styles as Figures 6–7. C background is {data?.contrast_sweep ? n(data.contrast_sweep.settings.background_hz) : 'unavailable'} Hz/channel; uniform cue is zero. Means and ±1 sample SD across input seeds {data?.contrast_sweep ? data.contrast_sweep.settings.seeds.join(', ') : 'unavailable'}; missing latency is handled as in Figure 6. Ratio 1 gives no contrast cue, so A/B are nominal periods. Increasing contrast also raises attended mean sensory drive. One fixed circuit and previously used seeds; not held-out validation.
 </RunFigure>
 
+## Sweep: C Background Drive
 
-<RunFigure report="exp172" experiment="exp172" file="candidate-rasters.svg" number={6} id="fig-candidate-rasters" alt="A, B and C rasters for the higher-background candidate, in the same layout as Figure 1." allowUnavailable={true}>
-  (A–C) Higher-background candidate using the same raster layout, E/I colours, neuron ordering and cue-switch markers as Figure 1. The seed, sensory patterns, cue and executed weights match Figure 1; C’s independent input rate differs. This candidate was selected on the displayed seed from separate contrast and background-drive sweeps; flickering remains and no held-out validation is claimed.
+<RunFigure report="exp172" experiment="exp172" file="background-sweep.svg" number={6} id="fig-background-sweep" alt="Mean selection, flicker, latency and receiver firing rates across five input seeds as C background drive changes." allowUnavailable={true}>
+  Top: S solid/circles, F dashed/triangles (left axis); latency L dotted/squares (green right axis). Attend A is red, B blue. Means across input seeds {data?.background_sweep ? data.background_sweep.settings.seeds.join(', ') : 'unavailable'}; shading/bars show ±1 sample SD. Latency averages observed values only; count labels flag missing observations. Bottom: C E solid, I dashed. Dotted reference: Figure 2 background. The same cycle definitions apply. Rates share sender spikes and fixed weights, cue and contrast. These are input realisations of one circuit, including the tuning seed.
 </RunFigure>
 
-<Table headers={['Figure 6C metric', 'Attend A', 'Attend B', 'Interpretation']} rows={candidateRows} number={2} id="candidate-selection-metrics" label="Higher-background candidate selection and flickering">
-  The same decoder, settled windows and three-consecutive-cycle latency criterion as Table 1, applied to the trial in Figure 6. A latency measures initial acquisition; B latency measures the cue switch.
-</Table>
+### Explanation
 
-{data?.candidate ? <p>Relative to Figure 1, only C’s independent background input increases, from {cfg.background_hz} to {data.candidate.configuration.background_hz} Hz/channel. Sensory contrast, cue strength, synaptic weights, delays, inhibition, recurrence and seed are unchanged.</p> : <p>Candidate evidence is unavailable.</p>}
+- **Low background may leave C too weakly excited.** The attended sender’s timing advantage may not reliably produce a dominant spatial response.
+- **More background could make the attended response more reliable.** Bringing C closer to firing threshold could help an attended volley arriving during low inhibition trigger a response, recruit inhibition and suppress later distractor input. Background supplies excitability; the sender supplies the spatial pattern.
+- **Too much background could also hurt.** It could trigger C prematurely or admit distractor input, potentially explaining the trade-off between attention conditions.
+- **This remains a mechanistic hypothesis.** Background also changes C’s firing rate and rhythm. Comparing pre-arrival membrane voltage, inhibition and response delay across settings would help distinguish these explanations.
 
+## Sweep: Uniform Cue Drive
 
-{data?.background_sweep ? <p>Across five input seeds, increasing C’s background from {cfg.background_hz} to {backgroundHighRate} Hz/channel changes mean S from {round(backgroundPoint('A', cfg.background_hz).S.mean, 3)} to {round(backgroundPoint('A', backgroundHighRate).S.mean, 3)} for attend A, but from {round(backgroundPoint('B', cfg.background_hz).S.mean, 3)} to {round(backgroundPoint('B', backgroundHighRate).S.mean, 3)} for attend B. Mean F changes from {round(backgroundPoint('A', cfg.background_hz).F.mean, 3)} to {round(backgroundPoint('A', backgroundHighRate).F.mean, 3)} for A and from {round(backgroundPoint('B', cfg.background_hz).F.mean, 3)} to {round(backgroundPoint('B', backgroundHighRate).F.mean, 3)} for B: a trade-off rather than a consistent improvement across both attention periods.</p> : null}
-
-<RunFigure report="exp172" experiment="exp172" file="background-sweep.svg" number={7} id="fig-background-sweep" alt="Mean selection, flicker, latency and receiver firing rates across five input seeds as C background drive changes." allowUnavailable={true}>
-  Top: S (solid circles) and F (dashed triangles) on the left axis, with latency L (dotted squares) in PING cycles on the green right axis, separately for attend A (red) and attend B (blue). Lines are equal-weight means across {data?.background_sweep ? data.background_sweep.settings.seeds.length : 'unavailable'} input seeds; ribbons for S/F and error bars for L show ±1 sample standard deviation across seeds, not confidence intervals. Where sustained switching is not observed for every seed, L is averaged only over observed latencies and labels show the observed count out of five; unobserved latencies are never replaced with zero. Any incomplete S/F groups are also labelled with their observed count. Bottom: mean C E (solid) and C I (dashed) firing rates, with ±1 seed SD. The dotted line marks Figure 1’s background rate.
-  C’s independent input spans {data?.background_sweep ? data.background_sweep.settings.rates_hz[0] : 'unavailable'}–{data?.background_sweep ? data.background_sweep.settings.rates_hz.at(-1) : 'unavailable'} Hz/channel. Cue strength, sensory contrast and all synaptic weights remain fixed. Input seeds are {data?.background_sweep ? data.background_sweep.settings.seeds.join(', ') : 'unavailable'}; paired random-number streams are used across rates within each seed. Sender spikes are verified identical across rates for each seed. Metrics use the same decoder, windows and latency criterion as Table 1; seed metrics are averaged rather than pooling cycles. These are five input realisations of one fixed circuit, including tuning seed 185, rather than five independently drawn circuits or a held-out validation set.
+<RunFigure report="exp172" experiment="exp172" file="cue-sweep.svg" number={7} id="fig-cue-sweep" alt="Selection, flicker, latency and C firing rates versus cue drive at the selected background setting." allowUnavailable={true}>
+  Same panels and line styles as Figure 6, now versus cue drive. Means and ±1 sample SD across input seeds {data?.cue_sweep ? data.cue_sweep.settings.seeds.join(', ') : 'unavailable'}; latency averages observed values only, with count labels for missing observations. Dotted reference: {data?.cue_sweep ? n(data.cue_sweep.settings.reference_cue_hz) : 'unavailable'} Hz/channel cue. At zero cue, A/B denote scheduled periods without an attention cue. Background selection and cue assessment use the same five seeds in one fixed circuit; this is not held-out validation.
 </RunFigure>

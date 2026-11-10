@@ -79,7 +79,7 @@ const frontMatter = {
     </div>
   </d-byline>
   <div class="report-body base-grid">
-    <aside class="report-toc">
+    {data.sidebar && tocGroups.length > 0 && <aside class="report-toc">
       <d-toc prerendered="true">
         <nav aria-label="Table of contents">
           <h2>Contents</h2>
@@ -91,7 +91,7 @@ const frontMatter = {
           </li>)}</ol>
         </nav>
       </d-toc>
-    </aside>
+    </aside>}
     <d-article role="article" aria-label={data.title}>
       {data.abstract && <section class="report-abstract" aria-labelledby="abstract">
         <h2 id="abstract">Abstract</h2>
@@ -159,10 +159,14 @@ const frontMatter = {
   .report-abstract { grid-column: text; }
   .report-abstract h2 { margin-top: 0; }
   :is(d-article, d-appendix) [id] { scroll-margin-top: 24px; }
-  @media (max-width: 1399px) {
+  @media (min-width: 1000px) and (max-width: 1399px) {
+    .report-toc d-toc { padding-right: 24px; }
+    .report-toc a { overflow-wrap: anywhere; }
+  }
+  @media (max-width: 999px) {
     .report-toc { grid-column: text; grid-row: 1; justify-self: stretch; width: auto; padding: 32px 0 24px; }
     .report-toc d-toc { padding-right: 0; }
-    .report-body > d-article { grid-row: 2; }
+    .report-toc + d-article { grid-row: 2; }
     .report-toc .toc-sections { columns: 2; column-gap: 32px; }
     .report-toc .toc-sections > li { break-inside: avoid; }
   }

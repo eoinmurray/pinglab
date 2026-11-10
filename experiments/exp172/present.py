@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -22,14 +21,30 @@ from snnlab.sim import NetworkSnapshot
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from experiments.exp172.analyse import (
-    fit_profile,
+    cycle_spatial_fits,
     materialise_compute,
-    spatial_timecourse,
 )
+from experiments.exp172.recipe import phase_plot_configuration
 from pingstore.library import source_run, stage_run
 
 sys.path.insert(0, str(REPO))
 from experiments import theme
+
+
+def apply_report_style():
+    """Use house typography at sizes readable in the report’s figure column."""
+    theme.set_paper_mode(False)
+    theme.apply()
+    plt.rcParams.update(
+        {
+            "font.size": theme.SIZE_PANEL,
+            "axes.titlesize": theme.SIZE_PANEL,
+            "axes.labelsize": theme.SIZE_PANEL,
+            "xtick.labelsize": theme.SIZE_TITLE,
+            "ytick.labelsize": theme.SIZE_TITLE,
+            "legend.fontsize": theme.SIZE_TITLE,
+        }
+    )
 
 
 def circuit_diagram(bundle, parameters):
@@ -38,6 +53,8 @@ def circuit_diagram(bundle, parameters):
     symbols = {f"{c}_{p}": f"{p}_{c}" for c in "ABC" for p in "EI"}
     symbols.update({f"X_{c}": f"X_{c}" for c in "ABC"})
     symbols.update({f"U_{c}": f"U_{c}" for c in "AB"})
+    replay = any(node.id == "replay_B" for node in native.nodes)
+    symbols["replay_B"] = r"B_{\mathrm{replay}}"
     input_sizes = {p["id"]: p["shape"][-1] for p in bundle.graph["inputs"]}
     nodes = tuple(
         replace(
@@ -58,7 +75,11 @@ def circuit_diagram(bundle, parameters):
         if e.id is not None
     )
     diagram = replace(
-        native, title="Spatial relay", nodes=nodes, edges=edges, groups=()
+        native,
+        title="Spatial relay · packet replay" if replay else "Spatial relay",
+        nodes=nodes,
+        edges=edges,
+        groups=(),
     )
     positions = {
         "A_E": (0, 0),
@@ -67,12 +88,14 @@ def circuit_diagram(bundle, parameters):
         "B_I": (0, 480),
         "C_E": (800, 360),
         "C_I": (800, 120),
-        "X_A": (-420, 0),
-        "U_A": (-420, 200),
-        "X_B": (-420, 720),
-        "U_B": (-420, 920),
+        "X_A": (-500, 0),
+        "U_A": (-300, 220),
+        "X_B": (-500, 720),
+        "U_B": (-300, 940),
         "X_C": (800, 820),
     }
+    if replay:
+        positions["replay_B"] = (380, 930)
     ports = dict(
         upper_left=(0, 0.3),
         lower_left=(0, 0.7),
@@ -91,7 +114,33 @@ def circuit_diagram(bundle, parameters):
         if not parameters[edge.id + ".weight"].count_nonzero():
             label += "=0"
         route = viz.EdgeLayout(label=viz.DiagramLabel(f"${label}$"))
-        if edge.id.endswith("E_to_I") and edge.source[0] == edge.target[0]:
+        if edge.source == "replay_B":
+            # The saved replay bundle retains the original projection identifier.
+            label = r"W_{E_C,E_B}"
+            route = replace(
+                route,
+                label=viz.DiagramLabel(f"${label}$"),
+                source_port="top",
+                target_port="lower_left",
+                waypoints=((380, 400), (650, 400)),
+            )
+        elif edge.id.startswith("cue_"):
+            x, y = positions[edge.source]
+            route = replace(
+                route,
+                source_port="right",
+                target_port="bottom_left",
+                waypoints=((-45, y),),
+            )
+        elif edge.source == edge.target:
+            x, y = positions[edge.source]
+            route = replace(
+                route,
+                source_port="top_right",
+                target_port="right",
+                waypoints=((x + 145, y - 105), (x + 145, y)),
+            )
+        elif edge.id.endswith("E_to_I") and edge.source[0] == edge.target[0]:
             route = replace(route, source_port="top_right", target_port="bottom_right")
         elif edge.id.endswith("I_to_E"):
             route = replace(route, source_port="bottom_left", target_port="top_left")
@@ -126,6 +175,15 @@ def circuit_diagram(bundle, parameters):
                 waypoints=((440, 700), (440, 140), (650, 140)),
             )
         routes[edge.id] = route
+    positions = {key: (x * 0.9, y * 0.85) for key, (x, y) in positions.items()}
+    routes = {
+        key: replace(
+            route, waypoints=tuple((x * 0.9, y * 0.85) for x, y in route.waypoints)
+        )
+        if route.waypoints
+        else route
+        for key, route in routes.items()
+    }
     layout = viz.DiagramLayout(
         nodes={
             identifier: viz.NodeLayout(
@@ -148,22 +206,23 @@ def circuit_diagram(bundle, parameters):
         line=theme.RULE,
         signal=theme.GREY_MID,
         background=theme.PAPER,
-        population_fill=theme.PAPER,
+        population_fill=theme.PAPER_TINT,
         population_border=theme.INK_BLACK,
         input_fill=theme.PAPER_TINT,
         input_border=theme.GREY_MID,
-        label_size=18,
-        secondary_size=13,
+        font_name=matplotlib.font_manager.FontProperties(family="monospace").get_name(),
+        label_size=20,
+        secondary_size=15,
     )
     with matplotlib.rc_context({"savefig.bbox": None}):
         return viz.resolve_diagram(diagram, layout=layout, theme=style)
 
 
-def save_circuit(bundle, parameters, output):
+def save_circuit(bundle, parameters, output, stem="circuit"):
     circuit = circuit_diagram(bundle, parameters)
     with matplotlib.rc_context({"savefig.bbox": None}):
         for suffix in ("svg", "png"):
-            viz.render_diagram(circuit, output / f"circuit.{suffix}")
+            viz.render_diagram(circuit, output / f"{stem}.{suffix}")
 
 
 def phase_evidence(spikes, cfg):
@@ -197,9 +256,10 @@ def phase_evidence(spikes, cfg):
 
 
 def relative_phases(spikes, cfg):
-    """Continuous sender-minus-C phase; no modulo wrapping or phase reset."""
-    t, phases, _, _ = phase_evidence(spikes, cfg)
-    return t, {c: phases[c] - phases["C"] for c in "AB"}
+    """Unwrapped sender-minus-C phase sampled once per detected C E cycle."""
+    t, phases, _, detected = phase_evidence(spikes, cfg)
+    peaks = detected["C"]
+    return t[peaks], {c: (phases[c] - phases["C"])[peaks] for c in "AB"}
 
 
 def amplitude_panel(ax, course, cfg, *, softmax_scale_hz=None):
@@ -217,23 +277,17 @@ def amplitude_panel(ax, course, cfg, *, softmax_scale_hz=None):
             values[:, j],
             color=color,
             lw=1.2,
-            label=f"{c}-like" if normalised else f"{c}-like amplitude",
+            label=f"{c}-like",
         )
     ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
-    for start, end in cfg["windows_ms"]:
-        ax.axvspan(start, end, color=theme.GREY_LIGHT, alpha=0.25)
     ax.set(
-        title=(
-            f"Spatial-amplitude softmax · scale {softmax_scale_hz:g} Hz"
-            if normalised
-            else f"C spatial components · {course['window_ms']:g} ms windows, {course['hop_ms']:g} ms step"
-        ),
+        title="Spatial selection" if normalised else "C spatial amplitudes",
         xlabel="Time (ms)",
-        ylabel="Softmax weight" if normalised else "Fitted Gaussian amplitude (Hz)",
+        ylabel="Softmax weight" if normalised else "Gaussian amplitude (Hz)",
         xlim=(0, cfg["duration_ms"]),
         ylim=(-0.1, 1.1) if normalised else (0, None),
     )
-    ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
+    ax.legend(loc="upper right", fontsize=theme.SIZE_TITLE)
 
 
 def select_trial(data, cfg, args):
@@ -314,76 +368,90 @@ def raster_panel(raster, spikes, c, cfg):
     )
 
 
-def plot_populations(
-    spikes,
-    profiles,
-    cfg,
-    swap,
-    colors,
-    raster_fig,
-    raster_grid,
-    raster_axes,
-    profile_fig,
-    profile_grid,
-    profile_axes,
+def attention_figures(
+    spikes, cfg, swap=False, phase_inhibition=None, probe_window=None, used_window=None
 ):
-    e_axes = []
-    i_axes = []
-    for row, c in enumerate("ABC"):
-        raster = raster_fig.add_subplot(raster_grid[0, row])
-        raster_axes.append(raster)
-        raster_panel(raster, spikes, c, cfg)
-        for col, p in [(1, "E"), (2, "I")]:
-            ax = profile_fig.add_subplot(profile_grid[row, col - 1])
-            profile_axes.append(ax)
-            (e_axes if p == "E" else i_axes).append(ax)
-            for epoch in range(2):
-                y = profiles[f"epoch{epoch}_{c}_{p}"]
-                x = np.arange(len(y)) + 1
-                ax.plot(x, y, color=colors[epoch], lw=0.5, alpha=0.22)
-                ax.plot(
-                    x,
-                    gaussian_filter1d(y, 2, mode="wrap"),
-                    color=colors[epoch],
-                    lw=1.3,
-                    label=f"Attend {'AB'[epoch]}",
-                )
-                if p == "E":
-                    sigma = np.sqrt(
-                        cfg["spatial_sigma"] ** 2
-                        + cfg["sensory_kernel_sigma"] ** 2
-                        + (cfg["cross_kernel_sigma"] ** 2 if c == "C" else 0)
-                    )
-                    fit, pred, templates = fit_profile(
-                        y,
-                        (cfg["centres"][::-1] if swap else cfg["centres"]),
-                        sigma,
-                        cfg["minimum_total_amplitude_hz"],
-                    )
-                    ax.plot(x, pred, color=colors[epoch], ls="--", lw=1.7)
-                    if c == "C":
-                        for j in range(2):
-                            ax.plot(
-                                x,
-                                fit["background_hz"]
-                                + fit["amplitudes_hz"][j] * templates[:, j],
-                                color=colors[epoch],
-                                ls=":" if j == 0 else "-.",
-                                lw=0.9,
-                            )
-            ax.set(
-                title=f"{c}_{p} · spatial rate",
-                xlabel="Neuron index",
-                ylabel="Rate (Hz)",
-                xlim=(1, len(y)),
-                ylim=(0, None),
+    """Separate raster and per-cycle relative-phase figures for one trial."""
+    apply_report_style()
+    colors = [theme.INK_BLACK, theme.DEEP_RED]
+    attention_fig = plt.figure(figsize=(12, 4.2), layout="constrained")
+    attention_grid = attention_fig.add_gridspec(1, 3)
+    attention_axes = []
+    for col, population in enumerate("ABC"):
+        ax = attention_fig.add_subplot(attention_grid[0, col])
+        raster_panel(ax, spikes, population, cfg)
+        attention_axes.append(ax)
+    phase_fig = plt.figure(figsize=(12, 4.3), layout="constrained")
+    phase_grid = phase_fig.add_gridspec(1, 2)
+    phase_axes = []
+    t, relative = relative_phases(spikes, cfg)
+    dominant = {
+        cycle["peak_ms"]: cycle["dominant"]
+        for cycle in cycle_spatial_fits(spikes, cfg, swap)
+    }
+    for column, wrapped in enumerate((False, True)):
+        ax = phase_fig.add_subplot(phase_grid[0, column])
+        phase_axes.append(ax)
+        for c, color in zip("AB", colors, strict=False):
+            values = relative[c] / (2 * np.pi)
+            if wrapped:
+                values = (values + 0.5) % 1 - 0.5
+                # Break the trace at the phase seam without dropping cycle samples.
+                breaks = np.flatnonzero(np.abs(np.diff(values)) > 0.5) + 1
+                trace_t = np.insert(t, breaks, np.nan)
+                trace_values = np.insert(values, breaks, np.nan)
+            else:
+                trace_t, trace_values = t, values
+            ax.plot(trace_t, trace_values, color=color, lw=1, label=f"{c} − C")
+            selected = np.array([dominant.get(time) == c for time in t], dtype=bool)
+            ax.plot(
+                t[selected],
+                values[selected],
+                color=color,
+                linestyle="none",
+                marker="o",
+                markersize=3,
             )
-            if row == 0:
-                ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
-    for group in [e_axes, i_axes]:
-        upper = max(a.get_ylim()[1] for a in group)
-        for a in group:
-            a.set_ylim(0, upper)
+        ax.axhline(0, color=theme.GREY_MID, ls=":", lw=0.7)
+        ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
+        ax.set(
+            title=("Wrapped" if wrapped else "Unwrapped") + " phase per C cycle",
+            xlabel="Time (ms)",
+            ylabel="Sender − C phase (cycles)",
+            xlim=(0, cfg["duration_ms"]),
+        )
+        if wrapped:
+            ax.set_ylim(-0.5, 0.5)
+            shading = (
+                used_window
+                if used_window is not None
+                else (probe_window if probe_window is not None else phase_inhibition)
+            )
+            if shading is not None:
+                label = (
+                    "Used transmission phases"
+                    if used_window is not None
+                    else (
+                        "Probe-response window"
+                        if probe_window is not None
+                        else "Low-inhibition window"
+                    )
+                )
+                for index, bounds in enumerate(shading["bounds_cycles"]):
+                    ax.axhspan(
+                        *bounds,
+                        color=theme.GREY_LIGHT,
+                        alpha=0.25,
+                        linewidth=0,
+                        zorder=0,
+                        label=label if index == 0 else None,
+                    )
+        if not wrapped:
+            ax.legend(loc="upper right", fontsize=theme.SIZE_TITLE)
+    return [
+        ("rasters", attention_fig, attention_axes),
+        ("relative-phase", phase_fig, phase_axes),
+    ]
 
 
 def render(data, output, argv=None):
@@ -405,61 +473,9 @@ def render(data, output, argv=None):
     directory = data / metrics["id"]
     with np.load(directory / "spikes.npz") as f:
         spikes = dict(f)
-    with np.load(directory / "profiles.npz") as f:
-        profiles = dict(f)
-    theme.apply()
-    colors = [theme.INK_BLACK, theme.DEEP_RED]
-    course = spatial_timecourse(spikes, cfg, args.swap)
-    raster_fig = plt.figure(figsize=(17, 5), layout="constrained")
-    raster_grid = raster_fig.add_gridspec(1, 3)
-    profile_fig = plt.figure(figsize=(11, 10), layout="constrained")
-    profile_grid = profile_fig.add_gridspec(3, 2)
-    signal_fig = plt.figure(figsize=(16.5, 5), layout="constrained")
-    signal_grid = signal_fig.add_gridspec(1, 3)
+    attention_figures_to_save = attention_figures(spikes, cfg, args.swap)
     weight_fig = plt.figure(figsize=(11, 5), layout="constrained")
     weight_grid = weight_fig.add_gridspec(1, 2)
-    raster_axes = []
-    profile_axes = []
-    signal_axes = []
-    plot_populations(
-        spikes,
-        profiles,
-        cfg,
-        args.swap,
-        colors,
-        raster_fig,
-        raster_grid,
-        raster_axes,
-        profile_fig,
-        profile_grid,
-        profile_axes,
-    )
-    relative_ax = signal_fig.add_subplot(signal_grid[0, 0])
-    signal_axes.append(relative_ax)
-    t, relative = relative_phases(spikes, cfg)
-    for c, color in zip("AB", colors, strict=False):
-        relative_ax.plot(
-            t, relative[c] / (2 * np.pi), color=color, lw=1, label=f"{c} − C"
-        )
-    relative_ax.axhline(0, color=theme.GREY_MID, ls=":", lw=0.7)
-    relative_ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
-    for start, end in cfg["windows_ms"]:
-        relative_ax.axvspan(start, end, color=theme.GREY_LIGHT, alpha=0.25)
-    relative_ax.set(
-        title="Unwrapped E-population phase difference",
-        xlabel="Time (ms)",
-        ylabel="Sender phase − C phase (cycles)",
-        xlim=(0, cfg["duration_ms"]),
-    )
-    relative_ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
-    amplitude_ax = signal_fig.add_subplot(signal_grid[0, 1])
-    signal_axes.append(amplitude_ax)
-    amplitude_panel(amplitude_ax, course, cfg)
-    softmax_ax = signal_fig.add_subplot(signal_grid[0, 2])
-    signal_axes.append(softmax_ax)
-    amplitude_panel(
-        softmax_ax, course, cfg, softmax_scale_hz=selection_metadata["softmax_scale_hz"]
-    )
     parameters = NetworkSnapshot.read(
         directory / "start/snapshot.json"
     ).load_parameters()
@@ -491,10 +507,7 @@ def render(data, output, argv=None):
     weight_fig.colorbar(
         heat, ax=matrix_axes, label="Synaptic weight (µS)", shrink=0.85, pad=0.02
     )
-    for name, figure, panels in [
-        ("rasters", raster_fig, raster_axes),
-        ("profiles", profile_fig, profile_axes),
-        ("selection", signal_fig, signal_axes),
+    for name, figure, panels in attention_figures_to_save + [
         ("weights", weight_fig, matrix_axes),
     ]:
         theme.label_panels(panels)
@@ -504,110 +517,131 @@ def render(data, output, argv=None):
     return selection_metadata
 
 
-def render_mechanism(path, measured, output):
-    """Original and packet-delayed inputs, receiver rasters and native inhibition."""
+def render_receptive_window(path, measured, output):
+    """Show arrival order relative to measured inhibition, without a hard gate."""
     colors = dict(A=theme.DEEP_RED, B="#2457c5", C="#23844f")
     with np.load(path) as z:
         arrays = dict(z)
-    theme.apply()
-    cfg = measured["configuration"]
+    apply_report_style()
     reference = measured["attended_arrival_peak_ms"]
-    t = arrays["time_ms"] - reference
+    time = arrays["time_ms"] - reference
     fig, axes = plt.subplots(
         3,
         2,
-        figsize=(12, 9),
+        figsize=(12, 10),
         sharex=True,
         sharey="row",
         layout="constrained",
-        gridspec_kw={"height_ratios": [1, 1.8, 1]},
+        gridspec_kw={"height_ratios": [1.2, 1, 1.7]},
+    )
+    upper = 1.25 * max(
+        arrays["original_inhibition_us"].max(), arrays["delayed_inhibition_us"].max()
     )
     for col, (case, title) in enumerate(
         [
-            ("original", "Original: competitor arrives first"),
-            (
-                "delayed",
-                f"Same competitor packet delayed {measured['settings']['delay_ms']:g} ms",
-            ),
+            ("original", "Original · B first at lower inhibition"),
+            ("delayed", "Delayed B · A first at lower inhibition"),
         ]
     ):
+        points = measured["receptive_window"]["cases"][case]
+        gate = axes[0, col]
+        inhibition = arrays[case + "_inhibition_us"]
+        gate.plot(time, inhibition, color=colors["C"], lw=1.4)
+        gate.fill_between(time, 0, inhibition, color=colors["C"], alpha=0.10)
+        gate.set(title=title, ylim=(0, upper))
+        for order, point in enumerate(points, 1):
+            sender = point["sender"]
+            when = point["time_ms"] - reference
+            value = point["inhibition_us"]
+            gate.scatter([when], [value], color=colors[sender], s=40, zorder=4)
+            label = f"{order}. {sender} · {value:.2f} µS"
+            gate.annotate(
+                label,
+                (when, value),
+                xytext=(-72, 30) if order == 1 else (12, 30),
+                textcoords="offset points",
+                color=colors[sender],
+                fontsize=theme.SIZE_TITLE,
+                arrowprops=dict(arrowstyle="->", color=colors[sender], lw=0.8),
+            )
+            for ax in axes[:, col]:
+                ax.axvline(when, color=colors[sender], ls=":", lw=0.8, alpha=0.65)
+        gate.text(
+            0.98,
+            0.94,
+            "Lower curve = less inhibition",
+            ha="right",
+            va="top",
+            transform=gate.transAxes,
+            fontsize=theme.SIZE_TITLE,
+            color=colors["C"],
+        )
+        arrivals = axes[1, col]
         for sender in "AB":
-            axes[0, col].plot(
-                t,
+            arrivals.plot(
+                time,
                 arrays[case + "_arrival_" + sender],
                 color=colors[sender],
-                label=f"{sender} · {'attended' if sender == measured['settings']['attended'] else 'competitor'}",
+                label=sender + (" · attended" if sender == "A" else " · distractor"),
             )
-        axes[0, col].set_title(title, loc="left")
-        axes[0, col].legend(loc="upper left", fontsize=theme.SIZE_ANNOTATION)
-        ne = arrays[case + "_C_E"].shape[1]
-        ni = arrays[case + "_C_I"].shape[1]
-        for pool, offset in [("E", 0), ("I", ne)]:
-            ii, jj = np.nonzero(arrays[case + "_C_" + pool])
-            axes[1, col].scatter(
-                t[ii],
-                jj + offset + 1,
-                s=3,
-                marker=".",
-                linewidths=0,
-                color=colors["C"],
-                rasterized=True,
-            )
-        axes[1, col].axhline(ne + 0.5, color=theme.GREY_MID, lw=0.7)
-        axes[1, col].text(
-            0.98,
-            ne + ni / 2,
-            "C I",
-            ha="right",
-            va="center",
+        arrivals.set(ylim=(0, None))
+        arrivals.legend(loc="upper left", fontsize=theme.SIZE_TITLE)
+        raster = axes[2, col]
+        ii, jj = np.nonzero(arrays[case + "_C_E"])
+        raster.scatter(
+            time[ii],
+            jj + 1,
+            s=4,
+            marker=".",
+            linewidths=0,
             color=colors["C"],
-            transform=axes[1, col].get_yaxis_transform(),
-            fontsize=theme.SIZE_ANNOTATION,
+            rasterized=True,
         )
-        for sender, centre in zip("AB", cfg["centres"], strict=True):
-            y = centre * ne + 1
-            axes[1, col].axhline(y, color=theme.GREY_LIGHT, ls=":", lw=0.7)
-            axes[1, col].text(
+        neurons = arrays[case + "_C_E"].shape[1]
+        for sender, centre in zip(
+            "AB", measured["configuration"]["centres"], strict=True
+        ):
+            position = centre * neurons + 1
+            raster.axhline(position, color=theme.GREY_LIGHT, lw=0.7, ls=":")
+            raster.text(
                 0.98,
-                y,
-                f"{sender} pattern",
+                position,
+                "Pattern " + sender,
                 ha="right",
                 va="bottom",
                 color=colors[sender],
-                transform=axes[1, col].get_yaxis_transform(),
-                fontsize=theme.SIZE_ANNOTATION,
+                fontsize=theme.SIZE_TITLE,
+                transform=raster.get_yaxis_transform(),
             )
-        axes[1, col].set(ylim=(0.5, ne + ni + 0.5), yticks=[1, ne / 2, ne, ne + ni])
-        axes[2, col].plot(t, arrays[case + "_inhibition_us"], color=colors["C"])
-        axes[2, col].set(
-            xlabel="Time relative to attended input arrival peak (ms)", ylim=(0, None)
+        dominant = (
+            "A"
+            if measured["outcomes"][case]["A_amplitude_hz"]
+            > measured["outcomes"][case]["B_amplitude_hz"]
+            else "B"
+        )
+        raster.set(
+            title=f"C represents {dominant} more strongly",
+            ylim=(0.5, neurons + 0.5),
+            yticks=[1, 100, 200, 300, 400],
+            xlabel="Time from original A arrival (ms)",
         )
         for ax in axes[:, col]:
-            ax.axvline(0, color=theme.GREY_MID, ls=":", lw=0.8)
-            ax.set_xlim(t[0], t[-1])
-    axes[0, 0].set_ylabel("Sender arrival rate (Hz)")
-    axes[1, 0].set_ylabel("C neuron index")
-    axes[2, 0].set_ylabel("Mean C inhibition (µS)")
-    axes[2, 0].set_ylim(
-        0,
-        1.05
-        * max(
-            arrays["original_inhibition_us"].max(),
-            arrays["delayed_inhibition_us"].max(),
-        ),
-    )
+            ax.set_xlim(time[0], time[-1])
+    axes[0, 0].set_ylabel("Mean C inhibition (µS)")
+    axes[1, 0].set_ylabel("Arrival rate (Hz)")
+    axes[2, 0].set_ylabel("C E neuron index")
     theme.label_panels(list(axes.flat))
     for suffix in ["png", "svg"]:
-        fig.savefig(output / ("flicker-mechanism." + suffix), dpi=240)
+        fig.savefig(output / ("receptive-window." + suffix), dpi=240)
     plt.close(fig)
 
 
 def render_candidate(computed, measured, output):
-    """Match Figure 1 exactly using the same raster renderer and geometry."""
+    """Match Figure 1’s raster row using the same renderer and geometry."""
     with np.load(computed.file(measured["trial_id"], "spikes.npz")) as z:
         spikes = dict(z)
-    theme.apply()
-    fig, axes = plt.subplots(1, 3, figsize=(17, 5), layout="constrained")
+    apply_report_style()
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), layout="constrained")
     for ax, population in zip(axes, "ABC", strict=True):
         raster_panel(ax, spikes, population, measured["configuration"])
     theme.label_panels(list(axes))
@@ -616,11 +650,19 @@ def render_candidate(computed, measured, output):
     plt.close(fig)
 
 
-def render_background_sweep(measured, output):
+def render_background_sweep(
+    measured,
+    output,
+    *,
+    control_key="background_hz",
+    xlabel="C independent background rate (Hz/channel)",
+    stem="background-sweep",
+    reference_rate=None,
+):
     """Five input-seed means with seed SD; no pooling of cycle denominators."""
     colors = dict(A=theme.DEEP_RED, B="#2457c5", C="#23844f")
-    theme.apply()
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex="col", layout="constrained")
+    apply_report_style()
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9), sharex="col", layout="constrained")
 
     def series(rows, key, field):
         return np.array(
@@ -630,7 +672,7 @@ def render_background_sweep(measured, output):
 
     for col, att in enumerate("AB"):
         rows = [r for r in measured["summary"] if r["attended"] == att]
-        x = np.array([r["background_hz"] for r in rows])
+        x = np.array([r[control_key] for r in rows])
         ax = axes[0, col]
         speed = ax.twinx()
         speed.grid(False)
@@ -659,7 +701,7 @@ def render_background_sweep(measured, output):
                         (xx, yy),
                         xytext=(2, 5),
                         textcoords="offset points",
-                        fontsize=theme.SIZE_ANNOTATION,
+                        fontsize=theme.SIZE_TITLE,
                     )
         mean = series(rows, "latency_cycles", "mean")
         sd = series(rows, "latency_cycles", "sd")
@@ -668,6 +710,9 @@ def render_background_sweep(measured, output):
             mean,
             yerr=sd,
             color=colors["C"],
+            ecolor=matplotlib.colors.to_rgba(colors["C"], alpha=0.18),
+            elinewidth=0.7,
+            capthick=0.7,
             ls=":",
             marker="s",
             markersize=4,
@@ -698,7 +743,7 @@ def render_background_sweep(measured, output):
                     (xx, yy if np.isfinite(yy) else top * 0.04),
                     xytext=(2, 5),
                     textcoords="offset points",
-                    fontsize=theme.SIZE_ANNOTATION,
+                    fontsize=theme.SIZE_TITLE,
                     color=colors["C"],
                 )
         ax.set(title=f"Attend {att}", ylabel="S / F", ylim=(-0.05, 1.05))
@@ -709,11 +754,11 @@ def render_background_sweep(measured, output):
             labels + extra,
             loc="lower left",
             bbox_to_anchor=(0, 1.08),
-            ncol=3,
+            ncol=1,
             handlelength=3.6,
             numpoints=2,
             columnspacing=1.0,
-            fontsize=theme.SIZE_ANNOTATION,
+            fontsize=theme.SIZE_TITLE,
         )
         rates = axes[1, col]
         for key, style, marker, label in [
@@ -735,24 +780,380 @@ def render_background_sweep(measured, output):
                 x, mean - sd, mean + sd, color=colors["C"], alpha=0.12, linewidth=0
             )
         rates.set(
-            xlabel="C independent background rate (Hz/channel)",
+            xlabel=xlabel,
             ylabel="C firing rate (Hz)",
             ylim=(0, None),
         )
         rates.legend(
-            loc="best", handlelength=3.6, numpoints=2, fontsize=theme.SIZE_ANNOTATION
+            loc="best", handlelength=3.6, numpoints=2, fontsize=theme.SIZE_TITLE
         )
         for panel in axes[:, col]:
             panel.axvline(
-                measured["configuration"]["background_hz"],
+                measured["configuration"]["background_hz"]
+                if reference_rate is None
+                else reference_rate,
                 color=theme.GREY_MID,
                 ls=":",
                 lw=0.8,
             )
     theme.label_panels(list(axes.flat))
     for suffix in ["png", "svg"]:
-        fig.savefig(output / ("background-sweep." + suffix), dpi=240)
+        fig.savefig(output / (stem + "." + suffix), dpi=240)
     plt.close(fig)
+
+
+def render_contrast_examples(computed, measured, output):
+    """Actual saved pre-switch input profiles for lower and higher contrast cues."""
+    apply_report_style()
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharey=True, layout="constrained")
+    profiles = []
+    for example in measured["examples"]:
+        with np.load(computed.file(example["trial_id"], "input_rates.npz")) as z:
+            profiles.append({sender: z["X_" + sender][0] for sender in "AB"})
+    upper = (
+        max(float(value.max()) for profile in profiles for value in profile.values())
+        * 1.08
+    )
+    for ax, example, profile, title in zip(
+        axes,
+        measured["examples"],
+        profiles,
+        ("Lower contrast cue", "Higher contrast cue"),
+        strict=True,
+    ):
+        x = np.arange(len(profile["A"])) / len(profile["A"])
+        ax.plot(x, profile["A"], color=theme.DEEP_RED, label="A · attended", lw=1.6)
+        ax.plot(
+            x, profile["B"], color="#2457c5", ls="--", label="B · unattended", lw=1.6
+        )
+        ax.axhline(
+            measured["configuration"]["spatial_baseline_hz"],
+            color=theme.GREY_MID,
+            ls=":",
+            lw=0.8,
+        )
+        ax.set(
+            title=f"{title} · {example['contrast_ratio']:g}×",
+            xlabel="Spatial position (unit circle)",
+            xlim=(0, 1),
+            ylim=(0, upper),
+        )
+        ax.legend(loc="upper right", fontsize=theme.SIZE_TITLE)
+    axes[0].set_ylabel("External input rate (Hz/channel)")
+    theme.label_panels(list(axes))
+    for suffix in ("png", "svg"):
+        fig.savefig(output / f"contrast-examples.{suffix}", dpi=240)
+    plt.close(fig)
+
+
+def render_arrival_distribution(measured, output):
+    """Two networks, four sender/attention distributions, and the native gate."""
+    colors = dict(A=theme.DEEP_RED, B="#2457c5", C="#23844f")
+    apply_report_style()
+    fig, axes = plt.subplots(
+        1, 2, figsize=(12, 7.5), sharex=True, sharey=True, layout="constrained"
+    )
+    density_max = max(
+        max(d["density"])
+        for p in measured["panels"]
+        for d in p["distributions"]
+        if d["density"] is not None
+    )
+    inhibition_max = max(max(p["mean_inhibition_us"]) for p in measured["panels"])
+    for ax, panel in zip(axes, measured["panels"], strict=True):
+        for dist in panel["distributions"]:
+            edges = np.array(dist["edges"])
+            centres = (edges[:-1] + edges[1:]) / 2
+            width = edges[1] - edges[0]
+            label = f"{dist['sender']} {dist['role']} (n={dist['n']})"
+            style = "-" if dist["role"] == "attended" else (0, (5, 3))
+            marker = "o" if dist["role"] == "attended" else "^"
+            if dist["density"] is None:
+                ax.plot(
+                    [],
+                    [],
+                    color=colors[dist["sender"]],
+                    ls=style,
+                    marker=marker,
+                    label=label,
+                )
+                continue
+            density = np.array(dist["density"])
+            ax.plot(
+                np.r_[centres[0] - width, centres, centres[-1] + width],
+                np.r_[density[-1], density, density[0]],
+                color=colors[dist["sender"]],
+                ls=style,
+                marker=marker,
+                markersize=3,
+                markevery=3,
+                label=label,
+                lw=1.4,
+            )
+        gate = ax.twinx()
+        gate.grid(False)
+        gate.plot(
+            panel["phase_grid"],
+            panel["mean_inhibition_us"],
+            color=colors["C"],
+            lw=1.2,
+            alpha=0.8,
+            label="Mean C inhibition",
+        )
+        gate.set(ylabel="Mean C inhibition (µS)", ylim=(0, inhibition_max * 1.1))
+        gate.yaxis.label.set_color(colors["C"])
+        gate.tick_params(axis="y", labelcolor=colors["C"])
+        ax.axvline(0, color=colors["C"], lw=0.8, ls=":", alpha=0.6)
+        ax.set(
+            title=f"{'Baseline' if panel['figure'] == 1 else 'Higher background'} · {panel['background_hz']:g} Hz/channel",
+            xlabel="Arrival phase (cycles)",
+            xlim=(-0.5, 0.5),
+            ylim=(0, density_max * 1.1),
+            xticks=[-0.5, -0.25, 0, 0.25, 0.5],
+        )
+        handles, labels = ax.get_legend_handles_labels()
+        more, extra = gate.get_legend_handles_labels()
+        ax.legend(
+            handles + more,
+            labels + extra,
+            loc="lower left",
+            bbox_to_anchor=(0, 1.08),
+            ncol=1,
+            handlelength=3.2,
+            numpoints=2,
+            fontsize=theme.SIZE_TITLE,
+        )
+    axes[0].set_ylabel("Arrival density (cycles⁻¹)")
+    theme.label_panels(list(axes))
+    for suffix in ["png", "svg"]:
+        fig.savefig(output / ("arrival-distribution." + suffix), dpi=240)
+    plt.close(fig)
+
+
+def render_phase_example(
+    computed,
+    output,
+    seed,
+    reference_cfg,
+    phase_inhibition=None,
+    probe_window=None,
+    used_window=None,
+):
+    """A saved trial selected for smoother detected phase, at fixed parameters."""
+    if computed is None:
+        raise ValueError("--figure2-seed requires --background-source")
+    plan = json.loads(computed.file("background-plan.json").read_text())
+    item = next(
+        i
+        for i in plan["trials"]
+        if i["seed"] == seed and i["background_hz"] == reference_cfg["background_hz"]
+    )
+    cfg = json.loads(computed.file(item["id"], "configuration.json").read_text())
+    assert cfg["cue_hz"] == reference_cfg["representative_cue_hz"]
+    with np.load(computed.file(item["id"], "spikes.npz")) as z:
+        spikes = dict(z)
+    if phase_inhibition is not None:
+        assert phase_inhibition["reference_trial"] == item["id"]
+        assert phase_inhibition["seed"] == seed
+    if probe_window is not None:
+        assert (
+            probe_window["reference_trial"] == item["id"]
+            and probe_window["seed"] == seed
+        )
+    if used_window is not None:
+        assert (
+            used_window["reference_trial"] == item["id"] and used_window["seed"] == seed
+        )
+    for name, fig, axes in attention_figures(
+        spikes,
+        cfg,
+        phase_inhibition=phase_inhibition,
+        probe_window=probe_window,
+        used_window=used_window,
+    ):
+        theme.label_panels(axes)
+        for suffix in ("png", "svg"):
+            fig.savefig(output / f"{name}.{suffix}", dpi=240)
+        plt.close(fig)
+    _, _, _, peaks = phase_evidence(spikes, cfg)
+    return dict(
+        seed=seed,
+        cue_hz=item["cue_hz"],
+        trial_id=item["id"],
+        background_hz=cfg["background_hz"],
+        source_role="background_compute",
+        spatial_window_ms=100.0,
+        spatial_hop_ms=5.0,
+        selection="Post hoc selection for smooth detected relative phase among seeds 185–189 at unchanged parameters",
+        maximum_detected_interval_ms={
+            p: float(np.diff(v).max() * cfg["dt_ms"]) for p, v in peaks.items()
+        },
+    )
+
+
+def load_cue_comparisons(
+    inputs, analysis, cue_source, background_source, contrast_source
+):
+    """Resolve exact cue/contrast branches without changing baseline evidence."""
+    contrast_compute = None
+    cue_sweep = analysis.get("cue_sweep")
+    if cue_source is not None:
+        if background_source is None:
+            raise ValueError("--cue-source requires its --background-source")
+        cue_analysis = source_run(
+            REPO / ".pingstore", cue_source, experiment="exp172", stage="analyse"
+        )
+        ref = cue_analysis.record["inputs"]["compute"]
+        cue_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert (
+            cue_compute.record["inputs"]["background_analyse"]["run_id"]
+            == background_source
+        )
+        assert (
+            cue_compute.record["inputs"]["reference_compute"]
+            == inputs["background_analyse"].record["inputs"]["compute"]
+        )
+        cue_sweep = json.loads(cue_analysis.file("results.json").read_text())[
+            "cue_sweep"
+        ]
+        inputs.update(cue_analyse=cue_analysis, cue_compute=cue_compute)
+    contrast_sweep = analysis.get("contrast_sweep")
+    if contrast_source is not None:
+        if cue_source is None:
+            raise ValueError("--contrast-source requires its --cue-source")
+        contrast_analysis = source_run(
+            REPO / ".pingstore", contrast_source, experiment="exp172", stage="analyse"
+        )
+        ref = contrast_analysis.record["inputs"]["compute"]
+        contrast_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert contrast_compute.record["inputs"]["cue_analyse"]["run_id"] == cue_source
+        assert (
+            contrast_compute.record["inputs"]["reference_compute"]
+            == cue_analysis.record["inputs"]["compute"]
+        )
+        contrast_sweep = json.loads(contrast_analysis.file("results.json").read_text())[
+            "contrast_sweep"
+        ]
+        inputs.update(
+            contrast_analyse=contrast_analysis, contrast_compute=contrast_compute
+        )
+    return cue_sweep, contrast_sweep, contrast_compute
+
+
+def load_phase_comparisons(
+    inputs,
+    figure2_seed,
+    background_source,
+    phase_inhibition_source,
+    probe_source,
+    used_window_source,
+):
+    background_analysis = inputs.get("background_analyse")
+    phase_inhibition = None
+    if phase_inhibition_source is not None:
+        if figure2_seed is None or background_source is None:
+            raise ValueError(
+                "--phase-inhibition-source requires --figure2-seed and --background-source"
+            )
+        phase_analysis = source_run(
+            REPO / ".pingstore",
+            phase_inhibition_source,
+            experiment="exp172",
+            stage="analyse",
+        )
+        phase_ref = phase_analysis.record["inputs"]["compute"]
+        phase_compute = source_run(
+            REPO / ".pingstore",
+            phase_ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=phase_ref,
+        )
+        assert (
+            phase_compute.record["inputs"]["reference_compute"]
+            == background_analysis.record["inputs"]["compute"]
+        )
+        phase_inhibition = json.loads(phase_analysis.file("results.json").read_text())[
+            "phase_inhibition"
+        ]
+        assert (
+            phase_inhibition["source_reference"]
+            == background_analysis.record["inputs"]["compute"]
+        )
+        inputs.update(
+            phase_inhibition_analyse=phase_analysis,
+            phase_inhibition_compute=phase_compute,
+        )
+    probe_window = None
+    probe_compute = None
+    if probe_source is not None:
+        if figure2_seed is None or background_source is None:
+            raise ValueError(
+                "--probe-source requires --figure2-seed and --background-source"
+            )
+        probe_analysis = source_run(
+            REPO / ".pingstore", probe_source, experiment="exp172", stage="analyse"
+        )
+        ref = probe_analysis.record["inputs"]["compute"]
+        probe_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        probe_window = json.loads(probe_analysis.file("results.json").read_text())[
+            "probe_window"
+        ]
+        assert (
+            probe_window["reference_background"]
+            == background_analysis.record["inputs"]["compute"]
+        )
+        inputs.update(probe_analyse=probe_analysis, probe_compute=probe_compute)
+    used_window = None
+    used_compute = None
+    if used_window_source is not None:
+        if figure2_seed is None or background_source is None:
+            raise ValueError(
+                "--used-window-source requires --figure2-seed and --background-source"
+            )
+        used_analysis = source_run(
+            REPO / ".pingstore",
+            used_window_source,
+            experiment="exp172",
+            stage="analyse",
+        )
+        ref = used_analysis.record["inputs"]["compute"]
+        used_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        used_window = json.loads(used_analysis.file("results.json").read_text())[
+            "used_window"
+        ]
+        assert (
+            used_window["reference_background"]
+            == background_analysis.record["inputs"]["compute"]
+        )
+        inputs.update(
+            used_window_analyse=used_analysis, used_window_compute=used_compute
+        )
+    return phase_inhibition, probe_window, probe_compute, used_window, used_compute
 
 
 def present(
@@ -763,6 +1164,13 @@ def present(
     mechanism_source=None,
     candidate_source=None,
     background_source=None,
+    arrival_source=None,
+    cue_source=None,
+    contrast_source=None,
+    figure2_seed=None,
+    phase_inhibition_source=None,
+    probe_source=None,
+    used_window_source=None,
 ):
     started = perf_counter()
     analysed = source_run(
@@ -779,7 +1187,6 @@ def present(
     analysis = json.loads(analysed.file("results.json").read_text())
     mechanism_compute = computed
     mechanism = analysis.get("mechanism")
-    mechanism_path = analysed.file("mechanism.npz") if mechanism else None
     if mechanism_source is not None:
         diagnostic = source_run(
             REPO / ".pingstore", mechanism_source, experiment="exp172", stage="analyse"
@@ -796,7 +1203,6 @@ def present(
         assert baseline_ref == analysed.record["inputs"]["compute"]
         mechanism_compute = diagnostic_compute
         mechanism = json.loads(diagnostic.file("results.json").read_text())["mechanism"]
-        mechanism_path = diagnostic.file("mechanism.npz")
         inputs.update(
             mechanism_analyse=diagnostic, mechanism_compute=diagnostic_compute
         )
@@ -825,6 +1231,7 @@ def present(
             candidate_analyse=candidate_analysis, candidate_compute=candidate_compute
         )
     background_sweep = analysis.get("background_sweep")
+    background_compute = computed
     if background_source is not None:
         background_analysis = source_run(
             REPO / ".pingstore", background_source, experiment="exp172", stage="analyse"
@@ -848,6 +1255,44 @@ def present(
             background_analyse=background_analysis,
             background_compute=background_compute,
         )
+    arrival_distribution = analysis.get("arrival_distribution")
+    if arrival_source is not None:
+        arrival_analysis = source_run(
+            REPO / ".pingstore", arrival_source, experiment="exp172", stage="analyse"
+        )
+        ref = arrival_analysis.record["inputs"]["compute"]
+        arrival_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert (
+            arrival_compute.record["inputs"]["figure1_compute"]
+            == analysed.record["inputs"]["compute"]
+        )
+        assert (
+            arrival_compute.record["inputs"]["figure6_compute"]["run_id"]
+            == candidate_compute.record["run_id"]
+        )
+        arrival_distribution = json.loads(
+            arrival_analysis.file("results.json").read_text()
+        )["arrival_distribution"]
+        inputs.update(arrival_analyse=arrival_analysis, arrival_compute=arrival_compute)
+    cue_sweep, contrast_sweep, contrast_compute = load_cue_comparisons(
+        inputs, analysis, cue_source, background_source, contrast_source
+    )
+    phase_inhibition, probe_window, probe_compute, used_window, used_compute = (
+        load_phase_comparisons(
+            inputs,
+            figure2_seed,
+            background_source,
+            phase_inhibition_source,
+            probe_source,
+            used_window_source,
+        )
+    )
     with stage_run(
         REPO,
         "exp172",
@@ -855,7 +1300,12 @@ def present(
         inputs=inputs,
         run_id=run_id,
         configuration=dict(
-            cue=cue, seed=seed, spatial_window_ms=100.0, spatial_hop_ms=5.0
+            cue=cue,
+            seed=seed,
+            figure2_seed=figure2_seed,
+            phase_plot=phase_plot_configuration(),
+            spatial_window_ms=100.0,
+            spatial_hop_ms=5.0,
         ),
     ) as run:
         work = run.scratch / "evidence"
@@ -866,18 +1316,67 @@ def present(
         if seed is not None:
             args += ["--seed", str(seed)]
         selected = render(work, run.export, args)
+        figure2_selection = dict(
+            selected,
+            background_hz=computed.record["execution"]["configuration"][
+                "background_hz"
+            ],
+        )
+        if figure2_seed is not None:
+            figure2_selection = render_phase_example(
+                inputs.get("background_compute"),
+                run.export,
+                figure2_seed,
+                computed.record["execution"]["configuration"],
+                phase_inhibition=phase_inhibition,
+                probe_window=probe_window,
+                used_window=used_window,
+            )
+        if used_compute is not None:
+            (run.export / "used-window-circuit.svg").write_bytes(
+                used_compute.file("used-window-circuit.svg").read_bytes()
+            )
+        if probe_compute is not None:
+            (run.export / "probe-circuit.svg").write_bytes(
+                probe_compute.file("probe-circuit.svg").read_bytes()
+            )
         if mechanism is not None:
             assert selected["seed"] == mechanism["settings"]["source_seed"]
             assert selected["cue_hz"] == mechanism["settings"]["cue_hz"]
-            render_mechanism(mechanism_path, mechanism, run.export)
-            shutil.copyfile(
-                mechanism_compute.file("circuit.svg"),
-                run.export / "flicker-circuit.svg",
+            replay_parameters = NetworkSnapshot.read(
+                mechanism_compute.file("timing-rescue--start/snapshot.json")
+            ).load_parameters()
+            save_circuit(
+                lang.load_bundle(
+                    mechanism_compute.file("timing-rescue--network.bundle")
+                ),
+                replay_parameters,
+                run.export,
+                stem="flicker-circuit",
             )
         if candidate is not None:
             render_candidate(candidate_compute, candidate, run.export)
         if background_sweep is not None:
             render_background_sweep(background_sweep, run.export)
+        if cue_sweep is not None:
+            render_background_sweep(
+                cue_sweep,
+                run.export,
+                control_key="cue_hz",
+                xlabel="Cue drive (Hz/channel)",
+                stem="cue-sweep",
+                reference_rate=cue_sweep["settings"]["reference_cue_hz"],
+            )
+        if contrast_sweep is not None:
+            render_contrast_examples(contrast_compute, contrast_sweep, run.export)
+            render_background_sweep(
+                contrast_sweep,
+                run.export,
+                control_key="contrast_ratio",
+                xlabel="Attended / unattended bump amplitude (ratio)",
+                stem="contrast-sweep",
+                reference_rate=1.0,
+            )
         trials = json.loads((work / "summary.json").read_text())["trials"]
         trial = next(r for r in trials if r["id"] == selected["trial_id"])
         cfg = computed.record["execution"]["configuration"]
@@ -906,6 +1405,7 @@ def present(
                 dict(
                     configuration=cfg,
                     selection=selected,
+                    figure2_selection=figure2_selection,
                     stability_selection=stability_selection,
                     metrics=trial,
                     analysis=analysis,
@@ -916,6 +1416,12 @@ def present(
                     mechanism=mechanism,
                     candidate=candidate,
                     background_sweep=background_sweep,
+                    cue_sweep=cue_sweep,
+                    contrast_sweep=contrast_sweep,
+                    arrival_distribution=arrival_distribution,
+                    phase_inhibition=phase_inhibition,
+                    probe_window=probe_window,
+                    used_window=used_window,
                     elapsed_seconds=perf_counter() - started,
                 ),
                 indent=2,
@@ -936,4 +1442,11 @@ if __name__ == "__main__":
     parser.add_argument("--mechanism-source")
     parser.add_argument("--candidate-source")
     parser.add_argument("--background-source")
+    parser.add_argument("--arrival-source")
+    parser.add_argument("--cue-source")
+    parser.add_argument("--contrast-source")
+    parser.add_argument("--figure2-seed", type=int)
+    parser.add_argument("--phase-inhibition-source")
+    parser.add_argument("--probe-source")
+    parser.add_argument("--used-window-source")
     present(**vars(parser.parse_args()))
