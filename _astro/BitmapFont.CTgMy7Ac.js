@@ -1,1 +1,0 @@
-export{BitmapFont}from"./lib.CzhJF11W.js";
