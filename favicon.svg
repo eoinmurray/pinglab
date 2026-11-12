@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Pinglab — spike raster</title>
+  <rect width="64" height="64" rx="14" fill="#123c43"/>
+  <path d="M17 15v8m18-8v8m-9 5v8m20-8v8M17 41v8m18-8v8" fill="none" stroke="#f4f3eb" stroke-width="6" stroke-linecap="round"/>
+</svg>

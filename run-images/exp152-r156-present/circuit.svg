@@ -1,0 +1,237 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:ns4="http://www.w3.org/1999/xlink" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="824.0" height="794.8" viewBox="-152.0 -432.8 824.0 794.8"><rect x="-152.0" y="-432.8" width="824.0" height="794.8" fill="#FFFFFF" /><text id="label_01f3a4f7388cc50818983173" data-snnlab-id="" x="-120.0" y="-364.8" fill="#24292F" font-size="36" font-family="Helvetica Neue">Single-cell controller inputs</text><path id="edge_6eb73feb787d9a6b8d7e5015" data-snnlab-id="local_bias" d="M 120.0 250.0 L 520.0 250.0 L 520.0 80.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linejoin="round" /><path d="M 527.0 94.0 L 520.0 80.0 L 513.0 94.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linecap="round" /><path id="edge_cccea5d7c3f75b591b3f9eea" data-snnlab-id="peer_inhibition" d="M 120.0 -250.0 L 520.0 -250.0 L 520.0 -80.0" fill="none" stroke="#AA5B63" stroke-width="2.2" stroke-linejoin="round" /><path d="M 512.0 -80.0 L 528.0 -80.0" fill="none" stroke="#AA5B63" stroke-width="2.2" stroke-linecap="round" /><path id="edge_d18a0386a857fa73ec4cf8f8" data-snnlab-id="sensory_drive" d="M 120.0 0.0 L 400.0 0.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linejoin="round" /><path d="M 386.0 7.0 L 400.0 0.0 L 386.0 -7.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linecap="round" /><rect id="node_2ffc1d06387ef8bb7a34312b" data-snnlab-id="peer" x="-120.0" y="-330.0" width="240.0" height="160.0" fill="#F3F6F8" stroke="#536D82" stroke-width="1" /><rect id="node_6e3f4aedbb36687ef37ff1f9" data-snnlab-id="sensory" x="-120.0" y="-80.0" width="240.0" height="160.0" fill="#F3F6F8" stroke="#536D82" stroke-width="1" /><rect id="node_f6bb95882f20b1b445cf6ec4" data-snnlab-id="tonic" x="-120.0" y="170.0" width="240.0" height="160.0" fill="#F3F6F8" stroke="#536D82" stroke-width="1" /><rect id="node_02983856320b180ca3332cff" data-snnlab-id="motor" x="400.0" y="-80.0" width="240.0" height="160.0" fill="#F5F4F1" stroke="#756B5B" stroke-width="1" /><text id="label_2835d50433fd3c5bb78faa6a" data-snnlab-id="peer" x="-29.25" y="-294.0" fill="#536D82" font-size="20" font-family="Helvetica Neue">INPUT</text><svg width="17.0" height="21.0" viewBox="0 0 17 21" version="1.1" id="label_323a2c391d933da4bbd33bf3" data-snnlab-id="peer" x="-8.5" y="-278.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_323a2c391d933da4bbd33bf3_figure_1">
+  <g id="label_323a2c391d933da4bbd33bf3_patch_1">
+   <path d="M 0 21  L 17 21  L 17 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_323a2c391d933da4bbd33bf3_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_323a2c391d933da4bbd33bf3_DejaVuSans-Oblique-50" d="M 1081 4666  L 2541 4666  Q 3178 4666 3512 4369  Q 3847 4072 3847 3500  Q 3847 2731 3353 2303  Q 2859 1875 1966 1875  L 1172 1875  L 806 0  L 172 0  L 1081 4666  z M 1613 4147  L 1275 2394  L 2069 2394  Q 2606 2394 2893 2669  Q 3181 2944 3181 3456  Q 3181 3784 2986 3965  Q 2791 4147 2438 4147  L 1613 4147  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_323a2c391d933da4bbd33bf3_DejaVuSans-Oblique-50" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_5a36243f8318c696d0426be8" data-snnlab-id="peer" x="-39.25" y="-221.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Spikes</text><text id="label_d60c9ed014bd7900a5329e3c" data-snnlab-id="sensory" x="-29.25" y="-44.0" fill="#536D82" font-size="20" font-family="Helvetica Neue">INPUT</text><svg width="18.0" height="22.0" viewBox="0 0 18 22" version="1.1" id="label_265da5ded5331d3094adf941" data-snnlab-id="sensory" x="-9.0" y="-28.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_265da5ded5331d3094adf941_figure_1">
+  <g id="label_265da5ded5331d3094adf941_patch_1">
+   <path d="M 0 22  L 18 22  L 18 0  L 0 0  L 0 22  z " style="fill: none" />
+  </g>
+  <g id="label_265da5ded5331d3094adf941_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_265da5ded5331d3094adf941_DejaVuSans-Oblique-53" d="M 3859 4513  L 3738 3897  Q 3422 4066 3111 4152  Q 2800 4238 2509 4238  Q 1944 4238 1609 3991  Q 1275 3744 1275 3334  Q 1275 3109 1398 2989  Q 1522 2869 2034 2731  L 2413 2638  Q 3053 2472 3303 2217  Q 3553 1963 3553 1503  Q 3553 797 2998 353  Q 2444 -91 1538 -91  Q 1166 -91 791 -17  Q 416 56 38 206  L 166 856  Q 513 641 861 531  Q 1209 422 1556 422  Q 2147 422 2503 684  Q 2859 947 2859 1369  Q 2859 1650 2717 1795  Q 2575 1941 2106 2059  L 1728 2156  Q 1081 2325 845 2545  Q 609 2766 609 3163  Q 609 3859 1145 4304  Q 1681 4750 2541 4750  Q 2875 4750 3203 4690  Q 3531 4631 3859 4513  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_265da5ded5331d3094adf941_DejaVuSans-Oblique-53" transform="translate(0 0.78125)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_1a7cfbd524b089ef41ba6814" data-snnlab-id="sensory" x="-39.25" y="30.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Spikes</text><text id="label_bd72c1cafe6b296cf22f9aa8" data-snnlab-id="tonic" x="-29.25" y="206.0" fill="#536D82" font-size="20" font-family="Helvetica Neue">INPUT</text><svg width="18.0" height="21.0" viewBox="0 0 18 21" version="1.1" id="label_1e356ce2bcb1a4a68e9eff44" data-snnlab-id="tonic" x="-9.0" y="222.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_1e356ce2bcb1a4a68e9eff44_figure_1">
+  <g id="label_1e356ce2bcb1a4a68e9eff44_patch_1">
+   <path d="M 0 21  L 18 21  L 18 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_1e356ce2bcb1a4a68e9eff44_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_1e356ce2bcb1a4a68e9eff44_DejaVuSans-Oblique-54" d="M 378 4666  L 4325 4666  L 4225 4134  L 2559 4134  L 1759 0  L 1125 0  L 1925 4134  L 275 4134  L 378 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_1e356ce2bcb1a4a68e9eff44_DejaVuSans-Oblique-54" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_751e6d8ddbd359624c5d433e" data-snnlab-id="tonic" x="-66.4375" y="279.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Continuous</text><text id="label_069e4ba0c44580ee2c096724" data-snnlab-id="motor" x="458.125" y="-44.0" fill="#756B5B" font-size="20" font-family="Helvetica Neue">POPULATION</text><svg width="25.0" height="21.0" viewBox="0 0 25 21" version="1.1" id="label_100e5b5537596bf76f7ad85b" data-snnlab-id="motor" x="507.5" y="-28.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_100e5b5537596bf76f7ad85b_figure_1">
+  <g id="label_100e5b5537596bf76f7ad85b_patch_1">
+   <path d="M 0 21  L 25 21  L 25 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_100e5b5537596bf76f7ad85b_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_100e5b5537596bf76f7ad85b_DejaVuSans-Oblique-4d" d="M 1081 4666  L 2028 4666  L 2572 1522  L 4378 4666  L 5350 4666  L 4441 0  L 3828 0  L 4622 4091  L 2791 897  L 2175 897  L 1581 4103  L 788 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_100e5b5537596bf76f7ad85b_DejaVuSans-Oblique-4d" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_db5ac1d81afc9b76a09a0479" data-snnlab-id="motor" x="468.9375" y="29.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">1 neuron</text><svg width="58.0" height="24.0" viewBox="0 0 58 24" version="1.1" id="label_0b9c7f2b91d7ef663a740313" data-snnlab-id="local_bias" x="376.0" y="212.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_0b9c7f2b91d7ef663a740313_figure_1">
+  <g id="label_0b9c7f2b91d7ef663a740313_patch_1">
+   <path d="M 0 24  L 58 24  L 58 0  L 0 0  L 0 24  z " style="fill: none" />
+  </g>
+  <g id="label_0b9c7f2b91d7ef663a740313_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-4d" d="M 1081 4666  L 2028 4666  L 2572 1522  L 4378 4666  L 5350 4666  L 4441 0  L 3828 0  L 4622 4091  L 2791 897  L 2175 897  L 1581 4103  L 788 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+     <path id="label_0b9c7f2b91d7ef663a740313_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-54" d="M 378 4666  L 4325 4666  L 4225 4134  L 2559 4134  L 1759 0  L 1125 0  L 1925 4134  L 275 4134  L 378 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-4d" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_0b9c7f2b91d7ef663a740313_DejaVuSans-2c" transform="translate(159.272461 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_0b9c7f2b91d7ef663a740313_DejaVuSans-Oblique-54" transform="translate(195.161133 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg><svg width="58.0" height="24.0" viewBox="0 0 58 24" version="1.1" id="label_29fb99448703db1deb47887a" data-snnlab-id="peer_inhibition" x="376.0" y="-288.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_29fb99448703db1deb47887a_figure_1">
+  <g id="label_29fb99448703db1deb47887a_patch_1">
+   <path d="M 0 24  L 58 24  L 58 0  L 0 0  L 0 24  z " style="fill: none" />
+  </g>
+  <g id="label_29fb99448703db1deb47887a_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_29fb99448703db1deb47887a_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_29fb99448703db1deb47887a_DejaVuSans-Oblique-4d" d="M 1081 4666  L 2028 4666  L 2572 1522  L 4378 4666  L 5350 4666  L 4441 0  L 3828 0  L 4622 4091  L 2791 897  L 2175 897  L 1581 4103  L 788 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+     <path id="label_29fb99448703db1deb47887a_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_29fb99448703db1deb47887a_DejaVuSans-Oblique-50" d="M 1081 4666  L 2541 4666  Q 3178 4666 3512 4369  Q 3847 4072 3847 3500  Q 3847 2731 3353 2303  Q 2859 1875 1966 1875  L 1172 1875  L 806 0  L 172 0  L 1081 4666  z M 1613 4147  L 1275 2394  L 2069 2394  Q 2606 2394 2893 2669  Q 3181 2944 3181 3456  Q 3181 3784 2986 3965  Q 2791 4147 2438 4147  L 1613 4147  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_29fb99448703db1deb47887a_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_29fb99448703db1deb47887a_DejaVuSans-Oblique-4d" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_29fb99448703db1deb47887a_DejaVuSans-2c" transform="translate(159.272461 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_29fb99448703db1deb47887a_DejaVuSans-Oblique-50" transform="translate(195.161133 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg><svg width="59.0" height="24.0" viewBox="0 0 59 24" version="1.1" id="label_71a1ddc2eec992c9cb74ec1d" data-snnlab-id="sensory_drive" x="230.5" y="-38.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_71a1ddc2eec992c9cb74ec1d_figure_1">
+  <g id="label_71a1ddc2eec992c9cb74ec1d_patch_1">
+   <path d="M 0 24  L 59 24  L 59 0  L 0 0  L 0 24  z " style="fill: none" />
+  </g>
+  <g id="label_71a1ddc2eec992c9cb74ec1d_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-4d" d="M 1081 4666  L 2028 4666  L 2572 1522  L 4378 4666  L 5350 4666  L 4441 0  L 3828 0  L 4622 4091  L 2791 897  L 2175 897  L 1581 4103  L 788 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+     <path id="label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-53" d="M 3859 4513  L 3738 3897  Q 3422 4066 3111 4152  Q 2800 4238 2509 4238  Q 1944 4238 1609 3991  Q 1275 3744 1275 3334  Q 1275 3109 1398 2989  Q 1522 2869 2034 2731  L 2413 2638  Q 3053 2472 3303 2217  Q 3553 1963 3553 1503  Q 3553 797 2998 353  Q 2444 -91 1538 -91  Q 1166 -91 791 -17  Q 416 56 38 206  L 166 856  Q 513 641 861 531  Q 1209 422 1556 422  Q 2147 422 2503 684  Q 2859 947 2859 1369  Q 2859 1650 2717 1795  Q 2575 1941 2106 2059  L 1728 2156  Q 1081 2325 845 2545  Q 609 2766 609 3163  Q 609 3859 1145 4304  Q 1681 4750 2541 4750  Q 2875 4750 3203 4690  Q 3531 4631 3859 4513  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-4d" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-2c" transform="translate(159.272461 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_71a1ddc2eec992c9cb74ec1d_DejaVuSans-Oblique-53" transform="translate(195.161133 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg></svg>
