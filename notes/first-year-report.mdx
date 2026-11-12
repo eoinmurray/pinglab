@@ -2,43 +2,76 @@
 title: "First Year Report"
 author: Eoin Murray
 collection: notes
-description: "Final year report draft."
+description: "First year report draft on the computational functions, mechanisms and applications of gamma oscillations."
 created_at: "2026-11-09T12:20:04Z"
-updated_at: "2026-11-10T11:57:36Z"
+updated_at: "2026-11-12T13:36:50Z"
 ---
 
-1. **Literature review**
-   1. Spiking networks and temporal processing
-   2. Computational roles of oscillations
-   3. Gamma mechanisms and theories
-   4. Gamma: epiphenomenon, adaptation or exaptation
-   5. Evidence gaps and predictions
+1. **Introduction**
+   1. _Main research question and hypotheses_
 
-2. **Questions and hypotheses**
-   1. Does gamma timing improve computation?
-   2. Does task optimisation favour gamma?
-   3. Gamma for reliable neuromorphic computing
-   4. Biological implications and limits
+      Under what conditions do gamma oscillations contribute causally to neural computation, and can it be applied in useful ways?
+   2. _Research strategy: A) functions, B) mechanisms and C) applications_
+2. **Background and literature review**
+    1. _Experimental evidence for oscillations and gamma_
+        1. Mention oscillations as a solution for various simple/core computational problems.
+    2. _Gamma theories and circuit dynamics_
+    3. _Proposed functional roles_
 
-3. **Methods**
-   1. Models and theory
-   2. Tasks, datasets and simulations
-   3. Training and optimisation
-   4. Metrics, baselines and timing perturbations
+        - _Efficiency, robustness and local selection_ — [de Almeida et al., 2009](https://pmc.ncbi.nlm.nih.gov/articles/PMC2758634/); [Sohal et al., 2009](https://pmc.ncbi.nlm.nih.gov/articles/PMC3969859/)
+        - _Selective communication, attention and sensory routing_ — [Fries, 2015](https://pmc.ncbi.nlm.nih.gov/articles/pmid/26447583/); [Bosman et al., 2012](https://pmc.ncbi.nlm.nih.gov/articles/PMC3457649/); [Bastos et al., 2015](https://pubmed.ncbi.nlm.nih.gov/25556836/)
+        - _Perceptual binding and grouping_ — [Gray et al., 1989](https://www.nature.com/articles/338334a0)
+        - _Sensory gain, temporal gating and phase coding_ — [Cardin et al., 2009](https://pmc.ncbi.nlm.nih.gov/articles/PMC3655711/); [Vinck et al., 2010](https://pmc.ncbi.nlm.nih.gov/articles/PMC6633799/)
+        - _Prediction-error signalling_ — [Sedley et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26949254/)
+        - _Memory organisation, sequencing and routing_ — [Lisman and Idiart, 1995](https://pubmed.ncbi.nlm.nih.gov/7878473/); [Lundqvist et al., 2016](https://pmc.ncbi.nlm.nih.gov/articles/PMC5220584/); [Colgin et al., 2009](https://www.nature.com/articles/nature08573)
+        - _Synaptic plasticity_ — [Wespatat et al., 2004](https://pubmed.ncbi.nlm.nih.gov/15483125/)
 
-4. **Progress and results**
-   1. Gamma validation against published findings
-   2. Training gamma networks with BPTT
-   3. Reducing excitatory firing rates
-   4. Streaming digit classification
-   5. Hypothesis assessment and limitations
+        Include criticisms and counterarguments for each proposed role.
 
-5. **Remaining PhD plan**
-   1. Tasks testing gamma function during training
-   2. Distal entrainment and selective attention
-   3. Neuromodulation of gamma
-   4. Learning during inference
-   5. Spatial decision-making and action selection
-   6. Neuromorphic implementation
+     4. _Causal evidence and outstanding gaps_
+
+        1. Gamma could be epiphenomenon, evolutionary history not solid.
+        2. Mention limitations of current experimental mechanisms for larger network based phenomena.
+
+3. **Work completed: methods and results**
+   1. _Computational methods and modelling assumptions_
+
+      1. Simulation
+      2. Training (mention that EI IE weights are not trained).
+      3. snnlab toolbox
+
+   2. _Function: computational benefits investigated_
+
+      1. Training on tasks: MNIST, SHD, Scikit-digits.
+      2. Robustness (parameter regimes of AI and PING).
+      3. Efficiency and latency.
+      4. Selective transmission of competing spatial inputs.
+
+   3. _Mechanism: evidence obtained and unresolved explanations_
+   4. _Applications: performance demonstrated_
+   5. _Limitations and assessment of hypotheses_
+
+      1. We do not yet have an emergence of PING under training conditions.
+
+4. **Proposed research**
+   1. _Function: investigating the proposed roles_
+
+      Investigate the proposed functional roles listed in Section 2.3 using the methods in Section 4.2.
+
+   2. _Methods_
+
+      1. A spiking agent for spatial navigation and action selection.
+      2. Tasks under training.
+      3. Simulated demonstration of phenomena.
+
+   3. _Application: practical benchmarks and neuromorphic implementation_
+5. **Discussion and outlook**
+   1. _What the completed work establishes_
+   2. _Biological implications and limits_
+   3. _Expected contribution of the remaining PhD_
 
 6. **References**
+
+7. **Appendices**
+   1. _Model specifications and parameters_
+   2. _Supporting methods and results_
