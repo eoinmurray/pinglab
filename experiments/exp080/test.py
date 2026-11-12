@@ -25,9 +25,11 @@ from pingstore.library import (
     discover_runs,
     file_sha256,
     load_json,
+)
+from pingstore.tests.fixtures import (
     payload_digest,
-    validate_operational_run_directory,
-    write_json_atomic,
+    read_details,
+    write_fixture_json,
 )
 
 
@@ -109,7 +111,6 @@ def dataset_record(count, prefix):
 def repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp080": "test"})
     monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
@@ -153,7 +154,7 @@ def repo(tmp_path, monkeypatch):
             ],
             "checkpoint_retention": "memory_only",
         }
-        write_json_atomic(directory / "training.json", record)
+        write_fixture_json(directory / "training.json", record)
         return record
 
     def evaluate(records, output, cfg, *, state_cache):
@@ -183,9 +184,9 @@ def repo(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def forbidden(*a, **k):
@@ -198,7 +199,7 @@ def test_stages_are_isolated_and_replay_only_explicit_evidence(repo, monkeypatch
     assert calls == ["illustration", 42, 43, 44, "evaluation"]
     source = inputs.source(root, compute_id, "compute")
     before = source.reference
-    assert source.record["inputs"] == {}
+    assert source.details["inputs"] == {}
     assert discover_runs(root / ".pingstore/runs") == []
     for name in ("compute", "direct_features", "train_seed", "evaluate"):
         monkeypatch.setattr(compute, name, forbidden)
@@ -216,7 +217,7 @@ def test_stages_are_isolated_and_replay_only_explicit_evidence(repo, monkeypatch
     monkeypatch.setattr(analyse, "analyse", forbidden)
     present_id = present.present(analysis_id)
     output = inputs.source(root, present_id, "present")
-    assert output.record["inputs"] == {
+    assert output.details["inputs"] == {
         "analysis": analysis.reference,
         "compute": source.reference,
     }
@@ -247,7 +248,7 @@ def test_failure_remains_hidden_and_preserves_prior_runs(repo, monkeypatch, stag
     if stage == "present":
         source_id = analyse.analyse(source_id)
     existing = {
-        p.name: file_sha256(p / "run.json")
+        p.name: file_sha256(p / "details.json")
         for p in (root / ".pingstore/runs").glob("exp080-*")
     }
     module, function = {
@@ -262,7 +263,7 @@ def test_failure_remains_hidden_and_preserves_prior_runs(repo, monkeypatch, stag
         else:
             getattr({"analyse": analyse, "present": present}[stage], stage)(source_id)
     assert {
-        p.name: file_sha256(p / "run.json")
+        p.name: file_sha256(p / "details.json")
         for p in (root / ".pingstore/runs").glob("exp080-*")
     } == existing
     assert len(list((root / ".pingstore/runs").glob(f".exp080-*-{stage}.tmp"))) == 1
@@ -289,7 +290,7 @@ def test_invalid_sources_fail_closed(repo, change):
         path = source.export / "held_out_correctness.npz"
         path.write_bytes(path.read_bytes() + b"tampered")
     elif change in {"manifest", "schema", "stage", "recipe"}:
-        record = load_json(source.directory / "run.json")
+        record = load_json(source.directory / "details.json")
         if change == "manifest":
             record["inputs"] = {"unexpected": source.reference}
         elif change == "schema":
@@ -298,7 +299,7 @@ def test_invalid_sources_fail_closed(repo, change):
             record["stage"] = "analyse"
         else:
             record["execution"]["configuration"]["test_count"] = 51
-        write_json_atomic(source.directory / "run.json", record)
+        write_fixture_json(source.directory / "details.json", record)
     else:
         document = load_json(source.export / "evidence.json")
         if change == "checkpoint":
@@ -307,7 +308,7 @@ def test_invalid_sources_fail_closed(repo, change):
             )
         elif change == "selection":
             document["training"][0]["selected_epoch"] = 2
-            write_json_atomic(
+            write_fixture_json(
                 source.file("models", "seed-42", "training.json"),
                 document["training"][0],
             )
@@ -318,7 +319,7 @@ def test_invalid_sources_fail_closed(repo, change):
             arrays["rates_hz"] = arrays["rates_hz"][::-1]
             np.savez_compressed(path, **arrays)
             document["evaluation"]["arrays_sha256"] = file_sha256(path)
-        write_json_atomic(source.export / "evidence.json", document)
+        write_fixture_json(source.export / "evidence.json", document)
         resign(source.directory)
     with pytest.raises((PingstoreError, OSError)):
         analyse.analyse(identity)
@@ -336,9 +337,9 @@ def test_presentation_allows_transitive_metadata_amendment_during_execution(
 
     def mutate(*args):
         original(*args)
-        record = load_json(source.directory / "run.json")
+        record = load_json(source.directory / "details.json")
         record["execution"]["command"] = ["changed"]
-        write_json_atomic(source.directory / "run.json", record)
+        write_fixture_json(source.directory / "details.json", record)
 
     monkeypatch.setattr(present, "plot_training", mutate)
     presentation_id = present.present(analysis_id)
@@ -354,7 +355,7 @@ def test_reservations_are_source_neutral_atomic_and_not_reusable(repo):
     assert not (root / ".pingstore/runs" / identity).exists()
     assert compute.compute(run_id=identity) == identity
     source = inputs.source(root, identity, "compute")
-    assert source.record["origin"] == "slurm"
+    assert source.details["origin"] == "slurm"
     assert not list((root / ".pingstore/runs").glob(".*.tmp"))
     with pytest.raises(PingstoreError, match="unused reserved"):
         compute.compute(run_id=identity)
@@ -412,7 +413,7 @@ def test_atomic_rename_only_exposes_a_valid_complete_run(repo, monkeypatch):
 
     def checked_rename(source, destination):
         if Path(destination).name.startswith("exp080-"):
-            record = validate_operational_run_directory(source)
+            record = read_details(source)
             assert record["stage"] == "compute"
             assert not Path(destination).exists()
             assert (Path(source) / "export/evidence.json").is_file()
@@ -457,7 +458,7 @@ def retain_historical_checkpoints(data, document):
         training = canonical_export_file(
             data, "models", f"seed-{record['seed']}", "training.json"
         )
-        write_json_atomic(training, record)
+        write_fixture_json(training, record)
 
 
 def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch):
@@ -477,11 +478,11 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
         "path": "feature_images.png",
     }
     retain_historical_checkpoints(source.export, document)
-    write_json_atomic(source.export / "evidence.json", document)
-    record = load_json(source.directory / "run.json")
+    write_fixture_json(source.export / "evidence.json", document)
+    record = load_json(source.directory / "details.json")
     record["execution"]["operation"] = "historical-import"
     record["historical_import"] = {"producer": {"campaign_id": "fixture"}}
-    write_json_atomic(source.directory / "run.json", record)
+    write_fixture_json(source.directory / "details.json", record)
     resign(source.directory)
     monkeypatch.setattr(compute, "direct_features", forbidden)
     monkeypatch.setattr(present, "plot_feature_images", forbidden)
@@ -490,7 +491,7 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
     presentation = inputs.source(root, presentation_id, "present")
     assert (presentation.export / "feature_images.png").read_bytes() == original
     assert (
-        presentation.record["retained_figures"]["feature_images.png"]["regenerated"]
+        presentation.details["retained_figures"]["feature_images.png"]["regenerated"]
         is False
     )
 

@@ -62,7 +62,7 @@ def graph_trial(tau, weights, encoded, artifacts, cfg, execution=None):
 
 def image_bank(source):
     """Reuse only the explicitly selected raw image pixels, never old activity."""
-    definition = source.record["execution"]["configuration"]
+    definition = source.details["execution"]["configuration"]
     if definition.get("schema") == "exp123.compute/v3":
         cfg = definition["sweep"]
     elif definition.get("schema") == "exp123.compute/v2":
@@ -180,11 +180,11 @@ def compute(identity, image_identity=None, *, run_id=None):
         configuration=cfg,
         run_id=run_id,
     ) as run:
-        run.record["execution"]["software"] = {
+        run.details["execution"]["software"] = {
             "snnlab": version("snnlab"),
             "torch": torch.__version__,
         }
-        run.record["scientific_artifacts"] = {"snapshot_stages": {}}
+        run.details["scientific_artifacts"] = {"snapshot_stages": {}}
         recipe.author_network(cfg["sweep"]["tau_gaba_ms"][0], cfg["sweep"]).visualise(
             run.export / "network.svg", view="circuit"
         )
@@ -242,7 +242,7 @@ def compute(identity, image_identity=None, *, run_id=None):
                         execution_name = (
                             f"{protocol}--rate-{rate:g}--batch-{start}--tau-{tau:g}"
                         )
-                        run.record["scientific_artifacts"]["snapshot_stages"][
+                        run.details["scientific_artifacts"]["snapshot_stages"][
                             execution_name
                         ] = ["start"]
                         signals = graph_trial(
@@ -251,7 +251,7 @@ def compute(identity, image_identity=None, *, run_id=None):
                             batch_encoded,
                             run.export / execution_name,
                             sweep_configuration,
-                            run.record["execution"],
+                            run.details["execution"],
                         )
                         for j, image_index in enumerate(batch_indices):
                             unit = run.export / recipe.recording_unit(
@@ -277,9 +277,9 @@ def compute(identity, image_identity=None, *, run_id=None):
                     )
         if recipe.sha256(checkpoint) != recipe.CHECKPOINT_SHA256:
             raise ValueError("checkpoint changed")
-        run.record["execution"]["encoding_sha256"] = hashes
-        run.record["execution"]["observations"] = {
-            "presentations": run.record["execution"]["configuration"]["presentations"],
+        run.details["execution"]["encoding_sha256"] = hashes
+        run.details["execution"]["observations"] = {
+            "presentations": run.details["execution"]["configuration"]["presentations"],
             "weights_frozen": True,
             "inputs_paired_across_tau": True,
         }

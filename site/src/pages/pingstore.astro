@@ -1,77 +1,40 @@
 ---
+import { getCollection } from 'astro:content';
 import { runStore } from '../lib/run-store';
+import { runTree, reportRuns } from '../lib/run-lineage';
 import Page from '../layouts/Page.astro';
 import RunTree from '../components/RunTree.astro';
-import { lineageGroups } from '../lib/run-lineage';
 import { getReports } from '../lib/reports';
-import { runWalltime, dataSize, type RunMetrics } from '../lib/run-metrics';
-
 const index = await runStore.index();
-const reports = new Map((await getReports()).map(report => [report.data.id, report]));
-const { groups, used } = lineageGroups(index, Object.fromEntries([...reports].map(([id, report]) => [id, report.data.run_stages])));
-const storedRuns = Object.keys(index.runs);
-const metrics = new Map<string, RunMetrics>(await Promise.all(Object.entries(index.runs).map(async ([id, row]) => {
-  let size = '—';
-  if (row.record) {
-    try { size = dataSize([...await runStore.files(id)].reduce((sum, [, bytes]) => sum + bytes, 0)); }
-    catch { /* Unavailable data must not appear as a zero-byte run. */ }
-  }
-  return [id, { walltime: runWalltime(row.record), size }] as [string, RunMetrics];
-})));
+const reports = await getReports();
+const notes = await getCollection('notes');
+const declared = [...new Set([...reports.flatMap(report => [report.id, ...report.data.inputs]),
+  ...notes.flatMap(note => [...note.data.inputs, ...(note.data.presentation ? [note.data.presentation] : [])])])];
+const used = reportRuns(index, declared);
+const experiments = [...new Set(Object.values(index.runs).map(row => row.record.experiment))].sort().reverse();
 ---
-<Page title="Pingstore" description="Runsets and dependency trees by experiment." noindex>
+<Page title="Pingstore" description="Stored runs and their dependencies." noindex>
   <d-title><h1>Pingstore</h1></d-title>
   <d-article role="article" aria-label="Pingstore">
-    <div class="totals">
-      <ol aria-label="Experiment cleanliness totals">
-        <li>Clean experiments: {groups.filter(group => group.clean).length}</li>
-        <li>Unclean experiments: {groups.filter(group => !group.clean).length}</li>
-      </ol>
-      <ol aria-label="Stored run use totals">
-        <li>In-use runs: {storedRuns.filter(id => used.has(id)).length}</li>
-        <li>Not-in-use runs: {storedRuns.filter(id => !used.has(id)).length}</li>
-      </ol>
-    </div>
-    {Object.entries(index.selection_errors).map(([experiment, error]) => <p role="status">{experiment}: {error}</p>)}
-    {Object.entries(index.report_inputs).map(([report, inputs]) => {
-      const missing = inputs.filter(experiment => !index.report_selections[report]?.[experiment]);
-      return missing.length > 0 && <p role="status"><a href={`/${report}`}>{report}</a>: evidence unavailable for {missing.join(', ')}.</p>;
-    })}
-    {groups.map(group => {
-      const report = reports.get(group.experiment);
-      return <section class="experiment" aria-labelledby={group.experiment}>
-        <h2 id={group.experiment}>
-          <svg class:list={['cleanliness', group.clean ? 'clean' : 'unclean']} viewBox="0 0 16 16" role="img" aria-label={group.clean ? 'Clean' : 'Unclean'}>
-            <title>{group.clean ? 'Clean: one connected declared workflow, plus external dependencies only' : 'Unclean: additional, missing or irregular internal runs or dependencies'}</title>
-            <circle cx="8" cy="8" r="7" fill="currentColor" />
-            <path d={group.clean ? 'M4.5 8 7 10.5 11.5 5.5' : 'M5.5 5.5 10.5 10.5 M10.5 5.5 5.5 10.5'} fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          {report
-          ? <a href={`/${group.experiment}`}>{group.experiment} — {report.data.title}</a>
-          : <>{group.experiment}</>}</h2>
-        <h3>In use</h3>
-        {group.inUse.map(node => <div class="runset"><RunTree node={node} experiment={group.experiment} metrics={metrics} /></div>)}
-        {group.inUse.length === 0 && <p>None.</p>}
-        <h3>Unused</h3>
-        {group.unused.map(node => <div class="runset"><RunTree node={node} experiment={group.experiment} metrics={metrics} /></div>)}
-        {group.unused.length === 0 && <p>None.</p>}
+    <p>{Object.keys(index.runs).length} stored runs. {Object.keys(index.runs).filter(id => used.has(id)).length} are referenced by this site's current report selections.</p>
+    <p>Storage labels describe this inventory snapshot. Runs remain stored until explicitly deleted.</p>
+    {experiments.map(experiment => {
+      const selected = declared.includes(experiment) ? index.selections[experiment] : undefined;
+      const own = Object.values(index.runs).filter(row => row.record.experiment === experiment);
+      const report = reports.find(report => report.id === experiment);
+      return <section>
+        <h2>{report ? <a href={`/${experiment}`}>{experiment} — {report.data.title}</a> : experiment}</h2>
+        {selected && <><h3>Selected presentation and dependencies</h3><RunTree node={runTree(index, selected)} /></>}
+        <details><summary>All stored runs ({own.length})</summary>
+          {own.sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at)).map(row => <RunTree node={runTree(index, row.record.id)} />)}
+        </details>
       </section>;
     })}
-    {groups.length === 0 && <p>No runs are recorded.</p>}
   </d-article>
 </Page>
 <style>
-  .totals { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; font-size: .75rem; line-height: 1.5; }
-  .totals ol { margin: 0; padding-left: 1.1rem; }
-  .totals li { margin: 0; padding: 0; }
-  d-article .experiment { min-width: 0; margin: 0; padding: 0; border: 0; }
-  d-article .experiment + .experiment { margin-top: 1.5rem; }
-  .experiment h2 { font-size: 1rem; line-height: 1.4; margin: 0 0 .6rem; padding: 0; border: 0; scroll-margin-top: 1rem; }
-  .experiment h2 a, .experiment h2 a:hover { text-decoration: none; border: 0; }
-  .cleanliness { width: .85rem; height: .85rem; vertical-align: -.08rem; margin-right: .3rem; }
-  .clean { color: #278143; }
-  .unclean { color: #c63d3d; }
-  h3 { font-size: .75rem; line-height: 1.4; margin: .5rem 0 .25rem; color: rgb(var(--ink) / .6); }
-  .runset { margin: .25rem 0; overflow-x: auto; }
-  .experiment > p { font-size: .75rem; line-height: 1.4; margin: .25rem 0; color: rgb(var(--ink) / .5); }
+  section { min-width: 0; margin: 1.5rem 0; }
+  h2 { font-size: 1rem; }
+  h3, p, summary { font-size: .8rem; }
+  details { overflow-x: auto; }
 </style>

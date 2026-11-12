@@ -21,19 +21,15 @@ from experiments.exp022 import recipe
 from experiments.exp022.custom.checkpoints import public_provenance, resolve_checkpoint
 from experiments.exp022.custom.reuse_contract import inspect_source, replacement_cells
 from pingstore.library import (
-    RUN_SCHEMA,
     PingstoreError,
     canonical_export_file,
+    complete_stage,
     execution_origin,
     file_sha256,
     load_json,
-    memberships,
-    normalize_export_layout,
     operation_lock,
-    payload_digest,
     reserve_stage,
     stage_reservation,
-    validate_operational_run_directory,
     write_json_atomic,
 )
 from snnlab.lang import duration_steps
@@ -130,10 +126,8 @@ def reserve(
                 "preallocated reservation identity or execution origin mismatch"
             )
         record = {
-            "schema": RUN_SCHEMA,
             "run_id": run_id,
             "experiment": recipe.SLUG,
-            "collection": memberships(repo)[recipe.SLUG],
             "stage": "compute",
             "origin": origin,
             "created_at": reservation["reserved_at"],
@@ -157,7 +151,7 @@ def reserve(
             "bank_reuse": {"schema": SCHEMA, "plan": plan, "reservation": reservation},
         }
         # Even an allocation interrupted before manifest creation protects its parent.
-        write_json_atomic(directory / "run.json", record)
+        write_json_atomic(directory / "details.json", record)
         root = directory / ".scratch/reuse"
         manifest = campaign.create_manifest(
             repo=repo,
@@ -174,12 +168,11 @@ def reserve(
         campaign.write_manifest(root / "bank.json", manifest)
         manifest = campaign.load_manifest(root / "bank.json")
         record["bank_reuse"]["campaign"] = manifest
-        write_json_atomic(directory / "run.json", record)
+        write_json_atomic(directory / "details.json", record)
         _history(
             directory,
             f"allocated `{run_id}` with origin `{origin}` from clean Git commit "
-            f"`{commit}`; retained input `{source.reference['run_id']}` at "
-            f"`{source.reference['payload_digest']}`. The 81 reused cells retain their "
+            f"`{commit}`; retained input `{source.reference['run_id']}`. The 81 reused cells retain their "
             "source-bank bytes and training origins. Reserved a complete 102-cell "
             "replacement bank: 81 cells will be copied byte-for-byte from the pinned "
             "retained bank; all 21 COBA cells will be trained with gradient damping "
@@ -194,11 +187,10 @@ def reserve(
 
 def _load(repo: Path, run_id: str):
     directory = _directory(repo, run_id)
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     reuse = record.get("bank_reuse", {})
     if (
-        record.get("schema") != RUN_SCHEMA
-        or record.get("run_id") != run_id
+        record.get("run_id") != run_id
         or record.get("experiment") != recipe.SLUG
         or record.get("stage") != "compute"
         or reuse.get("schema") != SCHEMA
@@ -211,11 +203,9 @@ def _load(repo: Path, run_id: str):
     ):
         raise PingstoreError("reserved source or bank assembly contract changed")
     saved_reservation = reuse["reservation"]
-    if (
-        saved_reservation.get("schema") != RUN_SCHEMA
-        or saved_reservation.get("run_id") != run_id
-        or saved_reservation.get("origin") != record.get("origin")
-    ):
+    if saved_reservation.get("run_id") != run_id or saved_reservation.get(
+        "origin"
+    ) != record.get("origin"):
         raise PingstoreError("reuse reservation identity mismatch")
     if (directory / ".reservation.json").exists():
         if stage_reservation(directory) != saved_reservation:
@@ -520,16 +510,14 @@ def _assemble(
         }
     record["bank_reuse"]["cell_provenance"] = origins
     record["bank_reuse"]["diagnostic_provenance"] = diagnostic_records
-    normalize_export_layout(directory, record)
     _check_reused(export, plan)
     source.check_unchanged()
     # Everything needed to recover a failure during cleanup is now in export/run.json.
     record["bank_reuse"]["prepared_export"] = {
-        "payload_digest": payload_digest(directory),
         "files": _inventory(export),
         "prepared_at": campaign.utc_now(),
     }
-    write_json_atomic(directory / "run.json", record)
+    write_json_atomic(directory / "details.json", record)
     _history(
         directory,
         "assembled and verified 102 cells with both checkpoint roles and "
@@ -554,29 +542,24 @@ def finalize(repo: Path, run_id: str, *, recover: bool = False) -> str:
             "recovery": recover,
         }
         attempts.append(attempt)
-        write_json_atomic(directory / "run.json", record)
+        write_json_atomic(directory / "details.json", record)
         try:
             if not reuse.get("prepared_export"):
                 _assemble(directory, record, source, plan, manifest)
                 reuse = record["bank_reuse"]
                 attempt = reuse["finalization_attempts"][-1]
             prepared = reuse["prepared_export"]
-            if (
-                _inventory(directory / "export") != prepared["files"]
-                or payload_digest(directory) != prepared["payload_digest"]
-            ):
+            if _inventory(directory / "export") != prepared["files"]:
                 raise PingstoreError("prepared export changed; refusing finalization")
             _check_reused(directory / "export", plan)
             source.check_unchanged()
-            record["payload_digest"] = prepared["payload_digest"]
             attempt["completed_at"] = campaign.utc_now()
             record["execution"]["completed_at"] = attempt["completed_at"]
-            write_json_atomic(directory / "run.json", record)
+            write_json_atomic(directory / "details.json", record)
             scratch = directory / ".scratch"
             if scratch.exists():
                 shutil.rmtree(scratch)
             (directory / ".reservation.json").unlink(missing_ok=True)
-            validate_operational_run_directory(directory)
             source.check_unchanged()
             _history(
                 directory,
@@ -586,12 +569,12 @@ def finalize(repo: Path, run_id: str, *, recover: bool = False) -> str:
             destination = directory.parent / run_id
             if destination.exists():
                 raise PingstoreError("completed destination already exists")
-            os.rename(directory, destination)
+            complete_stage(directory, record)
         except BaseException as exc:
             if directory.exists():
                 attempt = record["bank_reuse"]["finalization_attempts"][-1]
                 attempt["error"] = f"{type(exc).__name__}: {exc}"
-                write_json_atomic(directory / "run.json", record)
+                write_json_atomic(directory / "details.json", record)
                 _history(
                     directory,
                     "finalization interrupted; retained as incomplete for explicit recovery.",

@@ -1,127 +1,60 @@
-/** Core owns reporting policy. TypeScript validates and consumes its JSON index. */
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { resolve, join } from 'node:path';
-import { catalogJSON, runPattern, type Catalog } from './remote-catalog.ts';
-
+/** Metadata-only selection. Storage and deployments have no reporting policy. */
+export interface RunRecord {
+  id: string;
+  experiment: string;
+  stage?: string;
+  created_at: string;
+  description?: string;
+  depends_on: string[];
+  metadata?: { duration_seconds?: number; origin?: string; [key: string]: unknown };
+}
 export interface IndexRun {
-  record: any;
-  current: string[];
-  usage: { local: string[]; ghpages: string[] };
-  status: 'Current' | 'Required' | 'Unused' | 'Unresolved';
-  storage: 'Local' | 'R2' | 'Both' | 'Unknown' | 'Unavailable';
-  verification: { local: string; r2: string };
-  reasons: string[];
-  unresolved: string[];
+  record: RunRecord;
+  storage: 'Local' | 'R2' | 'Both';
+  bytes?: number;
+  file_count?: number;
 }
 export interface RunIndex {
-  schema: 'pingstore.index/v1';
-  generation: string;
-  source: 'auto' | 'local' | 'remote';
-  remote_known: boolean;
+  source: string;
   selections: Record<string, string>;
   runsets: Record<string, string[]>;
-  selection_errors: Record<string, string>;
-  report_selections: Record<string, Record<string, string>>;
-  report_inputs: Record<string, string[]>;
-  source_views?: Record<string, { run_id: string; payload_digest: string; source_digest: string }>;
-  operation?: { kind: string; plan_hash: string; run_ids?: string[] } | null;
-  publication_unavailable?: string[];
-  inventory_generation?: string | null;
-  publication: 'known' | 'unresolved';
   runs: Record<string, IndexRun>;
 }
-
-/** Project core's global membership into the experiment being displayed. */
-export function evidenceForExperiment(row: IndexRun, experiment: string): IndexRun {
-  if (row.status === 'Current' && !row.current.includes(experiment)) {
-    return { ...row, status: 'Required' };
-  }
-  return row;
-}
-
-export function validateRunIndex(value: any): RunIndex {
-  const mapping = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
-  const strings = (item: any) => Array.isArray(item) && item.every(value => typeof value === 'string');
-  if (value?.schema !== 'pingstore.index/v1' || !/^sha256:[a-f0-9]{64}$/.test(value.generation)
-      || !['auto', 'local', 'remote'].includes(value.source) || typeof value.remote_known !== 'boolean'
-      || !mapping(value.selections) || !mapping(value.runsets) || !mapping(value.runs)
-      || !mapping(value.selection_errors) || !mapping(value.report_selections) || !['known', 'unresolved'].includes(value.publication)) {
-    throw new Error('Invalid Pingstore index');
-  }
-  for (const [id, row] of Object.entries(value.runs) as [string, IndexRun][]) {
-    // Unresolved malformed holdings have no trustworthy scientific record.
-    if (!mapping(row) || !['Current', 'Required', 'Unused', 'Unresolved'].includes(row.status)
-        || !['Local', 'R2', 'Both', 'Unknown', 'Unavailable'].includes(row.storage) || !strings(row.reasons) || !strings(row.unresolved)
-        || !strings(row.current) || !mapping(row.verification)
-        || !mapping(row.usage) || !strings(row.usage.local) || !strings(row.usage.ghpages)) throw new Error(`Invalid index row: ${id}`);
-    if (row.record && (!runPattern.test(id) || row.record.run_id !== id || row.record.schema !== 'pingstore.run/v4')) {
-      throw new Error(`Invalid index identity: ${id}`);
-    }
-  }
-  for (const [experiment, id] of Object.entries(value.selections) as [string, string][]) {
-    const row = value.runs[id];
-    const members = value.runsets[experiment];
-    if (!/^exp\d{3}$/.test(experiment) || !runPattern.test(id) || !id.startsWith(`${experiment}-`) || !id.endsWith('-present')
-        || !row?.record || !strings(members) || !members.includes(id)
-        || members.some(member => !value.runs[member]?.record)) throw new Error(`Invalid indexed selection: ${experiment}`);
-    const seen = new Set<string>();
-    const visiting = new Set<string>();
-    const visit = (member: string) => {
-      if (visiting.has(member)) throw new Error('Indexed runset contains a cycle');
-      if (seen.has(member)) return;
-      visiting.add(member);
-      const record = value.runs[member]?.record;
-      if (!record || !members.includes(member)) throw new Error(`Incomplete indexed runset: ${member}`);
-      if (!mapping(record.runset_inputs)) throw new Error(`Missing runset links: ${member}`);
-      for (const [role, ref] of Object.entries(record.runset_inputs) as [string, any][]) {
-        if (!runPattern.test(ref.run_id) || !/^sha256:[a-f0-9]{64}$/.test(ref.payload_digest)) throw new Error(`Invalid runset pin: ${member}`);
-        if (value.runs[ref.run_id]?.record?.payload_digest !== ref.payload_digest) throw new Error(`Changed indexed pin: ${member}`);
-        visit(ref.run_id);
-      }
-      visiting.delete(member);
-      seen.add(member);
-    };
-    visit(id);
-    if (seen.size !== members.length) throw new Error(`Extraneous indexed ancestry: ${experiment}`);
-  }
-  if (value.source_views !== undefined) {
-    if (!mapping(value.source_views)) throw new Error('Invalid source views');
-    for (const [id, view] of Object.entries(value.source_views) as [string, any][]) {
-      if (!runPattern.test(id) || !mapping(view) || !runPattern.test(view.run_id)
-          || id.slice(0, 6) !== view.run_id.slice(0, 6)
-          || !/^sha256:[a-f0-9]{64}$/.test(view.source_digest)
-          || value.runs[view.run_id]?.record?.payload_digest !== view.payload_digest) {
-        throw new Error(`Invalid archived source view: ${id}`);
-      }
-    }
+export const runPattern = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,159}$/;
+export function validateRecord(value: any, id: string): RunRecord {
+  const fields = new Set(['id', 'experiment', 'stage', 'created_at', 'description', 'depends_on', 'metadata']);
+  if (!value || typeof value !== 'object' || Object.keys(value).some(key => !fields.has(key))
+      || !runPattern.test(id) || value.id !== id || typeof value.experiment !== 'string'
+      || !value.experiment || typeof value.created_at !== 'string' || !Number.isFinite(Date.parse(value.created_at))
+      || !/(Z|[+-]\d\d:\d\d)$/.test(value.created_at) || !Array.isArray(value.depends_on)
+      || value.depends_on.some((item: unknown) => typeof item !== 'string' || !runPattern.test(item) || item === id)
+      || new Set(value.depends_on).size !== value.depends_on.length
+      || (value.stage !== undefined && typeof value.stage !== 'string')
+      || (value.description !== undefined && typeof value.description !== 'string')
+      || (value.metadata !== undefined && (!value.metadata || typeof value.metadata !== 'object' || Array.isArray(value.metadata)))) {
+    throw new Error(`Invalid run metadata: ${id}; migrate old records before using the simple store`);
   }
   return value;
 }
-
-const repository = fileURLToPath(new URL('../../../', import.meta.url));
-export async function resolveRunIndex(options: { root: string; source: string; catalog?: Catalog; control?: any; repository?: string }): Promise<RunIndex> {
-  const repo = resolve(options.repository ?? process.env.PINGLAB_REPOSITORY_ROOT ?? repository);
-  const venv = join(repo, '.venv/bin/python');
-  const python = process.env.PINGLAB_PYTHON ?? (existsSync(venv) ? venv : 'python3');
-  const args = ['-m', 'pingstore.cli', 'status', '--root', repo, '--runs-root', options.root,
-    '--source', options.source, '--catalog-stdin', '--json'];
-  return new Promise((done, reject) => {
-    const child = spawn(python, args, { cwd: repo, env: { ...process.env,
-      PYTHONPATH: [join(repo, 'libraries'), process.env.PYTHONPATH].filter(Boolean).join(':') }, stdio: ['pipe', 'pipe', 'pipe'] });
-    const stdout: Buffer[] = [], stderr: Buffer[] = [];
-    const timeout = setTimeout(() => { child.kill(); reject(new Error('Pingstore index generation timed out')); }, 120_000);
-    child.stdout.on('data', chunk => stdout.push(chunk));
-    child.stderr.on('data', chunk => stderr.push(chunk));
-    child.on('error', error => { clearTimeout(timeout); reject(error); });
-    child.stdin.on('error', () => {}); // An early Python error is reported by close.
-    child.on('close', code => {
-      clearTimeout(timeout);
-      if (code !== 0) return reject(new Error(`Pingstore index: ${Buffer.concat(stderr).toString().trim()}`));
-      try { done(validateRunIndex(JSON.parse(Buffer.concat(stdout).toString()))); }
-      catch (error) { reject(error); }
-    });
-    child.stdin.end(`{"catalog":${options.catalog ? catalogJSON(options.catalog) : 'null'},"control":${JSON.stringify(options.control ?? null)}}`);
-  });
+export function ancestry(runs: Record<string, IndexRun>, root: string): string[] {
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    for (const dependency of runs[id]?.record.depends_on ?? []) visit(dependency);
+  };
+  visit(root);
+  return [...seen];
+}
+export function buildRunIndex(runs: Record<string, IndexRun>, source = 'local'): RunIndex {
+  const selections: Record<string, string> = {};
+  for (const [id, row] of Object.entries(runs)) {
+    const record = validateRecord(row.record, id);
+    if (record.stage !== 'present') continue;
+    const previous = runs[selections[record.experiment]]?.record;
+    const delta = previous ? Date.parse(record.created_at) - Date.parse(previous.created_at) : 1;
+    if (!previous || delta > 0 || (delta === 0 && id > previous.id)) selections[record.experiment] = id;
+  }
+  return { source, runs, selections, runsets: Object.fromEntries(Object.entries(selections)
+    .map(([experiment, id]) => [experiment, ancestry(runs, id)])) };
 }

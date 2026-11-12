@@ -26,9 +26,9 @@ from snnlab.sim import (
 
 
 def execute(run, bundle, drives, k, name, state=None, *, checkpoint=None):
-    run.record.setdefault("scientific_artifacts", {}).setdefault("snapshot_stages", {})[
-        f"{name}-execution"
-    ] = ["start"]
+    run.details.setdefault("scientific_artifacts", {}).setdefault(
+        "snapshot_stages", {}
+    )[f"{name}-execution"] = ["start"]
     started = perf_counter()
     result = simulate(
         graph=bundle.graph,
@@ -53,7 +53,7 @@ def execute(run, bundle, drives, k, name, state=None, *, checkpoint=None):
             for key, value in result.diagnostics.items()
         },
     )
-    run.record["execution"].setdefault("simulations", {})[name] = dict(
+    run.details["execution"].setdefault("simulations", {})[name] = dict(
         coupling_us=k,
         seconds=perf_counter() - started,
         steps=len(next(iter(drives.values()))),
@@ -158,7 +158,7 @@ def acquire_sender_receiver(run, reference):
     )
     drives = sender_receiver.make_inputs()
     np.savez_compressed(run.export / "inputs.npz", **drives)
-    run.record["scientific_artifacts"] = {
+    run.details["scientific_artifacts"] = {
         "snapshot_stages": {"sender-receiver-execution": ["start"]}
     }
     started = perf_counter()
@@ -186,7 +186,7 @@ def acquire_sender_receiver(run, reference):
             for key, value in result.diagnostics.items()
         },
     )
-    run.record["execution"]["simulation_seconds"] = perf_counter() - started
+    run.details["execution"]["simulation_seconds"] = perf_counter() - started
 
 
 def compute(
@@ -206,7 +206,7 @@ def compute(
     reference = None
     if parameter_source:
         reference = inputs.source(REPO, parameter_source, "compute")
-        source_cfg = reference.record["execution"].get("configuration", {})
+        source_cfg = reference.details["execution"].get("configuration", {})
         if source_cfg.get("schema") != "exp133.recipe/v3":
             raise ValueError(
                 "current connectivity requires a v3 grid parameter source "

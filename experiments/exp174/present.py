@@ -115,7 +115,7 @@ def present(identity):
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="analyse"
     )
     numbers = json.loads(source.file("numbers.json").read_text())
-    pin = source.record["inputs"]["compute"]
+    pin = source.details["inputs"]["compute"]
     compute = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -218,7 +218,7 @@ def present(identity):
                 )
             )
             circuit(bundle, run.export / ("circuit-" + kind + ".svg"), kind)
-        run.record["execution"]["elapsed_seconds"] = time.perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = time.perf_counter() - started
     print(run.run_id, flush=True)
     return run.run_id
 

@@ -126,26 +126,26 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
     specs = [(sources["compute"], "theta/network.bundle", "network")]
     with stage_run(
         REPO,
-        previous.record["experiment"],
+        previous.details["experiment"],
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         for source, prefix, stem in specs:
             bundle_path = (
                 source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
-                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                if source.details.get("scientific_artifacts", {}).get("native_paths")
                 else source.unit(*prefix.split("/"))
             )
             save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -153,7 +153,7 @@ def redraw_networks(presentation, *, run_id=None):
 def present(identity):
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    refs = analysis.record["inputs"]
+    refs = analysis.details["inputs"]
     if set(refs) != {"compute"}:
         raise PingstoreError("analysis must pin exactly one paired compute")
     compute = inputs.source(
@@ -218,16 +218,16 @@ def present(identity):
             compute.restore_bundle(
                 "theta/network.bundle", run.scratch / "network.bundle"
             )
-            if compute.record.get("scientific_artifacts", {}).get("native_paths")
+            if compute.details.get("scientific_artifacts", {}).get("native_paths")
             else compute.unit("theta", "network.bundle")
         )
-        run.record["execution"]["network_diagram"] = network_diagram(
+        run.details["execution"]["network_diagram"] = network_diagram(
             run.export / "network.svg",
             lang.load_bundle(bundle_path),
         )
         render_raster(recordings, cfg, run.export / "spike-raster.png")
         write_json_atomic(run.export / "numbers.json", results)
-        run.record["execution"]["presentation"] = dict(
+        run.details["execution"]["presentation"] = dict(
             figures="fresh structural diagram, selectable recorded circuit replay, paired all-neuron raster",
             view=view,
             shared_conductance_scale_us=[0, shared_max],

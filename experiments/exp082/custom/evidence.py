@@ -102,9 +102,9 @@ def aggregate(path, job, cfg):
 
 def validate_import(run, cfg):
     """Validate the provenance retained by an existing immutable import run."""
-    record = run.record.get("historical_import", {})
+    record = run.details.get("historical_import", {})
     if (
-        run.record["execution"].get("operation") != "historical-import"
+        run.details["execution"].get("operation") != "historical-import"
         or record.get("schema") != RETAINED_SCHEMA
         or record.get("producer_commit") != RETAINED_PRODUCER
         or cfg != recipe.configuration(version=1)
@@ -424,16 +424,16 @@ def showcase_evidence(repo, run):
         load_json(run.export / "evidence.json").get("schema") == "exp082.compute/v3"
     )
     if (
-        run.record["stage"] != "compute"
-        or run.record["experiment"] != recipe.SLUG
+        run.details["stage"] != "compute"
+        or run.details["experiment"] != recipe.SLUG
         or (
             not combined
-            and run.record["execution"].get("operation") != "showcase-selection"
+            and run.details["execution"].get("operation") != "showcase-selection"
         )
-        or set(run.record["inputs"]) != {"bank"}
+        or set(run.details["inputs"]) != {"bank"}
     ):
         raise PingstoreError("invalid exp082 showcase compute run")
-    pin = run.record["inputs"]["bank"]
+    pin = run.details["inputs"]["bank"]
     from experiments.exp082.custom import inputs
 
     bank = inputs.source(
@@ -442,14 +442,14 @@ def showcase_evidence(repo, run):
     saved = validate_showcase(run.export)
     if (
         not combined
-        and run.record["execution"].get("configuration") != saved["configuration"]
+        and run.details["execution"].get("configuration") != saved["configuration"]
     ):
         raise PingstoreError("showcase execution configuration differs")
     if combined:
         _, compute_bank, _ = inputs.compute_evidence(repo, run)
         if compute_bank.reference != bank.reference:
             raise PingstoreError("combined showcase bank differs from evaluation")
-        expected = run.record.get("showcase_configuration")
+        expected = run.details.get("showcase_configuration")
         if expected != saved["configuration"]:
             raise PingstoreError("combined showcase execution configuration differs")
     if saved.get("training_contract") != training_contract(bank.export):

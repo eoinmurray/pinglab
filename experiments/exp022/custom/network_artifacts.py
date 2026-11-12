@@ -80,7 +80,7 @@ def record_snapshot_policy(run):
     """Declare native retention before Pingstore validates this stage's export."""
     import json
 
-    policies = run.record.setdefault("scientific_artifacts", {}).setdefault(
+    policies = run.details.setdefault("scientific_artifacts", {}).setdefault(
         "snapshot_stages", {}
     )
     for path in run.export.rglob("snapshot.json"):
@@ -107,9 +107,9 @@ def copy_circuits(run):
             return
         seen.add(identity)
         source = source_run(run.directory.parents[1], identity, reference=reference)
-        if source.record["experiment"] != run.record["experiment"]:
+        if source.details["experiment"] != run.details["experiment"]:
             return
-        if source.record["stage"] == "compute":
+        if source.details["stage"] == "compute":
             for path in source.export.glob("circuit*.svg"):
                 target = run.export / path.name
                 if target.exists() and target.read_bytes() != path.read_bytes():
@@ -117,10 +117,10 @@ def copy_circuits(run):
                 shutil.copyfile(path, target)
                 files.add(path.name)
         else:
-            for parent in source.record["inputs"].values():
+            for parent in source.details["inputs"].values():
                 visit(parent)
 
-    for reference in run.record["inputs"].values():
+    for reference in run.details["inputs"].values():
         visit(reference)
     return sorted(files)
 

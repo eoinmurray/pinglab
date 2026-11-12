@@ -29,7 +29,6 @@ def configuration(*, input_rate_hz=None):
             experiment="exp142",
             source=dict(
                 run_id="exp141-r012-compute",
-                payload_digest="sha256:45238b946b7b75cd34cdc05c944f2ee3860d46631f07835147e294f49c195bcd",
             ),
             seed=42,
             cpu_threads=1,

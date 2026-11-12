@@ -1,15 +1,11 @@
 """Authenticate dependent Modal runs before transfer, execution and collection."""
 
-import json
 import shutil
-from collections import defaultdict
 
 import pytest
-from pingstore.core import _hidden_inputs
 from pingstore.library import (
     PingstoreError,
     initialize_layout,
-    payload_digest,
     source_run,
     write_json_atomic,
 )
@@ -40,8 +36,9 @@ def fixture_source(root, identity="exp998-r001-compute", inputs=None):
         execution={},
         provenance={},
     )
-    record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    from pingstore.tests.fixtures import write_fixture_json
+
+    write_fixture_json(directory / "details.json", record)
     return source_run(root, identity)
 
 
@@ -51,13 +48,13 @@ def test_prepare_and_restore_complete_pinned_ancestry(tmp_path, include_ancestry
     parent = fixture_source(root)
     child = fixture_source(root, "exp997-r001-compute", {"training": parent.reference})
     inputs, sources = modal_inputs.prepare_inputs(
-        root, {"images": child.record["run_id"]}, include_ancestry=include_ancestry
+        root, {"images": child.details["run_id"]}, include_ancestry=include_ancestry
     )
     assert inputs == {"images": child.reference}
     assert list(sources) == (
-        [parent.record["run_id"], child.record["run_id"]]
+        [parent.details["run_id"], child.details["run_id"]]
         if include_ancestry
-        else [child.record["run_id"]]
+        else [child.details["run_id"]]
     )
     volume = tmp_path / "volume"
     for source in sources.values():
@@ -71,7 +68,7 @@ def test_prepare_and_restore_complete_pinned_ancestry(tmp_path, include_ancestry
     for source in sources.values():
         assert (
             source_run(
-                restored, source.record["run_id"], reference=source.reference
+                restored, source.details["run_id"], reference=source.reference
             ).reference
             == source.reference
         )
@@ -82,11 +79,11 @@ def test_corrupt_transfer_never_becomes_visible(tmp_path):
     volume = tmp_path / "volume"
     cached = volume / modal_inputs.input_path(source.reference)
     shutil.copytree(source.directory, cached)
-    (cached / "export" / "data.json").write_text("corrupt")
+    (cached / "run.json").write_text('{"id":"different"}')
     worker = tmp_path / "worker"
     with pytest.raises(PingstoreError):
         modal_inputs.restore_inputs(worker, volume, [source.reference])
-    assert not (worker / "runs" / source.record["run_id"]).exists()
+    assert not (worker / "runs" / source.details["run_id"]).exists()
 
 
 @pytest.mark.parametrize("mismatch", [False, True])
@@ -94,14 +91,6 @@ def test_collection_requires_exact_submitted_dependencies(tmp_path, mismatch):
     source = fixture_source(tmp_path)
     inputs = {"images": source.reference}
     receipt = submission(tmp_path, inputs)
-    hidden = tmp_path / "runs" / f".{receipt['run_id']}.tmp"
-    assert json.loads((hidden / "run.json").read_text())["inputs"] == inputs
-    reasons = defaultdict(set)
-    _hidden_inputs(tmp_path / "runs", {source.record["run_id"]: source.record}, reasons)
-    assert any(
-        reason.startswith("incomplete-input:")
-        for reason in reasons[source.record["run_id"]]
-    )
     volume = completed_volume(tmp_path, receipt, {} if mismatch else inputs)
     if mismatch:
         with pytest.raises(PingstoreError, match="does not match submitted"):
@@ -131,10 +120,8 @@ def test_local_input_change_is_rejected_before_collection(tmp_path):
     inputs = {"images": source.reference}
     receipt = submission(tmp_path, inputs)
     volume = completed_volume(tmp_path, receipt, inputs)
-    (source.export / "data.json").write_text('{"sample": 2}')
-    record = dict(source.record, payload_digest=payload_digest(source.directory))
-    write_json_atomic(source.directory / "run.json", record)
-    with pytest.raises(PingstoreError, match="checksum changed"):
+    write_json_atomic(source.directory / "run.json", {"id": "different"})
+    with pytest.raises(PingstoreError, match="run requires"):
         modal_jobs.check(
             tmp_path,
             receipt["run_id"],

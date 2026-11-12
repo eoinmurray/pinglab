@@ -150,7 +150,7 @@ def test_historical_inventories_come_from_executed_definitions(
     tmp_path, monkeypatch, resolved
 ):
     source = SimpleNamespace(
-        record={"execution": {"configuration": {"models": ["coba"]}}},
+        details={"execution": {"configuration": {"models": ["coba"]}}},
         file=lambda *parts: tmp_path.joinpath(*parts),
     )
     graph = dict(
@@ -198,7 +198,6 @@ def test_native_pipeline_retains_evidence_and_validates_sources(
         return resolved
 
     monkeypatch.setattr(recipe, "configuration", fixture_configuration)
-    monkeypatch.setattr(core, "memberships", lambda repo: {"exp124": "datasets"})
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
     )
@@ -257,7 +256,7 @@ def test_native_pipeline_retains_evidence_and_validates_sources(
     entrypoint = compute.compute_parallel if parallel else compute.compute
     identity = entrypoint(protocol="local-check")
     source = core.source_run(tmp_path / ".pingstore", identity)
-    execution = source.record["execution"]
+    execution = source.details["execution"]
     assert execution["concurrency"]["mode"] == (
         "spawned_processes" if parallel else "sequential"
     )
@@ -462,7 +461,6 @@ def failing_condition_worker(directory, item, index, *arguments):
 
 
 def test_parallel_worker_failure_does_not_publish_partial_run(tmp_path, monkeypatch):
-    monkeypatch.setattr(core, "memberships", lambda repo: {"exp124": "datasets"})
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
     )

@@ -215,7 +215,8 @@ def test_remote_worker_subprocess_and_collector_round_trip(
 import json, os, sys
 from pathlib import Path
 sys.path.insert(0, {str(REPO / "libraries")!r})
-from pingstore.library import payload_digest, write_json_atomic
+from pingstore.library import write_json_atomic
+from pingstore.tests.fixtures import write_fixture_json
 args = parser.parse_args()
 directory = Path(".pingstore/runs") / ("." + args.run_id + ".tmp")
 reservation = json.loads((directory / ".reservation.json").read_text())
@@ -224,8 +225,8 @@ record = dict(reservation, scope="full", collection="fixture", inputs={{}},
 (directory / "export" / "result.json").write_text(json.dumps(
     dict(protocol=args.protocol, device=os.environ["SNNLAB_DEVICE"])))
 (directory / ".reservation.json").unlink()
-record["payload_digest"] = payload_digest(directory)
-write_json_atomic(directory / "run.json", record)
+
+write_fixture_json(directory / "details.json", record)
 directory.rename(directory.with_name(args.run_id))
 """
     )
@@ -308,6 +309,6 @@ directory.rename(directory.with_name(args.run_id))
         "device": "cpu",
     }
     assert (
-        json.loads((directory / "run.json").read_text())["execution"]["modal"]
+        json.loads((directory / "details.json").read_text())["execution"]["modal"]
         == receipt
     )

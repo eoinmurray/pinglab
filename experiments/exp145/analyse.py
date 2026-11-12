@@ -46,7 +46,7 @@ def analyse(args):
     source = source_run(
         REPO / ".pingstore", args.source, experiment="exp145", stage="compute"
     )
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     # Older compute runs retain the bin size for the now-removed rate spectrum.
     cfg = {
         **cfg,

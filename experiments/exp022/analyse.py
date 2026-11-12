@@ -144,8 +144,8 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     compute = source_run(root, identity, stage="compute", experiment=recipe.SLUG)
     inputs = {"compute": compute}
     bank = compute
-    if "bank" in compute.record["inputs"]:
-        reference = compute.record["inputs"]["bank"]
+    if "bank" in compute.details["inputs"]:
+        reference = compute.details["inputs"]["bank"]
         bank = source_run(
             root,
             reference["run_id"],
@@ -252,13 +252,13 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         summary = {
             "notebook_run_id": run.run_id,
             "compute_run_id": identity,
-            "bank_run_id": bank.record["run_id"],
-            "git_sha": run.record["provenance"]["git_commit"],
+            "bank_run_id": bank.details["run_id"],
+            "git_sha": run.details["provenance"]["git_commit"],
             "duration_s": round(elapsed, 1),
             "duration": format_duration(elapsed),
             "standard": common,
             "training_root": {
-                "run_id": bank.record["run_id"],
+                "run_id": bank.details["run_id"],
                 "path": bank.export.relative_to(bank.directory).as_posix(),
             },
             "result_checkpoint_provenance": checkpoint_records[
@@ -276,7 +276,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             },
             "n_cells": len(rows),
             "cells": rows,
-            "bank_composition": bank_composition(bank.record, actual),
+            "bank_composition": bank_composition(bank.details, actual),
             "timestep_sweep": {
                 "values_ms": sorted(
                     {cell["dt_ms"] for cell in cells if cell["family"] == "dt"}
@@ -303,7 +303,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         with (run.directory / "README.md").open("a") as readme:
             readme.write(
                 "\n## Measurements\n\n"
-                f"Measurements from compute run `{identity}`, bank `{bank.record['run_id']}`.\n\n"
+                f"Measurements from compute run `{identity}`, bank `{bank.details['run_id']}`.\n\n"
                 "Numerical results and both checkpoint-role inventories are in "
                 "`export/results.json`; plot-ready curves are in `export/curves.json`. "
                 "Probe measurements are flat `export/<cell>--rasters.npz` files.\n\n"
@@ -324,7 +324,7 @@ def export_finetuning(source_id, cells, *, run_id=None):
         raise ValueError("At least one cell is required")
     pins = {}
     for cell in cells:
-        pin = bank.record["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
+        pin = bank.details["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
         if pin["role"] != "final_epoch" or pin["epoch"] != 50:
             raise ValueError("Expected final epoch-50 checkpoint")
         bank.file(cell, "config.json")
@@ -353,7 +353,7 @@ def export_finetuning(source_id, cells, *, run_id=None):
                 pins[cell]["checkpoint"]["filename"],
             ):
                 shutil.copyfile(bank.file(cell, filename), destination / filename)
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
         )
     return run.run_id

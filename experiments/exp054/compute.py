@@ -98,7 +98,7 @@ def compute(*, run_id=None):
     with inputs.execution(
         REPO, "compute", sources={}, run_id=run_id, configuration=cfg
     ) as run:
-        run.record["execution"].update(
+        run.details["execution"].update(
             environment={
                 "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
                 **(
@@ -115,7 +115,7 @@ def compute(*, run_id=None):
         )
         for item in recipe.jobs(cfg):
             destination = run.export / f"probe--{item['id']}--rasters.npz"
-            run.record["execution"]["trials"].append(
+            run.details["execution"]["trials"].append(
                 simulate_probe(cfg, item, destination, device)
             )
         write_json_atomic(

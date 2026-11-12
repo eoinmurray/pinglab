@@ -72,8 +72,8 @@ def metric(document, cfg, item):
 
 
 def compute_contract(run):
-    cfg = configuration(run.record["execution"].get("configuration"))
-    if run.record["inputs"]:
+    cfg = configuration(run.details["execution"].get("configuration"))
+    if run.details["inputs"]:
         raise PingstoreError("exp047 initial compute must not have upstream inputs")
     expected = {"schema": "exp047.compute/v1", "recipe": cfg, "jobs": recipe.jobs(cfg)}
     if load_json(run.export / "evidence.json") != expected:

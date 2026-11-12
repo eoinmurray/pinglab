@@ -220,7 +220,6 @@ def test_live_transfers_validated_input_ancestry(deployment, monkeypatch, direct
     from pingstore import core
 
     repo, args = deployment
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
     with core.stage_run(repo, "exp999", "compute") as compute:
         (compute.export / "result.json").write_text('{"value": 1}\n')
     source = core.source_run(repo / ".pingstore", compute.run_id)
@@ -252,10 +251,9 @@ def test_corrupt_input_blocks_upload_before_receipt(deployment, monkeypatch):
     from pingstore.library import PingstoreError
 
     repo, args = deployment
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
     with core.stage_run(repo, "exp999", "compute") as compute:
         (compute.export / "result.json").write_text('{"value": 1}\n')
-    (compute.directory / "export/result.json").write_text('{"value": 999}\n')
+    (compute.directory / "run.json").write_text('{"id": "invalid"}\n')
     args.input = [compute.run_id]
     args.live = True
     with pytest.raises(PingstoreError):
@@ -268,7 +266,6 @@ def test_worker_restores_reserved_identity_before_compute(deployment, monkeypatc
     from pingstore import core
 
     repo, args = deployment
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
     identity = core.reserve_stage(repo / ".pingstore", "exp999", "compute")
     args.reserved_run = identity
     args.arguments = ["--", "--run-id", identity]

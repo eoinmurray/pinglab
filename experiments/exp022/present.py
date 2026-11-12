@@ -492,14 +492,14 @@ def carry_historical(retained: SourceRun, filename: str, destination: Path) -> d
     lineage = {
         "file": filename,
         "operation": "carry-historical",
-        "source_run": retained.record["run_id"],
+        "source_run": retained.details["run_id"],
         "source_path": source.relative_to(retained.directory).as_posix(),
         "sha256": checksum,
     }
-    if retained.record.get("stage") == "present":
+    if retained.details.get("stage") == "present":
         records = [
             item
-            for item in retained.record.get("presentation_lineage", [])
+            for item in retained.details.get("presentation_lineage", [])
             if item["file"] == filename
         ]
         if (
@@ -540,8 +540,8 @@ def present(
         # Accept the original import or a prior presentation of the exact same
         # analysis and bank. An experiment-name match alone is insufficient.
         compute_ref = (
-            analysis.record["inputs"].get("bank")
-            or analysis.record["inputs"]["compute"]
+            analysis.details["inputs"].get("bank")
+            or analysis.details["inputs"]["compute"]
         )
         bank = source_run(
             root,
@@ -551,12 +551,12 @@ def present(
             reference=compute_ref,
         )
         same_evidence = (
-            retained.record.get("stage") == "present"
-            and retained.record.get("inputs", {}).get("analysis") == analysis.reference
-            and retained.record.get("inputs", {}).get("bank") == bank.reference
+            retained.details.get("stage") == "present"
+            and retained.details.get("inputs", {}).get("analysis") == analysis.reference
+            and retained.details.get("inputs", {}).get("bank") == bank.reference
         )
         if (
-            bank.record["inputs"].get("import") != retained.reference
+            bank.details["inputs"].get("import") != retained.reference
             and not same_evidence
         ):
             raise PingstoreError(
@@ -685,7 +685,7 @@ def present(
             run.export / "numbers.json",
             {**(numbers), "circuit_files": copy_circuits(run)},
         )
-        run.record["presentation_lineage"] = lineage
+        run.details["presentation_lineage"] = lineage
         with (run.directory / "README.md").open("a") as readme:
             readme.write(
                 "\n## Presentation\n\n"

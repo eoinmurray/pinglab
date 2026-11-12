@@ -115,7 +115,7 @@ def train_condition(condition, run, cfg, dataset_path, drive, device):
         for key, value in result.metrics["training_timing"].items()
         if key.endswith("_s")
     }
-    run.record["execution"].setdefault("models", {})[condition] = {
+    run.details["execution"].setdefault("models", {})[condition] = {
         "duration_seconds": timing["total_s"] - timing["setup_s"],
         "native_timing": timing,
         "resolved_performance": result.metrics.get("performance"),
@@ -170,7 +170,7 @@ def record_sample(condition, bundle, checkpoint, drive, run, cfg):
     write_json_atomic(run.export / condition / "sample_metrics.json", result.metrics)
     sample = result.numpy(batch=0)
     # Retain native axes, cell IDs and sampling coordinates with binary exports.
-    run.record["execution"].setdefault("recording_info", {})[condition] = {
+    run.details["execution"].setdefault("recording_info", {})[condition] = {
         name: asdict(
             replace(info, array_dtype="uint8", conversion="binary_spikes_to_uint8")
         )
@@ -216,7 +216,7 @@ def condition_worker(directory, item, index, cfg, dataset_path, drive, threads, 
     np.savez_compressed(scratch / "recording.npz", **recordings)
     if file_sha256(dataset_path) != digest:
         raise ValueError("prepared dataset changed during model execution")
-    return {"model": model, "execution": child.record["execution"]}
+    return {"model": model, "execution": child.details["execution"]}
 
 
 def worker_inventory(directory, item, index):
@@ -262,7 +262,7 @@ def run_conditions(run, cfg, dataset_path, drive, items, threads, parallel):
             metadata = result["execution"][section]
             if set(metadata) != {model}:
                 raise ValueError("worker returned incomplete or overlapping metadata")
-            run.record["execution"].setdefault(section, {}).update(metadata)
+            run.details["execution"].setdefault(section, {}).update(metadata)
         with np.load(
             run.scratch / "shards" / str(index) / "recording.npz", allow_pickle=False
         ) as arrays:
@@ -272,7 +272,7 @@ def run_conditions(run, cfg, dataset_path, drive, items, threads, parallel):
             if set(arrays.files) != expected or recordings.keys() & expected:
                 raise ValueError("worker recordings are incomplete or overlap")
             recordings.update({key: arrays[key] for key in arrays.files})
-    run.record["execution"]["concurrency"] = {
+    run.details["execution"]["concurrency"] = {
         "mode": "spawned_processes" if parallel else "sequential",
         "work_items": items,
         "cpu_threads_per_worker": threads,
@@ -334,7 +334,7 @@ def _compute(*, run_id, protocol, parallel):
     ) as run:
         dataset_path = run.scratch / "dataset.npz"
         np.savez_compressed(dataset_path, **arrays)
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={
                 path: ["start"]
                 for model in cfg["models"]
@@ -348,7 +348,7 @@ def _compute(*, run_id, protocol, parallel):
                 for key in ("labels", "split", "official_train_indices", "speakers")
             },
         )
-        run.record["execution"].update(
+        run.details["execution"].update(
             dataset=metadata,
             snnlab_version=version("snnlab"),
             sample_raster_configuration={

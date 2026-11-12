@@ -23,7 +23,7 @@ def source(repo: Path, identity: str, stage: str, *, reference=None):
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if not isinstance(cfg, dict) or cfg.get("schema") != "exp099.recipe/v2":
         raise PingstoreError("exp099 requires the private-afferent recipe v2")
     return cfg

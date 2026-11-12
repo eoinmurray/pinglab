@@ -163,7 +163,7 @@ def format_duration(seconds: float) -> str:
 def present(identity, *, run_id=None):
 
     analysis = inputs.source(REPO, identity, "analyse")
-    refs = analysis.record["inputs"]
+    refs = analysis.details["inputs"]
     if set(refs) != {"compute", "bank", "frequencies"}:
         raise PingstoreError(
             "exp046 analysis must pin compute, bank and exp041 frequencies"
@@ -188,7 +188,8 @@ def present(identity, *, run_id=None):
         or result.get("recipe") != cfg
         or result.get("measurement") != measurements.MEASUREMENT
         or result.get("checkpoint_provenance") != checkpoints
-        or analysis.record["execution"].get("configuration") != measurements.MEASUREMENT
+        or analysis.details["execution"].get("configuration")
+        != measurements.MEASUREMENT
     ):
         raise PingstoreError("inconsistent exp046 analysis payload")
     started = time.monotonic()
@@ -222,7 +223,7 @@ def present(identity, *, run_id=None):
                 "notebook_run_id": run.run_id,
                 "duration_s": duration,
                 "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )

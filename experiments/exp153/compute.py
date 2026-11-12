@@ -40,7 +40,7 @@ def ancestry(repo, identity, *, reference=None):
             repo / ".pingstore", name, experiment=recipe.SLUG, reference=pin
         )
         visiting.add(name)
-        for upstream in item.record["inputs"].values():
+        for upstream in item.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = item
@@ -181,10 +181,10 @@ def compute(
         bundle.write(run.export / "network.bundle", visualise=False)
         bundle.visualise(run.export / "circuit.svg", view="circuit")
         capture_start(bundle, initialized, cfg, run.export / recipe.SNAPSHOT)
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"network-initialization": ["start"]}
         )
-        run.record["execution"].update(
+        run.details["execution"].update(
             backend="snnlab.meanfield method-of-steps DDE",
             snnlab_version=version("snnlab"),
         )
@@ -200,7 +200,7 @@ def compute(
             )
             for worker in range(count)
         ]
-        run.record["execution"]["parallel_workers"] = count
+        run.details["execution"]["parallel_workers"] = count
         if count == 1:
             run_conditions(run.directory, items[0], 0, cfg)
         else:

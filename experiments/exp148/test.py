@@ -324,7 +324,6 @@ def test_mean_field_stage_uses_native_source_and_preserves_outputs(
     from pingstore import core
     from pingstore.library import load_json, source_run, stage_run
 
-    monkeypatch.setattr(core, "memberships", lambda repo: {"exp148": "experiments"})
     monkeypatch.setattr(
         core,
         "capture_code",
@@ -338,14 +337,14 @@ def test_mean_field_stage_uses_native_source_and_preserves_outputs(
     monkeypatch.setattr(compute, "REPO", tmp_path)
     cfg = small_configuration()
     with stage_run(tmp_path, "exp148", "compute", configuration=cfg) as run:
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"simulation": ["start"]}
         )
         execute(cfg, run.export / "simulation")
     identity = compute.compute_mean_field(run.run_id)
     model_run = source_run(tmp_path / ".pingstore", identity)
-    assert model_run.record["inputs"]["spiking"]["run_id"] == run.run_id
-    assert model_run.record["execution"]["snnlab_version"]
+    assert model_run.details["inputs"]["spiking"]["run_id"] == run.run_id
+    assert model_run.details["execution"]["snnlab_version"]
     saved = load_json(model_run.file("mean-field-model.json"))
     assert saved["state_order"] == [
         "E.rate",

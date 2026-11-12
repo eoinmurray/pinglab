@@ -296,7 +296,7 @@ def present(*, source, run_id=None):
     analysed = source_run(
         REPO / ".pingstore", source, experiment="exp148", stage="analyse"
     )
-    ref = analysed.record["inputs"]["compute"]
+    ref = analysed.details["inputs"]["compute"]
     computed = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -304,14 +304,14 @@ def present(*, source, run_id=None):
         stage="compute",
         reference=ref,
     )
-    cfg = computed.record["execution"]["configuration"]
-    if cfg != analysed.record["execution"]["configuration"]:
+    cfg = computed.details["execution"]["configuration"]
+    if cfg != analysed.details["execution"]["configuration"]:
         raise ValueError("analysis and compute settings differ")
     inputs = {"analyse": analysed, "compute": computed}
     numbers = load_json(analysed.file("results.json"))
     model = None
-    if "mean_field" in analysed.record["inputs"]:
-        reference = analysed.record["inputs"]["mean_field"]
+    if "mean_field" in analysed.details["inputs"]:
+        reference = analysed.details["inputs"]["mean_field"]
         model = source_run(
             REPO / ".pingstore",
             reference["run_id"],
@@ -366,7 +366,7 @@ def present(*, source, run_id=None):
         with matplotlib.rc_context({"savefig.bbox": None}):
             for extension in ("svg", "png"):
                 viz.render_diagram(circuit, run.export / f"circuit.{extension}")
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         write_json_atomic(run.export / "numbers.json", numbers)
     print(run.run_id, flush=True)
     return run.run_id

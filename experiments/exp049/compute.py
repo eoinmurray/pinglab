@@ -319,7 +319,7 @@ def compute(identity, *, run_id=None):
     with inputs.execution(
         REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
     ) as run:
-        run.record["execution"].update(
+        run.details["execution"].update(
             environment={
                 "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
                 "PINGLAB_DEVICE": str(device),
@@ -356,7 +356,7 @@ def compute(identity, *, run_id=None):
                 contract["cells"], contract["checkpoints"], strict=True
             ):
                 name = cell["cell_name"]
-                run.record["execution"]["trials"].extend(
+                run.details["execution"]["trials"].extend(
                     evaluate_cell(
                         bank.unit(name),
                         contract["configs"][name],
@@ -479,7 +479,7 @@ def compute_rasters(identity, *, run_id=None):
             run_id=run_id,
             configuration=cfg,
         ) as run:
-            run.record["execution"].update(
+            run.details["execution"].update(
                 device="cpu",
                 snnlab_version=version("snnlab"),
                 torch_version=str(torch.__version__),

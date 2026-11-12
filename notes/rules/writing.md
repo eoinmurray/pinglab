@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Brief, plain-English writing grounded in code and data.
 created_at: "2026-10-14"
-updated_at: "2026-10-29T17:43:19Z"
+updated_at: "2026-11-12T20:22:47Z"
 ---
 
 # Writing Rules
@@ -45,8 +45,9 @@ or scope justify it. Simulation-backed checks require execution authorization.
 1. Describe completed work only; distinguish diagnostics, training, validation and
    test evidence, seed counts and checkpoint selection. State material limitations
    and differences between the current recipe and displayed evidence.
-2. Bind figures, summaries and parameters to core's same resolved runset per page
-   request/build. Do not hard-code report run IDs. Read model parameters from the
+2. Bind figures, summaries and parameters to the same newest presentation per page
+   request/build, with its explicitly recorded scientific sources. Do not hard-code
+   report run IDs. Read model parameters from the
    selected ancestry's native snapshots and other settings from recorded configuration;
    analytical models must identify imported/derived settings and assumptions.
 3. Keep display derivations and formatting in reports; do not export copied

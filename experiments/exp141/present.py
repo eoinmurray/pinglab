@@ -123,9 +123,9 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
-    pin = sources["analyse"].record["inputs"]["compute"]
+    pin = sources["analyse"].details["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore", pin["run_id"], reference=pin, stage="compute"
     )
@@ -134,21 +134,21 @@ def redraw_networks(presentation, *, run_id=None):
     ]
     with stage_run(
         REPO,
-        previous.record["experiment"],
+        previous.details["experiment"],
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         for source, prefix, stem in specs:
             bundle_path = (
                 source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
-                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                if source.details.get("scientific_artifacts", {}).get("native_paths")
                 else source.unit(*prefix.split("/"))
             )
             save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -283,7 +283,7 @@ def present(source, *, run_id=None):
         configuration=cfg,
     ) as run:
         # Circuit figures come from the executed compute bundles, not a new graph.
-        reference = upstream.record["inputs"]["compute"]
+        reference = upstream.details["inputs"]["compute"]
         compute = source_run(
             REPO / ".pingstore",
             reference["run_id"],

@@ -22,7 +22,7 @@ def evidence():
 
 def test_import_is_byte_identical():
     imported = evidence()
-    pin = imported.record["inputs"]["retained"]
+    pin = imported.details["inputs"]["retained"]
     if not (ROOT / ".pingstore/runs" / pin["run_id"]).exists():
         pytest.skip("Historical migration source is not local")
     original = source_run(
@@ -43,10 +43,10 @@ def test_import_is_byte_identical():
 
     assert inventory(imported) == inventory(original)
     assert (
-        imported.record["execution"]["configuration"]
-        == original.record["execution"]["configuration"]
+        imported.details["execution"]["configuration"]
+        == original.details["execution"]["configuration"]
     )
-    assert imported.record["execution"]["no_simulation"] is True
+    assert imported.details["execution"]["no_simulation"] is True
 
 
 def test_recipe_matches_retained_native_graph(tmp_path):
@@ -57,7 +57,7 @@ def test_recipe_matches_retained_native_graph(tmp_path):
     assert (
         recipe.author_network(
             recipe.recorded_configuration(
-                imported.record["execution"]["configuration"], bundle.graph
+                imported.details["execution"]["configuration"], bundle.graph
             )
         ).graph
         == bundle.graph

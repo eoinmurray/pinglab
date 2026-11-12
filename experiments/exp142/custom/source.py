@@ -12,7 +12,7 @@ from experiments.exp142.custom.network_artifacts import snapshot_parameters
 
 
 def source_data(source, cfg):
-    saved_cfg = source.record["execution"]["configuration"]
+    saved_cfg = source.details["execution"]["configuration"]
     expected = dict(
         schema="exp141.recipe/v9",
         n_input=cfg["n_input"],

@@ -27,7 +27,7 @@ from snnlab.analysis import (
 def analyse(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
     cfg = evidence.compute_contract(source)
-    if source.record["inputs"]:
+    if source.details["inputs"]:
         raise PingstoreError("native exp054 compute must not have upstream inputs")
     with inputs.execution(
         REPO,

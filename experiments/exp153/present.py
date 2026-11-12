@@ -347,19 +347,19 @@ def present_susceptibility(*, source, preserve_source, run_id=None):
     analysed = source_run(
         REPO / ".pingstore", source, experiment=recipe.SLUG, stage="analyse"
     )
-    cfg = analysed.record["execution"]["configuration"]
+    cfg = analysed.details["execution"]["configuration"]
     if "susceptibility" not in cfg:
         raise ValueError("Figure 3 requires susceptibility analysis")
     previous = source_run(
         REPO / ".pingstore", preserve_source, experiment=recipe.SLUG, stage="present"
     )
     numbers = load_json(previous.file("numbers.json"))
-    pin = analysed.record["inputs"]["compute"]
-    if pin != previous.record["inputs"]["compute"]:
+    pin = analysed.details["inputs"]["compute"]
+    if pin != previous.details["inputs"]["compute"]:
         raise ValueError("susceptibility must use the preserved presentation's compute")
     inputs = dict(previous=previous, susceptibility_analyse=analysed)
     for role in ("compute", "analyse"):
-        pin = previous.record["inputs"][role]
+        pin = previous.details["inputs"][role]
         inputs[role] = source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
     result = load_json(analysed.file("susceptibility-results.json"))
     theme.apply()
@@ -405,14 +405,14 @@ def preview_onset(source, output):
     """Render only Figure 2 from pinned analysis without changing the report runset."""
     ancestors = ancestry(REPO, source)
     analysed = ancestors[source]
-    if analysed.record["stage"] != "analyse":
+    if analysed.details["stage"] != "analyse":
         raise ValueError("Figure 2 preview requires an exp153 analysis")
-    cfg = analysed.record["execution"]["configuration"]
-    computed = ancestors[analysed.record["inputs"]["compute"]["run_id"]]
+    cfg = analysed.details["execution"]["configuration"]
+    computed = ancestors[analysed.details["inputs"]["compute"]["run_id"]]
     numbers = load_json(analysed.file("results.json"))
     if (
         numbers["configuration"] != cfg
-        or recipe.analysis_configuration(computed.record["execution"]["configuration"])
+        or recipe.analysis_configuration(computed.details["execution"]["configuration"])
         != cfg
     ):
         raise ValueError("preview lineage settings differ")
@@ -440,16 +440,16 @@ def present(*, source, run_id=None, map_source=None):
     ancestors = ancestry(REPO, source)
     analysed = ancestors[source]
     if (
-        analysed.record["experiment"] != recipe.SLUG
-        or analysed.record["stage"] != "analyse"
+        analysed.details["experiment"] != recipe.SLUG
+        or analysed.details["stage"] != "analyse"
     ):
         raise ValueError("requires an exp153 analysis")
-    computed = ancestors[analysed.record["inputs"]["compute"]["run_id"]]
-    cfg = analysed.record["execution"]["configuration"]
+    computed = ancestors[analysed.details["inputs"]["compute"]["run_id"]]
+    cfg = analysed.details["execution"]["configuration"]
     numbers = load_json(analysed.file("results.json"))
     if (
         numbers["configuration"] != cfg
-        or recipe.analysis_configuration(computed.record["execution"]["configuration"])
+        or recipe.analysis_configuration(computed.details["execution"]["configuration"])
         != cfg
     ):
         raise ValueError("presentation lineage settings differ")
@@ -516,7 +516,7 @@ def present(*, source, run_id=None, map_source=None):
         with matplotlib.rc_context({"savefig.bbox": None}):
             for extension in ("svg", "png"):
                 viz.render_diagram(circuit, run.export / f"circuit.{extension}")
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         write_json_atomic(run.export / "numbers.json", numbers)
         if preserved:
             preserved.check_unchanged()

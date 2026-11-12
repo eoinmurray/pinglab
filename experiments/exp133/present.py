@@ -182,14 +182,14 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
     analysis = sources["analysis"]
     if (
-        analysis.record["execution"]["configuration"].get("schema")
+        analysis.details["execution"]["configuration"].get("schema")
         == "exp133.analysis/v2"
     ):
-        identity = present(analysis.record["run_id"], run_id=run_id)
+        identity = present(analysis.details["run_id"], run_id=run_id)
         previous.check_unchanged()
         return identity
     specs = [(sources["compute"], "paired-ping.bundle", "network-circuit")]
@@ -203,21 +203,21 @@ def redraw_networks(presentation, *, run_id=None):
         )
     with stage_run(
         REPO,
-        previous.record["experiment"],
+        previous.details["experiment"],
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         for source, prefix, stem in specs:
             bundle_path = (
                 source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
-                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                if source.details.get("scientific_artifacts", {}).get("native_paths")
                 else source.unit(*prefix.split("/"))
             )
             save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -346,12 +346,12 @@ def plot_sender_receiver(
 
 def sender_receiver_sources(identity):
     analysis = inputs.source(REPO, identity, "analyse")
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("expected sender–receiver analysis with one compute input")
-    pin = analysis.record["inputs"]["compute"]
+    pin = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, pin["run_id"], "compute", reference=pin)
     cfg = sender_receiver.compute_contract(compute)
-    if analysis.record["execution"].get("configuration") != cfg:
+    if analysis.details["execution"].get("configuration") != cfg:
         raise PingstoreError("sender–receiver analysis configuration mismatch")
     result = load_json(analysis.export / "results.json")
     if (
@@ -392,9 +392,9 @@ def preview_sender_receiver(identity, output):
 
 def present(identity, *, sender_receiver_analysis=None, run_id=None):
     analysis = inputs.source(REPO, identity, "analyse")
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("analysis must pin exactly one grid compute run")
-    pin = analysis.record["inputs"]["compute"]
+    pin = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, pin["run_id"], "compute", reference=pin)
     cfg = evidence.compute_contract(compute)
     result = load_json(analysis.export / "results.json")
@@ -413,7 +413,7 @@ def present(identity, *, sender_receiver_analysis=None, run_id=None):
                 "combined analysis already contains the onset diagnostic"
             )
         expected = recipe.analysis_configuration(cfg)
-        if analysis.record["execution"]["configuration"] != expected:
+        if analysis.details["execution"]["configuration"] != expected:
             raise PingstoreError("combined analysis settings differ from the grid")
         sr_analysis = analysis
         sr_result = result["sender_receiver"]
@@ -425,7 +425,7 @@ def present(identity, *, sender_receiver_analysis=None, run_id=None):
     else:
         if sender_receiver_analysis is None:
             raise PingstoreError("historical split analysis requires --sender-receiver")
-        if analysis.record["execution"]["configuration"] != cfg:
+        if analysis.details["execution"]["configuration"] != cfg:
             raise PingstoreError("map analysis settings differ from the grid")
         sr_analysis, sr_compute, sr_result = sender_receiver_sources(
             sender_receiver_analysis

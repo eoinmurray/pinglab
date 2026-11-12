@@ -71,7 +71,7 @@ def working_directory(
         or record["stage"] != "compute"
         or record["run_id"] != run_id
         or destination.exists()
-        or (directory / "run.json").exists()
+        or (directory / "details.json").exists()
     ):
         raise PingstoreError(
             f"shards require an unused {experiment} v4 compute reservation"
@@ -289,7 +289,7 @@ def collect_shards(
 def retain_worker_provenance(run: Any, records: Sequence[Mapping[str, Any]]) -> None:
     """Project discarded shard bookkeeping into authoritative run metadata."""
     for record in records:
-        if record["source"] != run.record["provenance"]:
+        if record["source"] != run.details["provenance"]:
             raise PingstoreError("worker and collector execution code differ")
     workers = [
         {
@@ -307,14 +307,14 @@ def retain_worker_provenance(run: Any, records: Sequence[Mapping[str, Any]]) -> 
         }
         for record in records
     ]
-    run.record["execution"]["shards"] = workers
-    run.record["execution"]["collector_started_at"] = run.record["execution"][
+    run.details["execution"]["shards"] = workers
+    run.details["execution"]["collector_started_at"] = run.details["execution"][
         "started_at"
     ]
-    run.record["execution"]["started_at"] = min(
+    run.details["execution"]["started_at"] = min(
         record["started_at"] for record in records
     )
-    run.record["execution"]["workers_completed_at"] = max(
+    run.details["execution"]["workers_completed_at"] = max(
         record["completed_at"] for record in records
     )
 
@@ -362,7 +362,7 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
     if not identities:
         raise PingstoreError("concurrent execution requires work items")
     directory = run.directory
-    active = load_json(directory / "run.json")
+    active = load_json(directory / "details.json")
     if (
         active["run_id"] != run.run_id
         or active["stage"] != "compute"
@@ -449,7 +449,7 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
             occupied.update(files)
             records.append(record)
     # Only the coordinator updates authoritative provenance; no finalization here.
-    run.record["execution"]["workers"] = [
+    run.details["execution"]["workers"] = [
         {
             key: record[key]
             for key in (

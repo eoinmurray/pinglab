@@ -75,7 +75,7 @@ def canonical_evidence(bank):
             histories.append(acc)
             if seed == 42:
                 diagnostic = (
-                    bank.record.get("bank_reuse", {})
+                    bank.details.get("bank_reuse", {})
                     .get("diagnostic_provenance", {})
                     .get(name, {})
                 )

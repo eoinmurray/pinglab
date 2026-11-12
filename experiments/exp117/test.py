@@ -45,7 +45,6 @@ def test_native_decay_sweep_and_export_units(tau):
 def test_native_compute_analyse_present_chain(tmp_path, monkeypatch):
     from pingstore import core
 
-    monkeypatch.setattr(core, "memberships", lambda repo: {"exp117": "experiments"})
     monkeypatch.setattr(
         core,
         "capture_code",
@@ -70,7 +69,7 @@ def test_native_compute_analyse_present_chain(tmp_path, monkeypatch):
     computed = source_run(tmp_path / ".pingstore", compute.compute())
     saved = load_json(computed.file("mean-field-model.json"))
     assert saved["states"]["E.rate"]["unit"] == "Hz"
-    assert computed.record["execution"]["environment"]["snnlab"]
+    assert computed.details["execution"]["environment"]["snnlab"]
     raw = load_json(computed.file("continuation.json"))
     assert raw["configuration"]["schema"] == "exp117.recipe/v4"
     with np.load(computed.file("recording.npz")) as data:
@@ -80,11 +79,11 @@ def test_native_compute_analyse_present_chain(tmp_path, monkeypatch):
         assert np.isfinite(data["states_up"]).all()
         assert np.isfinite(data["states_down"]).all()
     analysed = source_run(
-        tmp_path / ".pingstore", analyse.analyse(computed.record["run_id"])
+        tmp_path / ".pingstore", analyse.analyse(computed.details["run_id"])
     )
     assert all(load_json(analysed.file("results.json"))["result"]["checks"].values())
     presented = source_run(
-        tmp_path / ".pingstore", present.present(analysed.record["run_id"])
+        tmp_path / ".pingstore", present.present(analysed.details["run_id"])
     )
     assert presented.file("bifurcation_compound.svg").is_file()
     assert presented.file("numbers.json").is_file()

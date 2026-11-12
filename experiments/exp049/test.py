@@ -6,6 +6,7 @@ bounded native checks validate numerical behavior without production runs.
 
 import numpy as np
 from experiments import exp049
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 """Synthetic staged probes; no production simulations or historical imports."""
 
@@ -21,8 +22,6 @@ from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -32,9 +31,6 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(recipe, "N_I", 64)
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp049": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
@@ -76,7 +72,7 @@ def lab(tmp_path, monkeypatch):
                 "trainable_w_ii": False,
                 "w_ee": [0.0, 0.0],
             }
-            write_json_atomic(directory / "config.json", cfg)
+            write_fixture_json(directory / "config.json", cfg)
             cps = {}
             for role, filename, epoch in (
                 ("best_validation", "weights.pth", 43),
@@ -101,7 +97,7 @@ def lab(tmp_path, monkeypatch):
                     "epoch": epoch,
                     "sha256": file_sha256(target),
                 }
-            write_json_atomic(
+            write_fixture_json(
                 directory / "metrics.json",
                 {
                     "config": cfg,
@@ -178,7 +174,7 @@ def lab(tmp_path, monkeypatch):
                 np.savez_compressed(
                     out / "pop_traces.npz", dt=np.float32(0.1), pop_e=pop
                 )
-                write_json_atomic(
+                write_fixture_json(
                     out / "metrics.json",
                     {
                         "config": {
@@ -209,19 +205,19 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    path = directory / "run.json"
+    path = directory / "details.json"
     record = load_json(path)
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
 
 
 def test_inputs_allow_upstream_metadata_amendment(lab):
     root, bank, _ = lab
     cid = compute.compute(bank)
-    p = root / ".pingstore/runs" / bank / "run.json"
+    p = root / ".pingstore/runs" / bank / "details.json"
     d = load_json(p)
     d["execution"]["extra"] = "changed"
-    write_json_atomic(p, d)
+    write_fixture_json(p, d)
     assert analyse.analyse(cid).endswith("-analyse")
 
 
@@ -243,10 +239,10 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
     cid = compute.compute(bank_id)
     with pytest.raises(PingstoreError, match="not a"):
         present.present(cid)
-    path = root / ".pingstore/runs" / cid / "run.json"
+    path = root / ".pingstore/runs" / cid / "details.json"
     record = load_json(path)
     record["schema"] = "pingstore.run/v2"
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     with pytest.raises(PingstoreError):
         analyse.analyse(cid)
 
@@ -274,7 +270,7 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
     path = source.export / "results.json"
     result = load_json(path)
     result["summary"].pop()
-    write_json_atomic(path, result)
+    write_fixture_json(path, result)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="incomplete"):
         present.present(aid)
@@ -334,7 +330,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
         "numbers.json",
         *recipe.FIGURES,
     }
-    assert p.record["inputs"] == {"analysis": a.reference}
+    assert p.details["inputs"] == {"analysis": a.reference}
     assert not (root / ".artifacts").exists()
     bank.check_unchanged()
 
@@ -356,7 +352,7 @@ def test_invalid_resigned_compute_is_rejected(lab, fault):
         path = directory / "metrics.json"
         m = load_json(path)
         m["n_total"] -= 1
-        write_json_atomic(path, m)
+        write_fixture_json(path, m)
     elif fault == "missing":
         assert directory is not None
         (directory / "pop_traces.npz").unlink()
@@ -508,7 +504,7 @@ def test_bank_contract_rejects_resigned_mismatches(lab, fault):
         record["epochs"].pop()
     else:
         record["checkpoints"]["final_epoch"]["epoch"] = 49
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     resign(bank.directory)
     with pytest.raises((PingstoreError, RuntimeError)):
         compute.compute(bank_id)
@@ -603,7 +599,7 @@ def test_historical_unspecified_ee_requires_zero_checkpoint(lab, missing):
         cfg.pop("w_ee")
     else:
         cfg["w_ee"] = None
-    write_json_atomic(directory / "config.json", cfg)
+    write_fixture_json(directory / "config.json", cfg)
     evidence.training_contract(bank.export)
     import torch
 
@@ -613,7 +609,7 @@ def test_historical_unspecified_ee_requires_zero_checkpoint(lab, missing):
     torch.save(state, path)
     metrics = load_json(directory / "metrics.json")
     metrics["checkpoints"]["final_epoch"]["sha256"] = file_sha256(path)
-    write_json_atomic(directory / "metrics.json", metrics)
+    write_fixture_json(directory / "metrics.json", metrics)
     with pytest.raises(PingstoreError, match="same-population"):
         evidence.training_contract(bank.export)
 
@@ -661,14 +657,14 @@ def test_paired_rasters_preserve_stage_inputs_and_reject_unmatched_drive(
                         encoded_spikes_sha256=compute.array_digest(drive),
                     )
                 )
-        write_json_atomic(
+        write_fixture_json(
             paired.export / "paired-rasters.json", dict(config=cfg, entries=entries)
         )
     aid = analyse.analyse(cid, raster_source=paired.run_id)
     analysis = inputs.source(root, aid, "analyse")
     result = load_json(analysis.export / "results.json")
     assert len(result["paired_rasters"]) == 8
-    assert analysis.record["inputs"]["paired"]["run_id"] == paired.run_id
+    assert analysis.details["inputs"]["paired"]["run_id"] == paired.run_id
     monkeypatch.setattr(
         measurements,
         "raster",
@@ -697,7 +693,7 @@ def test_paired_rasters_preserve_stage_inputs_and_reject_unmatched_drive(
     path = paired.export / "paired-rasters.json"
     saved = load_json(path)
     saved["entries"][0]["encoded_spikes_sha256"] = "0" * 64
-    write_json_atomic(path, saved)
+    write_fixture_json(path, saved)
     resign(paired.directory)
     with pytest.raises(PingstoreError, match="input or checkpoint"):
         analyse.analyse(cid, raster_source=paired.run_id)

@@ -15,7 +15,7 @@ from . import inputs
 
 def parameter_reference(source):
     """Read the fixed 128-channel comparison's full-strength native parameters."""
-    cfg = source.record["execution"].get("configuration", {})
+    cfg = source.details["execution"].get("configuration", {})
     legacy = cfg.get("schema") == "exp133.recipe/v1"
     expected = recipe.configuration(
         legacy=legacy,
@@ -47,7 +47,7 @@ def parameter_reference(source):
 
 
 def configuration(source):
-    cfg = source.record["execution"].get("configuration")
+    cfg = source.details["execution"].get("configuration")
     if not isinstance(cfg, dict) or cfg.get("schema") not in {
         "exp133.recipe/v1",
         "exp133.recipe/v2",
@@ -175,7 +175,7 @@ def _check_paired_couplings(*, source, mapping, onset, preserved):
     """Validate retained inputs and native parameters for every coupled execution."""
     input_descriptors, shape = _retained_input_descriptors(source=source, onset=onset)
     expected = {"prefix", *(recipe.label(k) for k in recipe.K_VALUES_US)}
-    executions = source.record["execution"].get("simulations", {})
+    executions = source.details["execution"].get("simulations", {})
     if set(executions) != expected:
         raise PingstoreError("incomplete coupling grid")
     reference_local = None
@@ -260,7 +260,7 @@ def _check_paired_couplings(*, source, mapping, onset, preserved):
 
 def compute_contract(source):
     cfg = configuration(source)
-    pins = source.record["inputs"]
+    pins = source.details["inputs"]
     if set(pins) not in (set(), {"parameter_reference"}):
         raise PingstoreError("unexpected grid compute inputs")
     preserved = None
@@ -270,7 +270,7 @@ def compute_contract(source):
             source.directory.parents[2], pin["run_id"], "compute", reference=pin
         )
         preserved = parameter_reference(reference)
-    mapping = source.record["scientific_artifacts"]["native_paths"]
+    mapping = source.details["scientific_artifacts"]["native_paths"]
     manifest = load_json(source.export / mapping["paired-ping.bundle/manifest.json"])
     if manifest["graph_digest"] != cfg["bundle_digest"]:
         raise PingstoreError("retained network differs from recipe")

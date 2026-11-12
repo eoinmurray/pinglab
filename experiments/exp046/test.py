@@ -19,6 +19,7 @@ from experiments.exp046.custom.source_exp041_custom_evidence import (
 from experiments.exp046.recipe import refractory_configuration
 from pingstore import core
 from pingstore.library import file_sha256, source_run
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 
 def _common_config() -> dict:
@@ -86,18 +87,11 @@ def _common_config() -> dict:
 from pingstore.library import (
     PingstoreError,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        core,
-        "memberships",
-        lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -119,7 +113,7 @@ def lab(tmp_path, monkeypatch):
                     "n_inh": 2,
                     "hidden_sizes": [4],
                 }
-                write_json_atomic(cell / "config.json", cfg)
+                write_fixture_json(cell / "config.json", cfg)
                 checkpoints = {}
                 for role, filename in (
                     ("final_epoch", "weights_final.pth"),
@@ -132,7 +126,7 @@ def lab(tmp_path, monkeypatch):
                         "epoch": frequency_recipe.EPOCHS,
                         "sha256": file_sha256(path),
                     }
-                write_json_atomic(
+                write_fixture_json(
                     cell / "metrics.json",
                     {
                         "config": cfg,
@@ -155,11 +149,6 @@ def lab(tmp_path, monkeypatch):
 @pytest.fixture
 def cycle_lab(lab, monkeypatch):
     root, bank_id, _ = lab
-    monkeypatch.setattr(
-        core,
-        "memberships",
-        lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
-    )
     bank = source_run(
         root / ".pingstore", bank_id, stage="compute", experiment="exp022"
     )
@@ -168,7 +157,7 @@ def cycle_lab(lab, monkeypatch):
     with core.stage_run(
         root, "exp041", "compute", inputs={"bank": bank}, configuration=cfg
     ) as upstream:
-        write_json_atomic(upstream.export / "fixture.json", {"synthetic": True})
+        write_fixture_json(upstream.export / "fixture.json", {"synthetic": True})
     upstream = source_run(root / ".pingstore", upstream.run_id)
     with core.stage_run(
         root,
@@ -177,7 +166,7 @@ def cycle_lab(lab, monkeypatch):
         inputs={"compute": upstream, "bank": bank},
         configuration=MEASUREMENT,
     ) as frequencies:
-        write_json_atomic(
+        write_fixture_json(
             frequencies.export / "results.json",
             {
                 "schema": "exp041.analysis/v1",
@@ -200,7 +189,7 @@ def cycle_lab(lab, monkeypatch):
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(attachments / "request.json", request)
+        write_fixture_json(attachments / "request.json", request)
         output = out
         config = training
         samples = request["samples"]
@@ -231,7 +220,7 @@ def cycle_lab(lab, monkeypatch):
             / (samples * config["t_ms"] / 1000)
         ).astype(np.float32)
         np.savez_compressed(output / "per_cell_rates.npz", rate_e_per_cell=rates)
-        write_json_atomic(
+        write_fixture_json(
             output / "metrics.json",
             {
                 "config": {
@@ -251,9 +240,9 @@ def cycle_lab(lab, monkeypatch):
 
 
 def resign(run):
-    record = load_json(run.directory / "run.json")
+    record = load_json(run.directory / "details.json")
     record["payload_digest"] = payload_digest(run.directory)
-    write_json_atomic(run.directory / "run.json", record)
+    write_fixture_json(run.directory / "details.json", record)
 
 
 def test_independent_stages_preserve_outputs_without_publication(
@@ -264,7 +253,7 @@ def test_independent_stages_preserve_outputs_without_publication(
     assert len(calls) == 18
     assert all(request["samples"] == 100 for request in calls)
     output = inputs.source(root, identity, "compute")
-    assert set(output.record["inputs"]) == {"bank"}
+    assert set(output.details["inputs"]) == {"bank"}
     assert len(list(output.export.glob("infer--*/rasters.npz"))) == 18
     assert not list(output.export.glob("infer--*/config.json"))
     monkeypatch.setattr(
@@ -274,7 +263,7 @@ def test_independent_stages_preserve_outputs_without_publication(
     analysis_run = inputs.source(root, analysis_id, "analyse")
     data = load_json(analysis_run.export / "results.json")
     assert len(data["results"]) == 18
-    assert set(analysis_run.record["inputs"]) == {"compute", "bank", "frequencies"}
+    assert set(analysis_run.details["inputs"]) == {"compute", "bank", "frequencies"}
     assert data["n_cell_cycle_pairs"] == sum(
         sum(r["bucket_counts"]) for r in data["results"]
     )
@@ -466,7 +455,7 @@ def test_frequency_dependency_must_match_complete_grid(cycle_lab, damage):
         data["recipe"]["profile"] = "production"
     if damage == "bank":
         data["checkpoint_provenance"][0]["sha256"] = "0" * 64
-    write_json_atomic(frequency.export / "results.json", data)
+    write_fixture_json(frequency.export / "results.json", data)
     resign(frequency)
     with pytest.raises(PingstoreError):
         analyse.analyse(identity, frequency_id)
@@ -501,9 +490,9 @@ def test_historical_schema_is_rejected(cycle_lab):
     root, bank_id, frequency_id, _ = cycle_lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    record = load_json(run.directory / "run.json")
+    record = load_json(run.directory / "details.json")
     record["schema"] = "pingstore.run/v2"
-    write_json_atomic(run.directory / "run.json", record)
+    write_fixture_json(run.directory / "details.json", record)
     with pytest.raises(PingstoreError):
         analyse.analyse(identity, frequency_id)
     assert not list((root / ".pingstore/runs").glob("exp046-*-analyse"))

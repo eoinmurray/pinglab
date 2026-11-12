@@ -105,12 +105,12 @@ def simulate_conditions(
         configuration={"recurrence": "on", "conditions": configs},
         run_id=run_id,
     ) as run:
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {state: ["start"] for state in recipe.CONDITIONS}
         }
         for index, (state, cfg) in enumerate(configs.items()):
             execute(cfg, run.export / state, index == 0)
-        run.record["execution"].update(
+        run.details["execution"].update(
             elapsed_s=perf_counter() - started,
             snnlab_version=version("snnlab"),
         )

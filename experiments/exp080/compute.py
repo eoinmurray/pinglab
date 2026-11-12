@@ -419,7 +419,7 @@ def compute(*, run_id: str | None = None) -> str:
                 Path(os.environ.get("PINGLAB_DATA_ROOT", "/tmp/mnist")).absolute()
             ),
         }
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         validation = recipe.validate_simulator()
         images, labels, dataset = load_mnist_training()
         illustrative_features(images, run.export)

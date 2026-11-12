@@ -57,7 +57,7 @@ export function serveRunAsset(pathname: string, origin = 'http://localhost:3000'
 }
 
 async function serveRequestedAsset(pathname: string, origin: string): Promise<Response> {
-  const match = /^\/run-images\/(exp\d{3}-r\d+-present)\/([^/]+)$/.exec(pathname);
+  const match = /^\/run-images\/([a-zA-Z0-9][a-zA-Z0-9_.-]{0,159})\/([^/]+)$/.exec(pathname);
   if (!match) return new Response('Asset not found', { status: 404 });
   let file: string;
   try { file = decodeURIComponent(match[2]); }
@@ -66,7 +66,7 @@ async function serveRequestedAsset(pathname: string, origin: string): Promise<Re
     return new Response('Asset not found', { status: 404 });
   }
   try {
-    // Read and verify local bytes once; remote selection additionally checks headers.
+    // Local reads never contact R2; remote requests fetch only the requested asset.
     if (await runStore.local(match[1]) || runStore.source === 'local') return await serveFile(match[1], file);
     const selection = await selectAsset(match[1], file, { development: true, origin });
     if (selection.source === 'r2' && !file.endsWith('.json')) return new Response(null, { status: 302, headers: {

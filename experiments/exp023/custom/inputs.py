@@ -24,7 +24,7 @@ def source(
 
 
 def configuration(run: SourceRun) -> dict:
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if not isinstance(cfg, dict) or cfg.get("schema") not in (
         "exp023.recipe/v4",
         "exp023.recipe/v5",
@@ -35,6 +35,6 @@ def configuration(run: SourceRun) -> dict:
         version=int(cfg["schema"].rsplit("v", 1)[1]),
     ):
         raise PingstoreError("exp023 recipe differs from the explicit graph model")
-    if run.record["inputs"]:
+    if run.details["inputs"]:
         raise PingstoreError("exp023 initial compute must not have upstream inputs")
     return cfg

@@ -117,7 +117,7 @@ def save_circuit(bundle, path):
 def render_networks(sources, export, scratch):
     """Render the shared replay architecture from pinned paired-raster evidence."""
     analysis = sources["analysis"]
-    pin = analysis.record["inputs"].get("paired")
+    pin = analysis.details["inputs"].get("paired")
     if pin is None:
         # Older endpoint analyses have no retained native bundle.
         return []
@@ -131,7 +131,7 @@ def render_networks(sources, export, scratch):
     prefix = "after/frozen_ping__seed42/inference/network.bundle"
     bundle = (
         compute.restore_bundle(prefix, scratch / "network.bundle")
-        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        if compute.details.get("scientific_artifacts", {}).get("native_paths")
         else compute.unit(*prefix.split("/"))
     )
     if not bundle.exists():
@@ -148,20 +148,20 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
     with stage_run(
         REPO,
         "exp049",
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         if not render_networks(sources, run.export, run.scratch):
             raise PingstoreError("presentation has no retained paired-raster bundle")
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -197,7 +197,7 @@ def format_duration(seconds: float) -> str:
 def present(identity, *, run_id=None):
 
     source = inputs.source(REPO, identity, "analyse")
-    refs = source.record["inputs"]
+    refs = source.details["inputs"]
     if set(refs) not in ({"compute", "bank"}, {"compute", "bank", "paired"}):
         raise PingstoreError("analysis must pin compute and bank")
     compute = inputs.source(
@@ -210,7 +210,7 @@ def present(identity, *, run_id=None):
         or result.get("schema") != "exp049.analysis/v1"
         or result.get("recipe") != cfg
         or result.get("measurement") != MEASUREMENT
-        or source.record["execution"].get("configuration") != MEASUREMENT
+        or source.details["execution"].get("configuration") != MEASUREMENT
         or result.get("checkpoint_policy") != recipe.CHECKPOINT_POLICY
         or result.get("checkpoint_provenance") != contract["checkpoints"]
     ):
@@ -298,7 +298,7 @@ def present(identity, *, run_id=None):
                 "run_id": rid,
                 "duration_s": duration,
                 "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": render_networks(
                     {"analysis": source}, run.export, run.scratch
                 )

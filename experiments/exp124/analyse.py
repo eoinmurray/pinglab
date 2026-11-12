@@ -52,7 +52,7 @@ def network_definition(source, model, role):
 
 def recorded_populations(source):
     """Use saved recording choices, or the executed spiking graph for older runs."""
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     if "recording" in cfg:
         return {model: cfg["recording"][model] for model in cfg["models"]}
     return {
@@ -101,8 +101,8 @@ def spike_autocorrelation(spikes, dt_ms, *, max_lag_ms=200, bin_ms=1.0):
 
 
 def raster_measurements(source):
-    cfg = source.record["execution"]["sample_raster_configuration"]
-    settings = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["sample_raster_configuration"]
+    settings = source.details["execution"]["configuration"]
     measured = {
         "selection": cfg["sample_selection"],
         "class": cfg["sample_class"],
@@ -168,10 +168,10 @@ def _validate_dataset_selection(*, source, cfg):
         if (
             cfg["full_dataset"]
             and len(labels)
-            != source.record["execution"]["dataset"]["official_train_count"]
+            != source.details["execution"]["dataset"]["official_train_count"]
         ):
             raise ValueError("incomplete full dataset")
-        sample = source.record["execution"]["sample_raster_configuration"]
+        sample = source.details["execution"]["sample_raster_configuration"]
         first = np.flatnonzero(split == 1)[0]
         if (sample["official_train_index"], sample["sample_class"]) != (
             indices[first],
@@ -181,7 +181,7 @@ def _validate_dataset_selection(*, source, cfg):
 
 
 def measurements(source):
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     if (
         cfg.get("schema")
         not in (
@@ -289,17 +289,19 @@ def analyse(identity):
         experiment=recipe.configuration()["experiment"],
     )
     results, sample = measurements(source), raster_measurements(source)
-    execution = source.record["execution"]
+    execution = source.details["execution"]
     with stage_run(
         REPO,
-        source.record["experiment"],
+        source.details["experiment"],
         "analyse",
         inputs={"compute": source},
         configuration=execution["configuration"],
     ) as run:
         write_json_atomic(run.export / "results.json", results)
         write_json_atomic(run.export / "raster_measurements.json", sample)
-        run.record["execution"]["source_measurements"] = {"models": execution["models"]}
+        run.details["execution"]["source_measurements"] = {
+            "models": execution["models"]
+        }
     return run.run_id
 
 

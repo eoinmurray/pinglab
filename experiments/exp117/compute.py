@@ -29,7 +29,7 @@ EXPORT_SCALE = np.array([0.001, 0.001, 1.0, 1.0])
 
 def compute(*, run_id=None):
     with inputs.execution(REPO, "compute", sources={}, run_id=run_id) as run:
-        cfg = recipe.validate(run.record["execution"]["configuration"])
+        cfg = recipe.validate(run.details["execution"]["configuration"])
         bundle = recipe.author_network(cfg)
         bundle.write(run.export / "network.bundle", visualise=False)
         bundle.visualise(run.export / "circuit.svg", view="circuit")
@@ -59,8 +59,8 @@ def compute(*, run_id=None):
             },
         )
         np.savez_compressed(run.export / "recording.npz", **ramps)
-        run.record["execution"]["backend"] = "snnlab.meanfield rate-conductance ODE"
-        run.record["execution"]["environment"] = {
+        run.details["execution"]["backend"] = "snnlab.meanfield rate-conductance ODE"
+        run.details["execution"]["environment"] = {
             "python": platform.python_version(),
             "numpy": np.__version__,
             "scipy": scipy.__version__,

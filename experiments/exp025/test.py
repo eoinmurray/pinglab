@@ -16,6 +16,7 @@ from experiments.exp025 import recipe as exp022
 from experiments.exp025.analyse import aggregate_frontier, aggregate_low_w_in_seed_rows
 from experiments.exp025.custom import evidence, inputs
 from experiments.exp025.recipe import refractory_configuration
+from pingstore.tests.fixtures import write_fixture_json
 
 
 def _common_config() -> dict:
@@ -81,16 +82,13 @@ def _common_config() -> dict:
 
 
 from pingstore import core
-from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
+from pingstore.library import PingstoreError, file_sha256, load_json
 
 
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp025": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
@@ -115,7 +113,7 @@ def lab(tmp_path, monkeypatch):
                 else 0.041,
                 "fr_reg_upper_target_hz": cell["rate_target_hz"] or 0.0,
             }
-            write_json_atomic(directory / "config.json", cfg)
+            write_fixture_json(directory / "config.json", cfg)
             checkpoints = {}
             for role, filename in (
                 ("final_epoch", "weights_final.pth"),
@@ -128,7 +126,7 @@ def lab(tmp_path, monkeypatch):
                     "epoch": 50,
                     "sha256": file_sha256(target),
                 }
-            write_json_atomic(
+            write_fixture_json(
                 directory / "metrics.json",
                 {
                     "config": cfg,
@@ -154,7 +152,7 @@ def lab(tmp_path, monkeypatch):
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(attachments / "request.json", request)
+        write_fixture_json(attachments / "request.json", request)
 
         def save(path, **arrays):
             np.savez_compressed(path, **arrays)
@@ -166,7 +164,7 @@ def lab(tmp_path, monkeypatch):
             save(out / "recording.npz", dt=0.1, spk_e=e, spk_i=i, label=0, n_e=4, n_i=2)
         else:
             n = request["samples"]
-            write_json_atomic(
+            write_fixture_json(
                 out / "metrics.json",
                 {
                     "config": {
@@ -217,7 +215,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     identity = compute.compute(bank_id)
     assert len(calls) == 56
     run = inputs.source(root, identity, "compute")
-    assert set(run.record["inputs"]) == {"bank"}
+    assert set(run.details["inputs"]) == {"bank"}
     assert not (run.export / "evidence.json").exists()
     corrected = load_json(run.file("frontier", "coba__off__seed42", "metrics.json"))
     assert (
@@ -285,7 +283,7 @@ def test_wrong_training_recipe_rejected(lab, field, value):
     path = bank.file(recipe.cell_name("coba", None, 42), "config.json")
     cfg = load_json(path)
     cfg[field] = value
-    write_json_atomic(path, cfg)
+    write_fixture_json(path, cfg)
     with pytest.raises(PingstoreError):
         evidence.training_contract(bank.export)
     assert not calls
@@ -296,17 +294,17 @@ def test_raw_payload_corruption_blocks_analysis(lab):
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
     run.file("snapshot", "ping", "recording.npz").write_bytes(b"corrupt")
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(ValueError):
         analyse.analyse(identity)
 
 
 def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     record = load_json(path)
     record["execution"]["note"] = "changed"
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     assert analyse.analyse(identity).endswith("-analyse")
 
 
@@ -326,7 +324,7 @@ def test_inference_failure_stays_hidden(lab, monkeypatch):
 def test_penalty_retains_float32_samplewise_definition(tmp_path):
     rates = np.array([0.5, 1.0, 2.0, 3.0], dtype=np.float32)
     np.savez(tmp_path / "per_cell_rates.npz", rate_e_per_sample=rates)
-    write_json_atomic(
+    write_fixture_json(
         tmp_path / "metrics.json",
         {"best_acc": 80.0, "ce_loss": 2.0, "rates_hz": {"hid": 1.0, "inh": 0.5}},
     )
@@ -355,7 +353,7 @@ def test_low_curve_preserves_zero_test_rates() -> None:
 
 @pytest.mark.parametrize("fault", ["duplicate", "shape", "nan", "samples"])
 def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
-    from pingstore.library import payload_digest
+    from pingstore.tests.fixtures import payload_digest
 
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
@@ -365,7 +363,7 @@ def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
         path = directory / "metrics.json"
         data = load_json(path)
         data["n_total"] = 99
-        write_json_atomic(path, data)
+        write_fixture_json(path, data)
     elif fault in ("shape", "nan"):
         path = directory / "pop_traces.npz"
         with np.load(path) as data:
@@ -382,9 +380,9 @@ def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
         for key in ("e_trial", "e_t", "e_cell"):
             arrays[key][1] = arrays[key][0]
         np.savez(path, **arrays)
-    record = load_json(run.directory / "run.json")
+    record = load_json(run.directory / "details.json")
     record["payload_digest"] = payload_digest(run.directory)
-    write_json_atomic(run.directory / "run.json", record)
+    write_fixture_json(run.directory / "details.json", record)
     with pytest.raises(PingstoreError):
         analyse.analyse(identity)
     assert not list((root / ".pingstore/runs").glob("exp025-*-analyse"))

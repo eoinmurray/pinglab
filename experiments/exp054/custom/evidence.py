@@ -123,7 +123,7 @@ def raster(path, cfg):
 
 
 def compute_contract(source):
-    cfg = recipe.validate(source.record["execution"]["configuration"])
+    cfg = recipe.validate(source.details["execution"]["configuration"])
     index = load_json(source.export / "recordings.json")
     if index != {
         "schema": "exp054.recordings/v1",

@@ -266,13 +266,13 @@ def load_arrays(path: Path) -> dict:
 def present(identity: str, *, run_id: str | None = None) -> str:
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    refs = analysis.record["inputs"]
+    refs = analysis.details["inputs"]
     if set(refs) != {"compute"}:
         raise PingstoreError("exp081 analysis must pin exactly one compute input")
     compute = inputs.source(
         REPO, refs["compute"]["run_id"], "compute", reference=refs["compute"]
     )
-    if inputs.configuration(compute) != cfg or compute.record["inputs"]:
+    if inputs.configuration(compute) != cfg or compute.details["inputs"]:
         raise PingstoreError("analysis recipe or compute lineage disagrees with source")
     results = load_json(analysis.export / "results.json")
     if (

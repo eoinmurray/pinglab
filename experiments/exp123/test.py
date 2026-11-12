@@ -34,10 +34,10 @@ def test_reused_measurements_require_the_exact_compute_payload():
 
     source = SimpleNamespace(
         reference={"run_id": "compute", "digest": "new"},
-        record={"execution": {"configuration": {"sweep": {}}}},
+        details={"execution": {"configuration": {"sweep": {}}}},
     )
     previous = SimpleNamespace(
-        record={
+        details={
             "execution": {"configuration": {"schema": "exp123.shared.measurement/v1"}},
             "inputs": {"compute": {"run_id": "compute", "digest": "old"}},
         }
@@ -143,7 +143,7 @@ def test_one_source_supplies_all_analysis_and_six_figures(tmp_path, monkeypatch)
     )
     source = SimpleNamespace(
         unit=lambda name: root / name,
-        record={"execution": {"configuration": definition}},
+        details={"execution": {"configuration": definition}},
     )
     export = tmp_path / "analysis"
     export.mkdir()
@@ -212,7 +212,7 @@ def test_raw_image_reuse_preserves_balance_and_rejects_changed_labels(tmp_path):
 
     cfg = recipe.configuration("benchmark", tuple(range(500)))
     source = SimpleNamespace(
-        record={
+        details={
             "execution": {
                 "configuration": {
                     "schema": "exp123.compute/v2",

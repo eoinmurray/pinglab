@@ -24,7 +24,7 @@ def analyse(*, source, run_id=None):
     computed = source_run(
         REPO / ".pingstore", source, experiment="exp146", stage="compute"
     )
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     validate_configuration(cfg)
     with np.load(computed.file("traces.npz")) as data:
         validate_traces(data, cfg)

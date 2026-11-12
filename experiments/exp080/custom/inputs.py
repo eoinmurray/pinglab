@@ -12,7 +12,7 @@ from pingstore.library import PingstoreError, source_run, stage_run
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
         or cfg.get("profile") not in ("smoke", "production")
@@ -36,24 +36,24 @@ def lineage(repo, identity, reference=None):
             repo / ".pingstore", name, experiment=recipe.SLUG, reference=pin
         )
         cfg = configuration(run)
-        stage = run.record["stage"]
+        stage = run.details["stage"]
         roles = {
             "compute": {},
             "analyse": {"compute": "compute"},
             "present": {"analysis": "analyse", "compute": "compute"},
         }[stage]
-        if set(run.record["inputs"]) != set(roles):
+        if set(run.details["inputs"]) != set(roles):
             raise PingstoreError("exp080 stage has unexpected input roles")
         visiting.add(name)
         ancestors = {}
         for role, expected in roles.items():
-            upstream = run.record["inputs"][role]
+            upstream = run.details["inputs"][role]
             ancestor = visit(upstream["run_id"], upstream)
-            if ancestor.record["stage"] != expected or configuration(ancestor) != cfg:
+            if ancestor.details["stage"] != expected or configuration(ancestor) != cfg:
                 raise PingstoreError("exp080 input stage or recipe disagrees")
             ancestors[role] = ancestor
         if stage == "present" and (
-            ancestors["analysis"].record["inputs"]["compute"]
+            ancestors["analysis"].details["inputs"]["compute"]
             != ancestors["compute"].reference
         ):
             raise PingstoreError("exp080 presentation has conflicting compute ancestry")
@@ -67,7 +67,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, reference=None):
     result = lineage(repo, identity, reference)[identity]
-    if result.record["stage"] != stage:
+    if result.details["stage"] != stage:
         raise PingstoreError(f"{identity} is not an exp080 {stage} run")
     return result
 
@@ -76,7 +76,7 @@ def source(repo, identity, stage, *, reference=None):
 def execution(repo, stage, *, sources, run_id=None, configuration=None):
     ancestors = {}
     for source in sources.values():
-        ancestors.update(lineage(repo, source.record["run_id"], source.reference))
+        ancestors.update(lineage(repo, source.details["run_id"], source.reference))
     with stage_run(
         repo,
         recipe.SLUG,

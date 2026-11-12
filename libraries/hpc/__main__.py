@@ -46,8 +46,8 @@ def source_inputs(root, identities, *, include_ancestry=True):
                 raise PingstoreError("conflicting input references")
             return
         active.add(identity)
-        for pin in source.record["inputs"].values() if include_ancestry else ():
-            visit(pin["run_id"], pin)
+        for upstream in source.record["depends_on"] if include_ancestry else ():
+            visit(upstream)
         active.remove(identity)
         sources[identity] = source
 

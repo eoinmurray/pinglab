@@ -76,7 +76,7 @@ def analyse_susceptibility(*, source, run_id=None):
     computed = source_run(
         REPO / ".pingstore", source, experiment=recipe.SLUG, stage="compute"
     )
-    original = computed.record["execution"]["configuration"]
+    original = computed.details["execution"]["configuration"]
     if original["schema"] != recipe.SCHEMA or original["protocol"] not in (
         "matched-grid",
         "onset-only",
@@ -453,11 +453,11 @@ def analyse(*, source, run_id=None):
     ancestors = ancestry(REPO, source)
     computed = ancestors[source]
     if (
-        computed.record["experiment"] != recipe.SLUG
-        or computed.record["stage"] != "compute"
+        computed.details["experiment"] != recipe.SLUG
+        or computed.details["stage"] != "compute"
     ):
         raise ValueError("requires an exp153 compute source")
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     if cfg["schema"] != recipe.SCHEMA or cfg["protocol"] not in (
         "matched-grid",
         "onset-only",

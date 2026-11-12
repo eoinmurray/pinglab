@@ -146,7 +146,7 @@ def present(identity):
         recipe.REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
     )
     if (
-        source.record["execution"]["configuration"].get("schema")
+        source.details["execution"]["configuration"].get("schema")
         == "exp123.shared.measurement/v1"
     ):
         theme.set_paper_mode(True)
@@ -234,7 +234,7 @@ def plot_inhibitory_overview(
             events = {key: data[key].copy() for key in data.files}
         dt_ms = float(events["dt_ms"])
     else:
-        definition = raster_compute.record["execution"]["configuration"]
+        definition = raster_compute.details["execution"]["configuration"]
         shared = definition.get("schema") == "exp123.compute/v3"
         raster_cfg = (
             definition["sweep"] if shared else definition["protocols"]["trajectories"]

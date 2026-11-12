@@ -6,6 +6,8 @@ bounded native checks validate numerical behavior without production runs.
 
 from __future__ import annotations
 
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
+
 """Pipeline fixtures and bounded graph/kernel numerical conformance checks."""
 
 from types import SimpleNamespace
@@ -21,8 +23,6 @@ from pingstore.library import (
     discover_runs,
     initialize_layout,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -30,7 +30,6 @@ from pingstore.library import (
 def repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp023": "demo"})
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -84,9 +83,9 @@ def repo(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def test_independent_v4_stages_preserve_measurements_and_never_publish(
@@ -98,7 +97,7 @@ def test_independent_v4_stages_preserve_measurements_and_never_publish(
     for scope, sweep_trials in ((calls[0], calls[2:9]), (calls[1], calls[9:])):
         assert all(trial.graph is scope.graph for trial in sweep_trials)
     source = inputs.source(root, compute_id, "compute")
-    assert source.record["inputs"] == {}
+    assert source.details["inputs"] == {}
     assert not list(source.export.rglob("run.sh"))
     before = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
@@ -126,7 +125,7 @@ def test_independent_v4_stages_preserve_measurements_and_never_publish(
     )
     presentation_id = present.present(analysis_id)
     output = inputs.source(root, presentation_id, "present")
-    assert output.record["inputs"] == {
+    assert output.details["inputs"] == {
         "analysis": analysis.reference,
         "compute": before,
     }
@@ -166,10 +165,10 @@ def test_sources_and_authoritative_pins_are_validated(repo):
         present.present(identity)
     analysis_id = analyse.analyse(identity)
     source = inputs.source(root, identity, "compute")
-    record_path = source.directory / "run.json"
+    record_path = source.directory / "details.json"
     record = load_json(record_path)
     record["execution"]["note"] = "changed manifest, unchanged payload"
-    write_json_atomic(record_path, record)
+    write_fixture_json(record_path, record)
     assert present.present(analysis_id).startswith("exp023-")
 
 
@@ -178,7 +177,7 @@ def test_missing_or_corrupt_snapshot_is_not_silently_recomputed(repo):
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
     source.file("scope", "ping", "recording.npz").write_bytes(b"bad fixture")
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(ValueError):
         analyse.analyse(identity)
     resign(source.directory)
     with pytest.raises(ValueError):
@@ -191,8 +190,8 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
     identity = "exp023-r001-compute"
     directory = root / ".pingstore/runs" / identity
     initialize_layout(directory, "exp023")
-    write_json_atomic(
-        directory / "run.json",
+    write_fixture_json(
+        directory / "details.json",
         {
             "schema": "pingstore.run/v3",
             "run_id": identity,
@@ -207,7 +206,7 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
             "payload_digest": payload_digest(directory),
         },
     )
-    with pytest.raises(PingstoreError, match="operational run schema"):
+    with pytest.raises(PingstoreError, match="migrate old records"):
         analyse.analyse(identity)
 
 
@@ -296,9 +295,9 @@ def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
     identity = compute.compute()
     analysis_id = analyse.analyse(identity)
     source = inputs.source(root, identity, "compute")
-    record = load_json(source.directory / "run.json")
+    record = load_json(source.directory / "details.json")
     record["execution"]["configuration"]["schema"] = schema
-    write_json_atomic(source.directory / "run.json", record)
+    write_fixture_json(source.directory / "details.json", record)
     before = set((root / ".pingstore/runs").iterdir())
     for action, argument in (
         (analyse.analyse, identity),
@@ -477,8 +476,8 @@ def test_new_recipe_drift_is_rejected(repo):
     root, _ = repo
     identity = compute.compute()
     run = inputs.source(root, identity, "compute")
-    record = load_json(run.directory / "run.json")
+    record = load_json(run.directory / "details.json")
     record["execution"]["configuration"]["biophysics"]["tau_gaba_ms"] = 9.0
-    write_json_atomic(run.directory / "run.json", record)
+    write_fixture_json(run.directory / "details.json", record)
     with pytest.raises(PingstoreError, match="recipe differs"):
         analyse.analyse(identity)

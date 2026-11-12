@@ -163,10 +163,10 @@ def format_duration(seconds: float) -> str:
 
 def analysis_source(repo, identity, reference=None):
     source = inputs.source(repo, identity, "analyse", reference=reference)
-    refs = source.record["inputs"]
+    refs = source.details["inputs"]
     if (
         set(refs) != {"compute"}
-        or source.record["execution"].get("configuration") != recipe.MEASUREMENT
+        or source.details["execution"].get("configuration") != recipe.MEASUREMENT
     ):
         raise PingstoreError(
             "exp047 analysis must pin compute and its measurement contract"
@@ -201,7 +201,7 @@ def present(identity, *, run_id=None):
                 "run_id": run.run_id,
                 "duration_s": duration,
                 "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )

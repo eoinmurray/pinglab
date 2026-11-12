@@ -37,7 +37,7 @@ def analyse(identity):
     source = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
     )
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     rows = []
     for n_i in cfg["pool_sizes"]:
         with np.load(
@@ -80,11 +80,11 @@ def analyse(identity):
                 schema="exp173.analysis/v1",
                 configuration=cfg,
                 rates=rows,
-                compute_seconds=source.record["execution"]["elapsed_s"],
-                condition_seconds=source.record["execution"]["condition_seconds"],
+                compute_seconds=source.details["execution"]["elapsed_s"],
+                condition_seconds=source.details["execution"]["condition_seconds"],
             ),
         )
-        run.record["execution"]["elapsed_s"] = time.perf_counter() - started
+        run.details["execution"]["elapsed_s"] = time.perf_counter() - started
     print(run.run_id, flush=True)
     print(json.dumps(rows, indent=2))
     return run.run_id

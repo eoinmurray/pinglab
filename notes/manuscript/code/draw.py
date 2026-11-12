@@ -1080,7 +1080,7 @@ def _source_figure(identity: str, experiment: str, name: str):
 
 
 def _presentation_analysis(presentation, experiment: str):
-    reference = presentation.record["inputs"]["analysis"]
+    reference = presentation.details["inputs"]["analysis"]
     return source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -1124,9 +1124,9 @@ def _exp054_analysis(identity: str):
     analysis = source_run(
         REPO / ".pingstore", identity, stage="analyse", experiment="exp054"
     )
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("exp110 requires an independent exp054 analysis")
-    reference = analysis.record["inputs"]["compute"]
+    reference = analysis.details["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -1134,8 +1134,8 @@ def _exp054_analysis(identity: str):
         experiment="exp054",
         reference=reference,
     )
-    cfg = validate(analysis.record["execution"]["configuration"])
-    if compute.record["execution"]["configuration"] != cfg:
+    cfg = validate(analysis.details["execution"]["configuration"])
+    if compute.details["execution"]["configuration"] != cfg:
         raise PingstoreError("exp054 analysis and compute recipes differ")
     coordinates = _read_exp054_evidence(analysis.export)
     if (
@@ -1150,9 +1150,9 @@ def _exp117_analysis(identity: str):
     analysis = source_run(
         REPO / ".pingstore", identity, stage="analyse", experiment="exp117"
     )
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("exp110 requires an independent exp117 analysis")
-    reference = analysis.record["inputs"]["compute"]
+    reference = analysis.details["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -1160,9 +1160,9 @@ def _exp117_analysis(identity: str):
         experiment="exp117",
         reference=reference,
     )
-    cfg = source_exp117_recipe_validate(analysis.record["execution"]["configuration"])
+    cfg = source_exp117_recipe_validate(analysis.details["execution"]["configuration"])
     compute_cfg = source_exp117_recipe_validate(
-        compute.record["execution"]["configuration"]
+        compute.details["execution"]["configuration"]
     )
     if cfg.get("schema") != "exp117.recipe/v3" or compute_cfg != cfg:
         raise PingstoreError("exp117 analysis and compute recipes differ")

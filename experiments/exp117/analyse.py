@@ -21,7 +21,7 @@ from pingstore.library import PingstoreError, load_json, write_json_atomic
 def analyse(identity, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
     cfg = inputs.configuration(compute)
-    if compute.record["inputs"]:
+    if compute.details["inputs"]:
         raise PingstoreError("exp117 compute must not have upstream inputs")
     raw = load_json(compute.export / "continuation.json")
     if raw.get("schema") != "exp117.compute/v3":

@@ -137,7 +137,7 @@ def render_networks(sources, export, scratch):
         prefix = mode + "-network"
         bundle = (
             compute.restore_bundle(prefix, scratch / prefix)
-            if compute.record.get("scientific_artifacts", {}).get("native_paths")
+            if compute.details.get("scientific_artifacts", {}).get("native_paths")
             else compute.unit(prefix)
         )
         diagram = circuit_diagram(lang.load_bundle(bundle))
@@ -155,20 +155,20 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
     with stage_run(
         REPO,
         "exp023",
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         render_networks(sources, run.export, run.scratch)
         redraw_overview(sources["analysis"], sources["compute"], run.export)
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -195,16 +195,16 @@ def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
 def present(identity: str, *, run_id: str | None = None) -> str:
 
     analysis = inputs.source(REPO, identity, "analyse")
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("exp023 analysis must pin exactly its computation")
-    ref = analysis.record["inputs"]["compute"]
+    ref = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, ref["run_id"], "compute", reference=ref)
     cfg = inputs.configuration(compute)
     results = load_json(analysis.export / "results.json")
     if (
         results.get("schema") != "exp023.analysis/v1"
         or results.get("config") != cfg
-        or results.get("measurement") != analysis.record["execution"]["configuration"]
+        or results.get("measurement") != analysis.details["execution"]["configuration"]
     ):
         raise PingstoreError("unsupported or inconsistent exp023 analysis payload")
     with np.load(analysis.export / "spectra.npz", allow_pickle=False) as data:
@@ -267,7 +267,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
                 results["measurement"]["frequency_band_hz"],
                 include_arch=include_arch,
             )
-        run.record["presentation_lineage"] = {
+        run.details["presentation_lineage"] = {
             "measurements": analysis.reference,
             "rasters": compute.reference,
             "operation": "render retained measurements and spikes; no simulation or remeasurement",
@@ -279,7 +279,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
                 "config": cfg,
                 "run_id": run.run_id,
                 "duration_s": time.monotonic() - started,
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": render_networks(
                     {"compute": compute}, run.export, run.scratch
                 ),

@@ -26,9 +26,6 @@ const reports = defineCollection({
   schema: articleSchema.extend({
     id: z.string().regex(/^exp\d{3}$/),
     inputs: z.array(z.string().regex(/^exp\d{3}$/)).default([]),
-    run_stages: z.array(z.enum(['compute', 'analyse', 'present']))
-      .refine(stages => stages.join(',') === 'compute,analyse,present' || stages.join(',') === 'analyse,present', 'Unsupported reporting workflow')
-      .default(['compute', 'analyse', 'present']),
     runs: z.never().optional(),
     tags: z.array(z.string()),
     thumbnail: z.string().optional(),

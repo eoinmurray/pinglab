@@ -25,10 +25,12 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     with inputs.execution(
         REPO, "analyse", sources={"compute": compute}, run_id=run_id, configuration=cfg
     ) as run:
-        historical = compute.record["execution"].get("operation") == "historical-import"
+        historical = (
+            compute.details["execution"].get("operation") == "historical-import"
+        )
         if historical:
             evidence.require(
-                bool(compute.record.get("historical_import", {}).get("producer")),
+                bool(compute.details.get("historical_import", {}).get("producer")),
                 "historical import lacks original producer identity",
             )
         document, correctness = evidence.validate(

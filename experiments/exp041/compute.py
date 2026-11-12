@@ -44,7 +44,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
         REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
     ) as run:
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         write_json_atomic(
             run.export / "evidence.json",
             {

@@ -129,9 +129,9 @@ def draw_schematics():
 def analysis_source(repo, identity, reference=None):
     analysis = inputs.source(repo, identity, "analyse", reference=reference)
     cfg = inputs.configuration(analysis)
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("exp054 analysis must pin its compute run")
-    ref = analysis.record["inputs"]["compute"]
+    ref = analysis.details["inputs"]["compute"]
     compute = inputs.source(
         repo, ref["run_id"], "compute", experiment="exp054", reference=ref
     )

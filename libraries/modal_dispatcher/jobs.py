@@ -56,16 +56,6 @@ def submit(
         }
         if plan is not None:
             receipt["plan"] = plan
-        if inputs:
-            # Standard incomplete-run input pins protect remote jobs from pruning.
-            write_json_atomic(
-                temporary / "run.json",
-                {
-                    **reservation,
-                    "inputs": inputs,
-                    "execution": {"operation": "modal-dispatch"},
-                },
-            )
         write_json_atomic(temporary / RECEIPT, receipt)
         # Keep the prepared receipt if submission raises: its outcome may be unknown.
         call = worker.with_options(**options).spawn(
@@ -150,19 +140,19 @@ def collect_files(root, identity, receipt, files, volume):
             ):
                 handle.write(chunk)
         partial.replace(target)
-    record = validate_operational_run_directory(download)
+    validate_operational_run_directory(download)
+    record = load_json(download / "details.json")
     if (
         record["run_id"] != identity
         or record["experiment"] != reservation["experiment"]
         or record["stage"] != "compute"
         or record["origin"] != reservation["origin"]
         or record["inputs"] != receipt.get("inputs", {})
-        or record.get("scope") != ("phase" if reservation.get("phase") else "full")
         or record.get("phase") != reservation.get("phase")
     ):
         raise PingstoreError("downloaded result does not match submitted compute")
     record["execution"]["modal"] = receipt
-    write_json_atomic(download / "run.json", record)
+    write_json_atomic(download / "details.json", record)
     validate_operational_run_directory(download)
     if stage_reservation(temporary) != reservation:
         raise PingstoreError("reservation changed during collection")

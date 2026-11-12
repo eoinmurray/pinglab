@@ -252,8 +252,8 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
                 else {}
             ),
         }
-        run.record["execution"]["environment"] = environment
-        run.record["execution"].update(
+        run.details["execution"]["environment"] = environment
+        run.details["execution"].update(
             executor=cfg["executor"],
             **data["protocol"],
             parameter_binding=dict(recipe.CHECKPOINT_PARAMETERS),
@@ -278,7 +278,7 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
             run.export,
         ):
             np.savez_compressed(run.export / f"{name}.npz", **snapshot)
-        run.record["execution"]["requests"] = requests
+        run.details["execution"]["requests"] = requests
         shared_baseline = run.directory / ".baseline-scratch"
         if shared_baseline.exists():
             shutil.rmtree(shared_baseline)

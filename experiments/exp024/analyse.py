@@ -182,8 +182,8 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     )
     inputs = {"compute": compute}
     bank = compute
-    if "bank" in compute.record["inputs"]:
-        ref = compute.record["inputs"]["bank"]
+    if "bank" in compute.details["inputs"]:
+        ref = compute.details["inputs"]["bank"]
         bank = source_run(
             REPO / ".pingstore",
             ref["run_id"],

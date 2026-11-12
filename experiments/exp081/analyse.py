@@ -68,7 +68,7 @@ def samples(
 def analyse(identity: str, *, run_id: str | None = None) -> str:
     compute = inputs.source(REPO, identity, "compute")
     cfg = inputs.configuration(compute)
-    if compute.record["inputs"]:
+    if compute.details["inputs"]:
         raise PingstoreError("standalone exp081 compute must have no upstream inputs")
     with stage_run(
         REPO,

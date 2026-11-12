@@ -74,13 +74,13 @@ def compute(*, run_id: str | None = None) -> str:
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
-        run.record["execution"].update(
+        run.details["execution"].update(
             environment={"PINGLAB_SMOKE": "1" if smoke else "0"},
             executor="snnlab.sim.GraphExecutor",
             snnlab_version=version("snnlab"),
             trials=[],
         )
-        run.record["scientific_artifacts"] = {"snapshot_stages": {}}
+        run.details["scientific_artifacts"] = {"snapshot_stages": {}}
         networks = {}
         previous_threads = torch.get_num_threads()
         torch.set_num_threads(1)
@@ -99,7 +99,7 @@ def compute(*, run_id: str | None = None) -> str:
                     (directory / "reports").rmdir()
                     networks[key] = bundle
                 bundle = networks[key]
-                run.record["scientific_artifacts"]["snapshot_stages"][
+                run.details["scientific_artifacts"]["snapshot_stages"][
                     f"{relative}/simulation"
                 ] = ["start"]
                 started = perf_counter()
@@ -151,7 +151,7 @@ def compute(*, run_id: str | None = None) -> str:
                             )
                 else:
                     np.savez_compressed(weights_path, **weights)
-                run.record["execution"]["trials"].append(
+                run.details["execution"]["trials"].append(
                     {
                         "unit": relative,
                         "network_unit": key,
