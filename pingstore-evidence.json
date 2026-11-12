@@ -1,13 +1,13 @@
 {
   "schema": "pingstore.evidence/v1",
   "build": {
-    "id": "local:5641048e838e7e6fcfd563e6ccd4cc4cc7ed474d",
-    "revision": "5641048e838e7e6fcfd563e6ccd4cc4cc7ed474d",
-    "source_revision": "5641048e838e7e6fcfd563e6ccd4cc4cc7ed474d",
-    "source_dirty": true
+    "id": "local:b11c541246fb4db83b9b506428b466e2370ee635",
+    "revision": "b11c541246fb4db83b9b506428b466e2370ee635",
+    "source_revision": "b11c541246fb4db83b9b506428b466e2370ee635",
+    "source_dirty": false
   },
   "source": "local",
-  "index_generation": "sha256:637f2ee5527bc3c1806e0bb9704f0a8767b75a7025af95c538aeb2c642203349",
+  "index_generation": "sha256:73f8b2ac5ea3271ab082217dc8641c0a9f2542679fe4a1ba16363011214edaec",
   "selections": {
     "exp022": "exp022-r019-present",
     "exp023": "exp023-r030-present",
@@ -46,7 +46,6 @@
     "exp171": "exp171-r063-present",
     "exp172": "exp172-r203-present",
     "exp173": "exp173-r024-present",
-    "exp174": "exp174-r008-present",
     "exp110": "exp110-r031-present"
   },
   "reports": {
@@ -160,9 +159,6 @@
     },
     "exp173": {
       "exp173": "exp173-r024-present"
-    },
-    "exp174": {
-      "exp174": "exp174-r008-present"
     },
     "notes/manuscript": {
       "exp023": "exp023-r030-present",
@@ -1689,38 +1685,6 @@
         "analysis": {
           "payload_digest": "sha256:c1ffc6fe185795223d03e2fac778255766fcb88385d586bf8a5791208e47a7c3",
           "run_id": "exp173-r021-analyse"
-        }
-      }
-    },
-    "exp174-r004-compute": {
-      "payload_digest": "sha256:134b75a7703b02421e1861d351f47f1a216ebcb6a51a66d91d7d4161f9bcc710",
-      "inputs": {
-        "bank": {
-          "payload_digest": "sha256:a542a714021fd7bb69c5d08ccf006763f19ce83b01d8ecdca86dba150118491d",
-          "run_id": "exp022-r015-compute"
-        },
-        "exp171": {
-          "payload_digest": "sha256:ce9438b46834dce6c2302eb9ff28186bad7b2ae6d00ac7708bdbb59c4ed70be8",
-          "run_id": "exp171-r061-compute"
-        }
-      },
-      "runset_inputs": {}
-    },
-    "exp174-r005-analyse": {
-      "payload_digest": "sha256:6cdd47eff6e58ba6478f414cc992c6bca04a8748076260d71f6281153813c5fe",
-      "inputs": {
-        "compute": {
-          "payload_digest": "sha256:134b75a7703b02421e1861d351f47f1a216ebcb6a51a66d91d7d4161f9bcc710",
-          "run_id": "exp174-r004-compute"
-        }
-      }
-    },
-    "exp174-r008-present": {
-      "payload_digest": "sha256:d383215df8ca834d02f3e370e6a64328f69697f25aec925e3632e2e873210644",
-      "inputs": {
-        "analysis": {
-          "payload_digest": "sha256:6cdd47eff6e58ba6478f414cc992c6bca04a8748076260d71f6281153813c5fe",
-          "run_id": "exp174-r005-analyse"
         }
       }
     }
