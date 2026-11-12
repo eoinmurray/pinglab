@@ -125,7 +125,13 @@ def _validate_input_references(*, value, run_id):
 
 def _dependency_inputs(record):
     """Retention edges; original scientific input pins remain readable provenance."""
-    return record.get("runset_inputs", record["inputs"])
+    return {
+        **record.get("runset_inputs", record["inputs"]),
+        **{
+            f"archived:{role}": pin
+            for role, pin in record.get("archived_inputs", {}).items()
+        },
+    }
 
 
 def validate_run(value: dict[str, Any]) -> dict[str, Any]:
@@ -145,6 +151,10 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         raise PingstoreError("stage must be compute, analyse or present")
     if match is None or match.group(1) != experiment or match.group(3) != stage:
         raise PingstoreError("run_id must encode experiment, counter and stage")
+    if "archived_inputs" in value:
+        _validate_input_references(
+            value={"inputs": value["archived_inputs"]}, run_id=run_id
+        )
     validate_compute_scope(value)
     _validate_input_references(value=value, run_id=run_id)
     if "runset_inputs" in value:
@@ -980,6 +990,140 @@ class SourceRun:
             )
 
 
+@dataclass(frozen=True)
+class ArchivedSourceRun(SourceRun):
+    owner: SourceRun
+
+    def check_unchanged(self) -> None:
+        self.owner.check_unchanged()
+        super().check_unchanged()
+
+
+def _clear_source_views(store, identity, digest):
+    cache = store / "source-views" / f"{identity}-{digest[7:]}"
+    if any(path.is_symlink() for path in (cache, *cache.parents)):
+        raise PingstoreError("source view cache must not use symlinks")
+    if cache.exists():
+        shutil.rmtree(cache)
+
+
+def _source_archives(records):
+    """Only explicit source-view collections may resolve archived identities."""
+    archives = {}
+    for owner_id, record in records.items():
+        collection = record.get("consolidation", {})
+        if collection.get("resolve_sources") is not True:
+            continue
+        for identity, entry in collection.get("sources", {}).items():
+            original = validate_run(entry["record"])
+            if (
+                original["run_id"] != identity
+                or original["experiment"] != record["experiment"]
+            ):
+                raise PingstoreError("archived source identity differs")
+            if identity in records:
+                if records[identity]["payload_digest"] != original["payload_digest"]:
+                    raise PingstoreError(
+                        f"archived source conflicts with local identity: {identity}"
+                    )
+                continue
+            if identity in archives:
+                raise PingstoreError(f"ambiguous archived source owner: {identity}")
+            archives[identity] = dict(
+                run_id=owner_id,
+                payload_digest=record["payload_digest"],
+                source_digest=original["payload_digest"],
+            )
+    return archives
+
+
+def _archived_source_directory(root, identity):
+    candidates = []
+    for path in sorted((root / "runs").glob("*/run.json")):
+        if path.parent.name.startswith("."):
+            continue
+        record = load_json(path)
+        collection = record.get("consolidation", {})
+        if collection.get("resolve_sources") is True and identity in collection.get(
+            "sources", {}
+        ):
+            candidates.append(path.parent)
+    if not candidates:
+        raise FileNotFoundError(f"run unavailable: {identity}")
+    if len(candidates) != 1:
+        raise PingstoreError(f"ambiguous archived source owner: {identity}")
+    return candidates[0]
+
+
+def _archived_source(root, identity):
+    directory = _archived_source_directory(root, identity)
+    owner = SourceRun(directory, validate_operational_run_directory(directory))
+    entry = owner.record["consolidation"]["sources"][identity]
+    record = validate_run(entry["record"])
+    if (
+        record["run_id"] != identity
+        or record["experiment"] != owner.record["experiment"]
+    ):
+        raise PingstoreError("archived source identity differs")
+    cache = (
+        root
+        / "source-views"
+        / f"{directory.name}-{owner.record['payload_digest'][7:]}"
+        / identity
+    )
+    if any(path.is_symlink() for path in (cache, *cache.parents)):
+        raise PingstoreError("source views must not use symlinks")
+    if not cache.exists():
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        temporary = Path(tempfile.mkdtemp(prefix=".view-", dir=cache.parent))
+        try:
+            export = temporary / "export"
+            export.mkdir()
+            for original, retained in entry["export_paths"].items():
+                if not _safe_object_path(original) or not _safe_object_path(retained):
+                    raise PingstoreError("unsafe archived source path")
+                source = owner.outputs / retained
+                if not source.is_file() or source.is_symlink():
+                    raise PingstoreError(
+                        f"archived source file unavailable: {retained}"
+                    )
+                target = export / original
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.link(source, target)
+            write_json_atomic(temporary / "run.json", record)
+            (temporary / "README.md").write_text(entry["readme"])
+            if payload_digest(temporary) != record["payload_digest"]:
+                raise PingstoreError(f"archived source payload differs: {identity}")
+            # A concurrently created cache must pass the same authentication.
+            try:
+                os.rename(temporary, cache)
+            except OSError:
+                if not cache.is_dir():
+                    raise
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+    cached = validate_operational_run_directory(cache)
+    if cached != record:
+        raise PingstoreError(f"archived source cache differs: {identity}")
+    # Creating hard links changes inode ctime. Authenticate the owner again before
+    # refreshing its derived fingerprint, so this never masks changed payloads.
+    owner.check_unchanged()
+    runs = root / "runs"
+    namespace = hashlib.sha256(str(runs).encode()).hexdigest()[:12]
+    index_cache = root / f".report-index-cache-{namespace}.json"
+    if index_cache.exists():
+        indexed = load_json(index_cache)
+        indexed[directory.name] = dict(
+            signature=_local_index_signature(directory),
+            record=owner.record,
+            verified=True,
+            layout_version=1,
+        )
+        write_json_atomic(index_cache, indexed)
+    return ArchivedSourceRun(cache, record, owner)
+
+
 def source_run(
     root: Path,
     run_id: str,
@@ -992,7 +1136,13 @@ def source_run(
     directory = run_root(root.absolute(), run_id)
     if any(path.is_symlink() for path in (directory, *directory.parents)):
         raise PingstoreError("source paths must not use symlinks")
-    record = validate_operational_run_directory(directory)
+    try:
+        source = SourceRun(directory, validate_operational_run_directory(directory))
+    except (FileNotFoundError, PingstoreError):
+        if directory.exists():
+            raise
+        source = _archived_source(root.absolute(), run_id)
+    record = source.record
     if stage is not None and record.get("stage") != stage:
         raise PingstoreError(f"{run_id} is not a {stage} run")
     if experiment is not None and record["experiment"] != experiment:
@@ -1002,7 +1152,6 @@ def source_run(
             raise PingstoreError(f"{run_id} is not the required compute phase {phase}")
     elif record.get("scope") == "phase":
         raise PingstoreError("phase input requires an explicitly phase-aware consumer")
-    source = SourceRun(directory, record)
     if reference is not None and source.reference != reference:
         raise PingstoreError(f"upstream identity or checksum changed: {run_id}")
     return source
@@ -1229,6 +1378,11 @@ def _stage_run(
     record["runset_inputs"] = _detached_inputs(
         record, {source.record["run_id"]: source.record for source in inputs.values()}
     )
+    for role, source in inputs.items():
+        if isinstance(source, ArchivedSourceRun):
+            record.setdefault("archived_inputs", {})[role] = source.owner.reference
+            if role in record["runset_inputs"]:
+                record["runset_inputs"][role] = source.owner.reference
     if stage == "compute":
         record["scope"] = "phase" if phase is not None else "full"
         if phase is not None:
@@ -1927,6 +2081,7 @@ def resolve_run_index(
         selections=selections,
         runsets=runsets,
         selection_errors=selection_errors,
+        source_views=_source_archives(records),
         report_selections=report_selections,
         report_inputs={
             article: metadata["inputs"] for article, metadata in sorted(reports.items())
@@ -2926,6 +3081,12 @@ def apply_eviction(
             staging.rmdir()
             raise
         shutil.rmtree(staging)
+        for identity in moved:
+            _clear_source_views(
+                source.parent,
+                identity,
+                plan["catalog"]["runs"][identity]["record"]["payload_digest"],
+            )
         return plan
 
 
@@ -3865,6 +4026,9 @@ def _delete_local_plan(plan, journal, path):
             ):
                 raise PingstoreError(f"quarantined candidate changed: {identity}")
             shutil.rmtree(staged)
+        record = plan["local"]["records"].get(identity)
+        if record:
+            _clear_source_views(repo / ".pingstore", identity, record["payload_digest"])
         deleted.add(identity)
         journal["deleted"]["local"] = sorted(deleted)
         journal["phase"] = "local-deleting"

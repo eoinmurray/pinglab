@@ -18,7 +18,7 @@ function show(link: HTMLAnchorElement) {
   clearTimeout(hideTimer);
   active?.removeAttribute('aria-describedby');
   const reference = document.getElementById(decodeURIComponent(link.hash.slice(1)));
-  const entry = reference?.closest('li') ?? reference?.parentElement;
+  const entry = reference?.closest('p, li') ?? reference?.parentElement;
   if (!entry) return;
   active = link;
   preview.replaceChildren(...Array.from(entry.childNodes).map(node => node.cloneNode(true)));

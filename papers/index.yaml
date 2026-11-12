@@ -1213,3 +1213,578 @@ papers:
     doi: 10.3389/fnint.2013.00058
     # History: Dedicated historical review of gamma and the interpretation of the activated or desynchronized EEG.
     # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23964210/
+
+  # Gamma functional-role literature acquired and verified 2026-11-12.
+
+  de-almeida-et-al-2009.pdf:
+    id: P85
+    title: 'A Second Function of Gamma Frequency Oscillations: An E%-Max Winner-Take-All Mechanism Selects Which Cells
+      Fire'
+    authors:
+    - L. de Almeida
+    - M. Idiart
+    - J. E. Lisman
+    year: 2009
+    collection: proposed-functions
+    venue: Journal of Neuroscience
+    doi: 10.1523/JNEUROSCI.6044-08.2009
+
+  bastos-et-al-2015-frequency-channels.pdf:
+    id: P86
+    title: Visual Areas Exert Feedforward and Feedback Influences through Distinct Frequency Channels
+    authors:
+    - André Moraes Bastos
+    - Julien Vezoli
+    - Conrado Arturo Bosman
+    - Jan-Mathijs Schoffelen
+    - Robert Oostenveld
+    - Jarrod Robert Dowdall
+    - Peter De Weerd
+    - Henry Kennedy
+    - Pascal Fries
+    year: 2015
+    collection: experimental-tests
+    venue: Neuron
+    doi: 10.1016/j.neuron.2014.12.018
+
+  sedley-et-al-2016.pdf:
+    id: P87
+    title: Neural signatures of perceptual inference
+    authors:
+    - William Sedley
+    - Phillip E Gander
+    - Sukhbinder Kumar
+    - Christopher K Kovach
+    - Hiroyuki Oya
+    - Hiroto Kawasaki
+    - Matthew A Howard
+    - Timothy D Griffiths
+    year: 2016
+    collection: experimental-tests
+    venue: eLife
+    doi: 10.7554/eLife.11476
+
+  lisman-idiart-1995.pdf:
+    id: P88
+    title: Storage of 7 ± 2 Short-Term Memories in Oscillatory Subcycles
+    authors:
+    - John E. Lisman
+    - Marco A. P. Idiart
+    year: 1995
+    collection: proposed-functions
+    venue: Science
+    doi: 10.1126/science.7878473
+
+  wespatat-et-al-2004.pdf:
+    id: P89
+    title: Phase Sensitivity of Synaptic Modifications in Oscillating Cells of Rat Visual Cortex
+    authors:
+    - Valérie Wespatat
+    - Frank Tennigkeit
+    - Wolf Singer
+    year: 2004
+    collection: experimental-tests
+    venue: The Journal of Neuroscience
+    doi: 10.1523/JNEUROSCI.2221-04.2004
+
+  melloni-et-al-2007.pdf:
+    id: P90
+    title: Synchronization of Neural Activity across Cortical Areas Correlates with Conscious Perception
+    authors:
+    - Lucia Melloni
+    - Carlos Molina
+    - Marcela Pena
+    - David Torres
+    - Wolf Singer
+    - Eugenio Rodriguez
+    year: 2007
+    collection: experimental-tests
+    venue: The Journal of Neuroscience
+    doi: 10.1523/JNEUROSCI.4623-06.2007
+
+  joundi-et-al-2012.pdf:
+    id: P91
+    title: Driving Oscillatory Activity in the Human Cortex Enhances Motor Performance
+    authors:
+    - Raed A. Joundi
+    - Ned Jenkinson
+    - John-Stuart Brittain
+    - Tipu Z. Aziz
+    - Peter Brown
+    year: 2012
+    collection: experimental-tests
+    venue: Current Biology
+    doi: 10.1016/j.cub.2012.01.024
+
+  murdock-et-al-2024.pdf:
+    id: P92
+    title: Multisensory gamma stimulation promotes glymphatic clearance of amyloid
+    authors:
+    - Mitchell H. Murdock
+    - Cheng-Yi Yang
+    - Na Sun
+    - Ping-Chieh Pao
+    - Cristina Blanco-Duque
+    - Martin C. Kahn
+    - TaeHyun Kim
+    - Nicolas S. Lavoie
+    - Matheus B. Victor
+    - Md Rezaul Islam
+    - Fabiola Galiana
+    - Noelle Leary
+    - Sidney Wang
+    - Adele Bubnys
+    - Emily Ma
+    - Leyla A. Akay
+    - Madison Sneve
+    - Yong Qian
+    - Cuixin Lai
+    - Michelle M. McCarthy
+    - Nancy Kopell
+    - Manolis Kellis
+    - Kiryl D. Piatkevich
+    - Edward S. Boyden
+    - Li-Huei Tsai
+    year: 2024
+    collection: proposed-functions
+    venue: Nature
+    doi: 10.1038/s41586-024-07132-6
+
+  # First-year report literature additions; retrieval and version details are in metadata/.
+  brunel-wang-2003.pdf:
+    id: P93
+    title: What Determines the Frequency of Fast Network Oscillations With Irregular Neural Discharges? I. Synaptic
+      Dynamics and Excitation-Inhibition Balance
+    authors:
+    - Nicolas Brunel
+    - Xiao-Jing Wang
+    year: 2003
+    collection: generation-dynamics
+    venue: Journal of Neurophysiology
+    doi: 10.1152/jn.01095.2002
+  borgers-kopell-2005.pdf:
+    id: P94
+    title: Effects of Noisy Drive on Rhythms in Networks of Excitatory and Inhibitory Neurons
+    authors:
+    - Christoph Börgers
+    - Nancy Kopell
+    year: 2005
+    collection: generation-dynamics
+    venue: Neural Computation
+    doi: 10.1162/0899766053019908
+  van-vreeswijk-sompolinsky-1996.pdf:
+    id: P95
+    title: Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity
+    authors:
+    - C. van Vreeswijk
+    - H. Sompolinsky
+    year: 1996
+    collection: generation-dynamics
+    venue: Science
+    doi: 10.1126/science.274.5293.1724
+  tiesinga-et-al-2004.pdf:
+    id: P96
+    title: Synchronization as a mechanism for attentional gain modulation
+    authors:
+    - Paul H. E. Tiesinga
+    - Jean-Marc Fellous
+    - Emilio Salinas
+    - Jorge V. José
+    - Terrence J. Sejnowski
+    year: 2004
+    collection: proposed-functions
+    venue: Neurocomputing
+    doi: 10.1016/s0925-2312(04)00113-4
+  vogels-et-al-2011.pdf:
+    id: P97
+    title: Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks
+    authors:
+    - T. P. Vogels
+    - H. Sprekeler
+    - F. Zenke
+    - C. Clopath
+    - W. Gerstner
+    year: 2011
+    collection: modelling-measurement
+    venue: Science (advance online publication)
+    doi: 10.1126/science.1211095
+  brunel-hakim-1999.pdf:
+    id: P98
+    title: Fast Global Oscillations in Networks of Integrate-and-Fire Neurons with Low Firing Rates
+    authors:
+    - Nicolas Brunel
+    - Vincent Hakim
+    year: 1999
+    collection: generation-dynamics
+    venue: 'Neural Computation (preprint: arXiv:cond-mat/9904278v1)'
+    doi: 10.1162/089976699300016179
+    tags:
+    - preprint
+  womelsdorf-et-al-2007.pdf:
+    id: P99
+    title: Modulation of Neuronal Interactions Through Neuronal Synchronization
+    authors:
+    - Thilo Womelsdorf
+    - Jan-Mathijs Schoffelen
+    - Robert Oostenveld
+    - Wolf Singer
+    - Robert Desimone
+    - Andreas K. Engel
+    - Pascal Fries
+    year: 2007
+    collection: experimental-tests
+    venue: Science
+    doi: 10.1126/science.1139597
+  siegle-et-al-2014.pdf:
+    id: P100
+    title: Gamma-range synchronization of fast-spiking interneurons can enhance detection of tactile stimuli
+    authors:
+    - Joshua H Siegle
+    - Dominique L Pritchett
+    - Christopher I Moore
+    year: 2014
+    collection: experimental-tests
+    venue: Nature Neuroscience
+    doi: 10.1038/nn.3797
+  roelfsema-2023.pdf:
+    id: P101
+    title: 'Solving the binding problem: Assemblies form when neurons enhance their firing rate—they don’t need to
+      oscillate or synchronize'
+    authors:
+    - Pieter R. Roelfsema
+    year: 2023
+    collection: criticism-competing-explanations
+    venue: Neuron
+    doi: 10.1016/j.neuron.2023.03.016
+  thiele-stoner-2003.pdf:
+    id: P102
+    title: Neuronal synchrony does not correlate with motion coherence in cortical area MT
+    authors:
+    - Alexander Thiele
+    - Gene Stoner
+    year: 2003
+    collection: criticism-competing-explanations
+    venue: Nature
+    doi: 10.1038/nature01285
+  palanca-deangelis-2005.pdf:
+    id: P103
+    title: Does Neuronal Synchrony Underlie Visual Feature Grouping?
+    authors:
+    - Ben J.A. Palanca
+    - Gregory C. DeAngelis
+    year: 2005
+    collection: criticism-competing-explanations
+    venue: Neuron
+    doi: 10.1016/j.neuron.2005.03.002
+  chalk-et-al-2010.pdf:
+    id: P104
+    title: Attention Reduces Stimulus-Driven Gamma Frequency Oscillations and Spike Field Coherence in V1
+    authors:
+    - Matthew Chalk
+    - Jose L. Herrero
+    - Mark A. Gieselmann
+    - Louise S. Delicato
+    - Sascha Gotthardt
+    - Alexander Thiele
+    year: 2010
+    collection: criticism-competing-explanations
+    venue: Neuron
+    doi: 10.1016/j.neuron.2010.03.013
+  bastos-et-al-2012.pdf:
+    id: P105
+    title: Canonical Microcircuits for Predictive Coding
+    authors:
+    - Andre M. Bastos
+    - W. Martin Usrey
+    - Rick A. Adams
+    - George R. Mangun
+    - Pascal Fries
+    - Karl J. Friston
+    year: 2012
+    collection: proposed-functions
+    venue: Neuron
+    doi: 10.1016/j.neuron.2012.10.038
+  vinck-bosman-2016.pdf:
+    id: P106
+    title: 'More Gamma More Predictions: Gamma-Synchronization as a Key Mechanism for Efficient Integration of Classical
+      Receptive Field Inputs with Surround Predictions'
+    authors:
+    - Martin Vinck
+    - Conrado A. Bosman
+    year: 2016
+    collection: proposed-functions
+    venue: Frontiers in Systems Neuroscience
+    doi: 10.3389/fnsys.2016.00035
+  bastos-et-al-2020.pdf:
+    id: P107
+    title: Layer and rhythm specificity for predictive routing
+    authors:
+    - André M. Bastos
+    - Mikael Lundqvist
+    - Ayan S. Waite
+    - Nancy Kopell
+    - Earl K. Miller
+    year: 2020
+    collection: experimental-tests
+    venue: Proceedings of the National Academy of Sciences
+    doi: 10.1073/pnas.2014868117
+  yamamoto-et-al-2014.pdf:
+    id: P108
+    title: Successful Execution of Working Memory Linked to Synchronized High-Frequency Gamma Oscillations
+    authors:
+    - Jun Yamamoto
+    - Junghyup Suh
+    - Daigo Takeuchi
+    - Susumu Tonegawa
+    year: 2014
+    collection: experimental-tests
+    venue: Cell
+    doi: 10.1016/j.cell.2014.04.009
+  spellman-et-al-2015.pdf:
+    id: P109
+    title: Hippocampal–prefrontal input supports spatial encoding in working memory
+    authors:
+    - Timothy Spellman
+    - Mattia Rigotti
+    - Susanne E. Ahmari
+    - Stefano Fusi
+    - Joseph A. Gogos
+    - Joshua A. Gordon
+    year: 2015
+    collection: experimental-tests
+    venue: Nature
+    doi: 10.1038/nature14445
+  bi-poo-1998.pdf:
+    id: P110
+    title: 'Synaptic Modifications in Cultured Hippocampal Neurons: Dependence on Spike Timing, Synaptic Strength,
+      and Postsynaptic Cell Type'
+    authors:
+    - Guo-qiang Bi
+    - Mu-ming Poo
+    year: 1998
+    collection: biological-constraints
+    venue: The Journal of Neuroscience
+    doi: 10.1523/jneurosci.18-24-10464.1998
+  neftci-et-al-2019.pdf:
+    id: P111
+    title: 'Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Optimization
+      to Spiking Neural Networks'
+    authors:
+    - Emre O. Neftci
+    - Hesham Mostafa
+    - Friedemann Zenke
+    year: 2019
+    collection: modelling-measurement
+    venue: 'IEEE Signal Processing Magazine (preprint: arXiv:1901.09948v2)'
+    doi: 10.1109/msp.2019.2931595
+    tags:
+    - preprint
+  bellec-et-al-2020.pdf:
+    id: P112
+    title: A solution to the learning dilemma for recurrent networks of spiking neurons
+    authors:
+    - Guillaume Bellec
+    - Franz Scherr
+    - Anand Subramoney
+    - Elias Hajek
+    - Darjan Salaj
+    - Robert Legenstein
+    - Wolfgang Maass
+    year: 2020
+    collection: modelling-measurement
+    venue: Nature Communications
+    doi: 10.1038/s41467-020-17236-y
+  zenke-vogels-2021.pdf:
+    id: P113
+    title: The Remarkable Robustness of Surrogate Gradient Learning for Instilling Complex Function in Spiking Neural
+      Networks
+    authors:
+    - Friedemann Zenke
+    - Tim P. Vogels
+    year: 2021
+    collection: modelling-measurement
+    venue: Neural Computation
+    doi: 10.1162/neco_a_01367
+  cramer-et-al-2022.pdf:
+    id: P114
+    title: The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks
+    authors:
+    - Benjamin Cramer
+    - Yannik Stradmann
+    - Johannes Schemmel
+    - Friedemann Zenke
+    year: 2022
+    collection: modelling-measurement
+    venue: IEEE Transactions on Neural Networks and Learning Systems
+    doi: 10.1109/tnnls.2020.3044364
+  lecun-et-al-1998.pdf:
+    id: P115
+    title: Gradient-based learning applied to document recognition
+    authors:
+    - Yann LeCun
+    - Léon Bottou
+    - Yoshua Bengio
+    - Patrick Haffner
+    year: 1998
+    collection: modelling-measurement
+    venue: Proceedings of the IEEE (author manuscript)
+    doi: 10.1109/5.726791
+  pedregosa-et-al-2011.pdf:
+    id: P116
+    title: 'Scikit-learn: Machine Learning in Python'
+    authors:
+    - Fabian Pedregosa
+    - Gaël Varoquaux
+    - Alexandre Gramfort
+    - Vincent Michel
+    - Bertrand Thirion
+    - Olivier Grisel
+    - Mathieu Blondel
+    - Peter Prettenhofer
+    - Ron Weiss
+    - Vincent Dubourg
+    - Jake Vanderplas
+    - Alexandre Passos
+    - David Cournapeau
+    - Matthieu Brucher
+    - Matthieu Perrot
+    - Édouard Duchesnay
+    year: 2011
+    collection: modelling-measurement
+    venue: Journal of Machine Learning Research
+    url: https://www.jmlr.org/papers/v12/pedregosa11a.html
+  attwell-laughlin-2001.pdf:
+    id: P117
+    title: An Energy Budget for Signaling in the Grey Matter of the Brain
+    authors:
+    - David Attwell
+    - Simon B. Laughlin
+    year: 2001
+    collection: biological-constraints
+    venue: Journal of Cerebral Blood Flow &amp; Metabolism
+    doi: 10.1097/00004647-200110000-00001
+  davies-et-al-2018.pdf:
+    id: P118
+    title: 'Loihi: A Neuromorphic Manycore Processor with On-Chip Learning'
+    authors:
+    - Mike Davies
+    - Narayan Srinivasa
+    - Tsung-Han Lin
+    - Gautham Chinya
+    - Yongqiang Cao
+    - Sri Harsha Choday
+    - Georgios Dimou
+    - Prasad Joshi
+    - Nabil Imam
+    - Shweta Jain
+    - Yuyun Liao
+    - Chit-Kwan Lin
+    - Andrew Lines
+    - Ruokun Liu
+    - Deepak Mathaikutty
+    - Steven McCoy
+    - Arnab Paul
+    - Jonathan Tse
+    - Guruguhanathan Venkataramanan
+    - Yi-Hsin Weng
+    - Andreas Wild
+    - Yoonseok Yang
+    - Hong Wang
+    year: 2018
+    collection: modelling-measurement
+    venue: IEEE Micro
+    doi: 10.1109/mm.2018.112130359
+  furber-et-al-2014.pdf:
+    id: P119
+    title: The SpiNNaker Project
+    authors:
+    - Steve B. Furber
+    - Francesco Galluppi
+    - Steve Temple
+    - Luis A. Plana
+    year: 2014
+    collection: modelling-measurement
+    venue: Proceedings of the IEEE
+    doi: 10.1109/jproc.2014.2304638
+  banino-et-al-2018.pdf:
+    id: P120
+    title: Vector-based navigation using grid-like representations in artificial agents
+    authors:
+    - Andrea Banino
+    - Caswell Barry
+    - Benigno Uria
+    - Charles Blundell
+    - Timothy Lillicrap
+    - Piotr Mirowski
+    - Alexander Pritzel
+    - Martin J. Chadwick
+    - Thomas Degris
+    - Joseph Modayil
+    - Greg Wayne
+    - Hubert Soyer
+    - Fabio Viola
+    - Brian Zhang
+    - Ross Goroshin
+    - Neil Rabinowitz
+    - Razvan Pascanu
+    - Charlie Beattie
+    - Stig Petersen
+    - Amir Sadik
+    - Stephen Gaffney
+    - Helen King
+    - Koray Kavukcuoglu
+    - Demis Hassabis
+    - Raia Hadsell
+    - Dharshan Kumaran
+    year: 2018
+    collection: modelling-measurement
+    venue: Nature
+    doi: 10.1038/s41586-018-0102-6
+  burak-fiete-2009.pdf:
+    id: P121
+    title: Accurate Path Integration in Continuous Attractor Network Models of Grid Cells
+    authors:
+    - Yoram Burak
+    - Ila R. Fiete
+    year: 2009
+    collection: modelling-measurement
+    venue: PLoS Computational Biology
+    doi: 10.1371/journal.pcbi.1000291
+  indiveri-et-al-2011.pdf:
+    id: P122
+    title: Neuromorphic Silicon Neuron Circuits
+    authors:
+    - Giacomo Indiveri
+    - Bernabé Linares-Barranco
+    - Tara Julia Hamilton
+    - André van Schaik
+    - Ralph Etienne-Cummings
+    - Tobi Delbruck
+    - Shih-Chii Liu
+    - Piotr Dudek
+    - Philipp Häfliger
+    - Sylvie Renaud
+    - Johannes Schemmel
+    - Gert Cauwenberghs
+    - John Arthur
+    - Kai Hynna
+    - Fopefolu Folowosele
+    - Sylvain Saighi
+    - Teresa Serrano-Gotarredona
+    - Jayawan Wijekoon
+    - Yingxue Wang
+    - Kwabena Boahen
+    year: 2011
+    collection: modelling-measurement
+    venue: Frontiers in Neuroscience
+    doi: 10.3389/fnins.2011.00073
+
+  buzsaki-draguhn-2004.pdf:
+    id: P123
+    title: Neuronal Oscillations in Cortical Networks
+    authors: ["György Buzsáki", "Andreas Draguhn"]
+    year: 2004
+    collection: generation-dynamics
+    venue: Science
+    doi: 10.1126/science.1099745
+    url: https://buzsakilab.com/content/PDFs/Buzsaki2004Science.pdf

@@ -2,9 +2,9 @@
 title: Pingstore Operations
 author: Eoin Murray
 collection: notes
-description: Status, backup, cleanup, publication retention and recovery procedures.
+description: Status, backup, cleanup and recovery procedures.
 created_at: "2026-10-29T17:42:34Z"
-updated_at: "2026-11-12T11:53:08Z"
+updated_at: "2026-11-12T12:03:36Z"
 ---
 
 # Pingstore operations
@@ -78,6 +78,21 @@ ancestry. It is not backed up. Remote protection markers, when present, are also
 retention roots. Hidden temporary runs and remote operation journals retain their
 required inputs. Every retained historical run has an explicit reason; hiding
 rows is not cleanup.
+
+## Consolidated source views
+
+An explicitly declared `consolidation.resolve_sources` collection may preserve
+historical source identities after pruning their original directories. It retains
+each original record, README and logical export-path map. `source_run` resolves
+an absent pinned identity only through its unique owner, verifies the owner and
+reconstructs the original payload digest. It rejects ambiguity, changed bytes and
+mismatched pins; it never selects a newer scientific version.
+
+Views are derived hard-link caches under `.pingstore/source-views/`, outside
+immutable runs. The consolidated owner must be locally available. New consumers
+keep their original scientific pins and record the physical owner in
+`archived_inputs` for retention. Pruning or evicting an owner clears its cached
+views. Back up and validate the self-contained owner before retiring originals.
 
 ## Commands and backup
 
@@ -174,43 +189,10 @@ or start an unrelated cleanup to work around an unfinished operation.
 
 ## Publication retention
 
-Build and publish locally with `cd site && bun run publish`. The local build
-freezes core's local index, renders Astro, and bundles only run assets referenced
-by the rendered pages, notes, slide decks and animation data. Raw scientific
-arrays and checkpoints remain outside the site. Missing or invalid selected
-local evidence fails the build; restore evicted inputs before publishing.
-`bun run build` performs the same build without pushing.
-
-The publisher pushes the static output and deployment workflow to `gh-pages`
-with a normal fast-forward push. Source pushes to `main` do not deploy. GitHub
-Actions uploads the prebuilt site to Pages without rebuilding Astro or fetching
-scientific payloads from R2. `/pingstore-evidence.json` records the frozen source
-revision, dirty-source flag, selections, payload/input digests and unavailable
-reports. Actions stamps the Pages workflow/revision identity separately from the
-source revision.
-
-The private `PINGLAB_RCLONE_CONFIG` Actions secret remains necessary for small
-publication coordination records. This is independent of backup: a bundled local
-site may register evidence that has not been uploaded to R2. Existing cataloged
-records must still match. No scientific payload upload is required to publish.
-
-The previous active deployment and incoming manifests remain retention roots
-under the shared maintenance fence. Every deployment attempt, including retries,
-registers its evidence before deployment. Activation runs after the Pages
-environment job succeeds and requires GitHub's successful deployment and the
-served manifest bytes to match. Failed or uncertain deployment keeps the previous
-roots. A verified replacement releases completed incoming attempts and preserves
-pending workflows.
-
-Pruning still requires the complete deployed evidence graph across local and R2
-holdings. Missing or changed scientific evidence blocks cleanup; a self-contained
-site is not a scientific backup. Eviction continues to require verified R2 copies.
-
-Legacy publication bootstrap uses the authenticated artifact of the active
-successful Pages run and validates its declared run ancestry against the store.
-The self-contained `recovered/exp124/published.html` is a text archive: its
-historical Dataset labels are not current Pingstore roots. Its bundled assets
-remain part of the Pages artifact.
+Site builds, deployment, evidence manifests and publication retention are covered
+by [Publishing Rules](/notes/rules/publishing). Read that document when publishing
+or changing deployment behavior. Storage cleanup still preserves the active and
+incoming evidence roots described there.
 
 ## Eviction and recovery
 

@@ -1,20 +1,100 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import ParameterTable from './ParameterTable.astro';
 
-## A. Networks
+<a id="derivation-poisson-fit"></a>
 
-<RunFigure report="exp171" experiment="exp171" file="network-circuit.svg" number="A1" id="fig-coba" alt="COBA with trainable sensory and readout matrices and frozen private inhibitory input." allowUnavailable={true}>
-  COBA with sensory input X, excitatory E, silent inhibitory I, readout R and
-  private artificial input U. Only X→E and E→R train. U→E uses a frozen 1-µS
-  identity projection. W subscripts name recipient then source; C denotes COBA.
+## A. Derivations
+
+For each image and recipient E neuron $j$, fit a conductance jump $q_j$ and
+Poisson rate $\lambda_j$ (events/s) to the teacher's conductance moments. Both
+stay fixed during training. Equation (2) follows from exact stationary moment
+matching for the discrete filter below.
+
+Suppress the neuron index $j$ temporarily. Let $g[n]$ be the artificial inhibitory
+conductance at timestep $n$, and $N[n]$ the independent Poisson event count:
+
+<a id="eq-appendix-poisson-filter"></a>
+
+$$
+g[n]=\beta g[n-1]+qN[n-1],
+\qquad
+N[n]\sim\operatorname{Poisson}(\lambda\Delta t). \tag{A1}
+$$
+
+Here $\Delta t$ and inhibitory decay time $\tau_I$ are in seconds;
+$\beta=e^{-\Delta t/\tau_I}$ is the fixed decay factor. Events arrive one timestep
+later. Poisson counts have equal mean and variance:
+
+<a id="eq-appendix-poisson-count-moments"></a>
+
+$$
+\mathbb{E}[N[n]]=\operatorname{Var}(N[n])=\lambda\Delta t. \tag{A2}
+$$
+
+Let $\mu$ and $v$ be the teacher's temporal conductance mean and variance.
+Matching the stationary mean gives
+
+<a id="eq-appendix-stationary-mean"></a>
+
+$$
+\mu=\beta\mu+q\lambda\Delta t
+\quad\Longrightarrow\quad
+\mu=\frac{q\lambda\Delta t}{1-\beta}. \tag{A3}
+$$
+
+New counts are independent of previous conductance, so their covariance is zero.
+Matching the stationary variance gives
+
+<a id="eq-appendix-stationary-variance"></a>
+
+$$
+v=\beta^2v+q^2\lambda\Delta t
+\quad\Longrightarrow\quad
+v=\frac{q^2\lambda\Delta t}{1-\beta^2}. \tag{A4}
+$$
+
+For $\mu>0$ and $v>0$, dividing variance by mean yields
+
+<a id="eq-appendix-event-amplitude"></a>
+
+$$
+\frac{v}{\mu}=\frac{q}{1+\beta}
+\quad\Longrightarrow\quad
+q=\frac{(1+\beta)v}{\mu}. \tag{A5}
+$$
+
+Substituting this amplitude into the mean equation gives
+
+<a id="eq-appendix-event-rate"></a>
+
+$$
+\lambda=\frac{\mu(1-\beta)}{q\Delta t}
+=\frac{\mu^2(1-\beta)}{\Delta t(1+\beta)v}. \tag{A6}
+$$
+
+Restore $j$ to obtain [equation (2)](#eq-poisson-fit): two teacher moments
+set two artificial-input parameters at fixed decay. Zero-mean targets receive
+no events. The fit rejects constant positive targets ($\mu>0$, $v=0$), which
+finite-rate Poisson input cannot reproduce.
+
+Matching is exact in stationary expectation; finite trials fluctuate. The 60-ms
+inhibition-only prehistory reduces the initial transient. Teacher spike rate,
+timing, phase and correlations remain unconstrained.
+
+## B. Networks
+
+<RunFigure report="exp171" experiment="exp171" file="network-circuit.svg" number="B1" id="fig-coba" alt="COBA with trainable sensory and readout matrices and frozen private inhibitory input." allowUnavailable={true}>
+  COBA: sensory input X, excitatory E, silent inhibitory I, readout R and private
+  artificial input U. Only X→E and E→R train; U→E is a frozen 1-µS identity
+  projection. W subscripts give recipient then source; C denotes COBA.
 </RunFigure>
 
-<RunFigure report="exp171" experiment="exp171" file="teacher-circuit.svg" number="A2" id="fig-teacher" alt="Frozen source PING network used to construct image-conditioned conductance targets." allowUnavailable={true}>
-  Frozen PING teacher. Each image supplies I activity and inhibitory-conductance
-  targets for artificial input. P denotes PING weights; subscripts name recipient
-  then source. COBA and PING use matched source checkpoints.
+<RunFigure report="exp171" experiment="exp171" file="teacher-circuit.svg" number="B2" id="fig-teacher" alt="Frozen source PING network used to construct image-conditioned conductance targets." allowUnavailable={true}>
+  Frozen PING teacher supplies each image's I activity and conductance targets.
+  P denotes PING weights; subscripts give recipient then source.
+  COBA and PING use matched source checkpoints.
 </RunFigure>
 
-## B. Parameters
+## C. Parameters
 
 <ParameterTable />

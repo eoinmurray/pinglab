@@ -1,87 +1,77 @@
 ---
-import { readdir } from 'node:fs/promises';
 import { runStore } from '../lib/run-store';
 import Page from '../layouts/Page.astro';
-import Dataset from '../components/Dataset.astro';
-import Table from '../components/Table.astro';
-import { Code } from 'astro:components';
+import RunTree from '../components/RunTree.astro';
+import { lineageGroups } from '../lib/run-lineage';
 import { getReports } from '../lib/reports';
-import { dataset } from '../lib/pingstore';
+import { runWalltime, dataSize, type RunMetrics } from '../lib/run-metrics';
 
 const index = await runStore.index();
 const reports = new Map((await getReports()).map(report => [report.data.id, report]));
-const experiments = (await readdir('../experiments', { withFileTypes: true }))
-  .filter(entry => entry.isDirectory() && /^exp\d+$/.test(entry.name))
-  .map(entry => entry.name)
-  .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
-const inventories = await Promise.all(experiments.map(async experiment => {
-  const report = reports.get(experiment);
-  const inputs = [...new Set([experiment, ...(report?.data.inputs ?? [])])];
-  try {
-    let datasets = await Promise.all(inputs.map(id => dataset(id)));
-    // A report without data does not claim these historical runs as evidence.
-    if (!report?.data.tags.includes('data')) {
-      datasets = datasets.map(data => ({ ...data,
-        runs: data.runs.map(run => ({ ...run, selected: false, used: false })),
-      }));
-    }
-    return { experiment, report, datasets, error: undefined };
-  } catch (error) {
-    return { experiment, report, datasets: undefined,
-      error: (error as NodeJS.ErrnoException).code === 'ENOENT'
-        ? 'A selected run or recorded input is missing from local Pingstore and R2.'
-        : 'The run inventory could not be read. Check the run records.' };
+const { groups, used } = lineageGroups(index, Object.fromEntries([...reports].map(([id, report]) => [id, report.data.run_stages])));
+const storedRuns = Object.keys(index.runs);
+const metrics = new Map<string, RunMetrics>(await Promise.all(Object.entries(index.runs).map(async ([id, row]) => {
+  let size = '—';
+  if (row.record) {
+    try { size = dataSize([...await runStore.files(id)].reduce((sum, [, bytes]) => sum + bytes, 0)); }
+    catch { /* Unavailable data must not appear as a zero-byte run. */ }
   }
-}));
-const completedRuns = Object.keys(index.runs);
-const currentRuns = completedRuns.filter(id => index.runs[id].status === 'Current').length;
-const inUseRuns = completedRuns.filter(id => index.runs[id].usage.local.length > 0 || index.runs[id].usage.ghpages.length > 0).length;
-const requiredRuns = completedRuns.filter(id => index.runs[id].status === 'Required').length;
-const unusedRuns = completedRuns.filter(id => index.runs[id].status === 'Unused').length;
-const unresolvedRuns = completedRuns.filter(id => index.runs[id].status === 'Unresolved').length;
-const unavailableExperiments = inventories.filter(inventory => inventory.error).length;
-const pruneCommands = `uv run pingstore evict --all --dry-run
-
-# After reviewing the plan, replace PLAN_HASH with its complete sha256 hash.
-uv run pingstore evict --all --confirm PLAN_HASH`;
+  return [id, { walltime: runWalltime(row.record), size }] as [string, RunMetrics];
+})));
 ---
-
-<Page title="Pingstore" description="Dataset tables for Pinglab experiments." noindex>
-  <d-title>
-    <h1>Pingstore</h1>
-  </d-title>
+<Page title="Pingstore" description="Runsets and dependency trees by experiment." noindex>
+  <d-title><h1>Pingstore</h1></d-title>
   <d-article role="article" aria-label="Pingstore">
-    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. Shaded rows belong to runsets used by local reports or the recorded active GitHub Pages deployment. Each runset contains one presentation and its same-experiment analysis and compute stages; references to other runsets remain provenance. Retention is separate from report use. Storage is separate from the machine where a run executed. Historical holdings remain unresolved until active publication evidence has been established; unused identifies history with no retention root in the resolved context.</p>
-    <Table headers={['Total holdings', 'In use', 'Current', 'Required', 'Unused', 'Unresolved']}
-      rows={[[completedRuns.length, inUseRuns, currentRuns, requiredRuns, unusedRuns, unresolvedRuns]]} label="Run totals" />
-    {index.operation && <p role="status">An unfinished {index.operation.kind} operation retains evidence: {index.operation.plan_hash}. Resume its original verified plan before starting another cleanup.</p>}
-    {(index.publication_unavailable?.length ?? 0) > 0 && <p role="status">Availability of {index.publication_unavailable!.length} published runs is unresolved in this source context.</p>}
-    <p>Counts include each holding once. Unresolved holdings are not classified as unused.
-      {unavailableExperiments > 0 && <> Dataset details for {unavailableExperiments} experiments could not be resolved.</>}
-    </p>
-    {completedRuns.filter(id => !index.runs[id].record).map(id => <p role="status">{id}: {index.runs[id].unresolved.join('; ')}</p>)}
-    <p>To free local disk space, evict verified backup copies with these commands from the repository root. Review the dry-run plan before confirming. Report-used runs remain readable from R2; protected runs and inputs needed by unfinished work stay local. Confirmation verifies remote bytes before deleting any local copies.</p>
-    <Code code={pruneCommands} lang="sh" />
+    <div class="totals">
+      <ol aria-label="Experiment cleanliness totals">
+        <li>Clean experiments: {groups.filter(group => group.clean).length}</li>
+        <li>Unclean experiments: {groups.filter(group => !group.clean).length}</li>
+      </ol>
+      <ol aria-label="Stored run use totals">
+        <li>In-use runs: {storedRuns.filter(id => used.has(id)).length}</li>
+        <li>Not-in-use runs: {storedRuns.filter(id => !used.has(id)).length}</li>
+      </ol>
+    </div>
+    {Object.entries(index.selection_errors).map(([experiment, error]) => <p role="status">{experiment}: {error}</p>)}
+    {Object.entries(index.report_inputs).map(([report, inputs]) => {
+      const missing = inputs.filter(experiment => !index.report_selections[report]?.[experiment]);
+      return missing.length > 0 && <p role="status"><a href={`/${report}`}>{report}</a>: evidence unavailable for {missing.join(', ')}.</p>;
+    })}
+    {groups.map(group => {
+      const report = reports.get(group.experiment);
+      return <section class="experiment" aria-labelledby={group.experiment}>
+        <h2 id={group.experiment}>
+          <svg class:list={['cleanliness', group.clean ? 'clean' : 'unclean']} viewBox="0 0 16 16" role="img" aria-label={group.clean ? 'Clean' : 'Unclean'}>
+            <title>{group.clean ? 'Clean: one connected declared workflow, plus external dependencies only' : 'Unclean: additional, missing or irregular internal runs or dependencies'}</title>
+            <circle cx="8" cy="8" r="7" fill="currentColor" />
+            <path d={group.clean ? 'M4.5 8 7 10.5 11.5 5.5' : 'M5.5 5.5 10.5 10.5 M10.5 5.5 5.5 10.5'} fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {report
+          ? <a href={`/${group.experiment}`}>{group.experiment} — {report.data.title}</a>
+          : <>{group.experiment}</>}</h2>
+        <h3>In use</h3>
+        {group.inUse.map(node => <div class="runset"><RunTree node={node} experiment={group.experiment} metrics={metrics} /></div>)}
+        {group.inUse.length === 0 && <p>None.</p>}
+        <h3>Unused</h3>
+        {group.unused.map(node => <div class="runset"><RunTree node={node} experiment={group.experiment} metrics={metrics} /></div>)}
+        {group.unused.length === 0 && <p>None.</p>}
+      </section>;
+    })}
+    {groups.length === 0 && <p>No runs are recorded.</p>}
   </d-article>
-  <d-appendix distill-prerendered aria-label="Pingstore appendix">
-    {inventories.map(({ experiment, report, datasets, error }) => <>
-      <h2 id={experiment}>
-        {report ? <a href={`/${experiment}`}>{experiment} — {report.data.title}</a> : experiment}
-      </h2>
-      <!-- Missing selected evidence stays unavailable; never substitute another run. -->
-      {error ? <>
-        <h3 id={`${experiment}-dataset`}>Dataset</h3>
-        <section aria-labelledby={`${experiment}-dataset`}><p role="status">Dataset unavailable: {error}</p></section>
-      </> : <Dataset experiment={experiment} datasets={datasets} headingId={`${experiment}-dataset`} />}
-    </>)}
-    {experiments.length === 0 && <p>No experiments are available.</p>}
-  </d-appendix>
 </Page>
-
 <style>
-  d-appendix { background: var(--surface); color: rgb(var(--ink) / .65); }
-  d-appendix h2 { font-size: 18px; line-height: 1.5; margin: 2rem 0 0; scroll-margin-top: 24px; }
-  d-appendix h2:first-child { margin-top: 0; }
-  d-appendix section { min-width: 0; }
-  @media print { d-appendix { background: white; } }
+  .totals { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; font-size: .75rem; line-height: 1.5; }
+  .totals ol { margin: 0; padding-left: 1.1rem; }
+  .totals li { margin: 0; padding: 0; }
+  d-article .experiment { min-width: 0; margin: 0; padding: 0; border: 0; }
+  d-article .experiment + .experiment { margin-top: 1.5rem; }
+  .experiment h2 { font-size: 1rem; line-height: 1.4; margin: 0 0 .6rem; padding: 0; border: 0; scroll-margin-top: 1rem; }
+  .experiment h2 a, .experiment h2 a:hover { text-decoration: none; border: 0; }
+  .cleanliness { width: .85rem; height: .85rem; vertical-align: -.08rem; margin-right: .3rem; }
+  .clean { color: #278143; }
+  .unclean { color: #c63d3d; }
+  h3 { font-size: .75rem; line-height: 1.4; margin: .5rem 0 .25rem; color: rgb(var(--ink) / .6); }
+  .runset { margin: .25rem 0; overflow-x: auto; }
+  .experiment > p { font-size: .75rem; line-height: 1.4; margin: .25rem 0; color: rgb(var(--ink) / .5); }
 </style>

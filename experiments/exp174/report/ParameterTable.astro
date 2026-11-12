@@ -1,0 +1,75 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const kinds = ['coba', 'ping', 'artificial'];
+const labels = ['COBA', 'PING', 'Artificial I'];
+const evidence = await reportSnapshots('exp174', { snapshots: Object.fromEntries(kinds.map(k => [k, `${k}/start/snapshot.json`])), allowUnavailable: true });
+const cfg = evidence?.configuration;
+const snapshots = kinds.map(k => evidence?.snapshots[k]);
+const available = cfg && snapshots.every(Boolean);
+const graph = i => snapshots[i].network;
+const pop = (i, id) => graph(i).populations.find(p => p.id === id);
+const symbols = { E: 'E', I: 'I', readout: 'R', drive: 'X', artificial: 'A' };
+const math = id => ({ math: symbols[id] });
+const row = (label, read) => [label, ...kinds.map((_, i) => read(i))];
+const groups = available ? [
+  { label: 'Simulation', rows: [
+    row('Integration timestep', i => `${n(graph(i).timebase.dt.value)} ms`),
+    row('Presentation / measurement', () => `${n(cfg.duration_ms)} ms; onset to end`),
+    row('Model seed / inhibition seed', () => `${String(cfg.seed)} / ${String(cfg.inhibition_seed)}`),
+    row('Refractory timing', i => graph(i).refractory_timing),
+  ] },
+  { label: 'Populations', rows: [
+    row(math('drive'), () => `${n(cfg.n_input)} sensory channels`),
+    row(math('artificial'), i => i === 2 ? `${n(graph(i).inputs.find(p => p.id === 'artificial').shape.at(-1))} private channels` : 'Absent'),
+    ...['E', 'I', 'readout'].map(id => row(math(id), i => `${n(pop(i, id).size)} ${pop(i, id).neuron.kind}`)),
+  ] },
+  { label: 'Neuron dynamics', rows: [
+    row('E / I membrane time constant', i => `${n(pop(i, 'E').neuron.tau_mem.value)} / ${n(pop(i, 'I').neuron.tau_mem.value)} ms`),
+    row('E / I refractory period', i => `${n(pop(i, 'E').neuron.refractory.value)} / ${n(pop(i, 'I').neuron.refractory.value)} ms`),
+    row('Readout time constant', i => `${n(pop(i, 'readout').neuron.tau.value)} ms`),
+  ] },
+  { label: 'Input and manipulation', rows: [
+    row('Peak sensory rate', () => `${n(cfg.input_rate_hz)} Hz/channel`),
+    row('AMPA / GABA decay', () => `${n(cfg.tau_ampa_ms)} / ${n(cfg.tau_gaba_ms)} ms`),
+    row('Inhibition-only prehistory', i => `${n(i === 2 ? cfg.inhibition_prehistory_steps * cfg.dt_ms : 0)} ms`),
+    row('Training rate penalty', () => n(cfg.rate_penalty)),
+    row('Final checkpoint epoch', i => String(i === 2 ? 10 : cfg.source_checkpoints[kinds[i]].epoch)),
+  ] },
+  { label: 'Measurement', rows: [
+    row('Matched test images / draws', () => `${n(cfg.samples)} / ${n(1)}`),
+    row('Threshold accuracy', () => `${n(cfg.threshold_accuracy * 100)}% sustained through end`),
+    row('Decision rule', () => 'Argmax running mean pre-reset voltage'),
+    row('E spike budget', () => 'Mean across all images at common threshold time'),
+  ] },
+] : [];
+const matrices = available ? snapshots.map((snapshot, i) => {
+  const net = snapshot.network;
+  const sources = [...net.inputs, ...net.populations];
+  const endpoint = value => value.split('.')[0];
+  return { label: `${labels[i]} frozen connectivity`, headers: ['Source ↓ / target →', ...net.populations.map(p => math(p.id))], rows: sources.map(source => [math(source.id), ...net.populations.map(target => {
+    const projection = net.projections.find(p => endpoint(p.source) === source.id && endpoint(p.target) === target.id);
+    if (!projection) return 'Absent';
+    if (!snapshot.parameters[projection.parameters[0]]) throw new Error('Missing executed weight array');
+    if (projection.id === 'artificial_to_E') return { math: `${n(100/cfg.n_e)}\\%;\\quad ${n(1)}\\,\\mathrm{\\mu S}` };
+    const zero = (i !== 1 && ['E_to_I', 'I_to_E'].includes(projection.id));
+    return { math: `${n(100)}\\%;\\quad ${zero ? n(0) : `W^{(${i + 1})}_{${symbols[target.id]}${symbols[source.id]},ji}`}\\,\\mathrm{\\mu S}` };
+  })]) };
+}) : [];
+---
+{available ? <>
+<Table headers={['Parameter', ...labels]} groups={groups} number="B1" id="parameters" label="Recorded native settings and test protocol">
+  X is sensory input, A artificial inhibition, E excitatory, I inhibitory and R
+  readout. Settings come from the selected native start snapshots and compute
+  configuration. Seed and epoch identifiers are exact; quantities use two
+  significant figures. CPU sensory RNG states preserve exp171's original stream.
+</Table>
+{matrices.map((matrix, i) => <Table headers={matrix.headers} rows={matrix.rows} rowHeaders number={`B${i+2}`} label={matrix.label}>
+  Rows are sources; columns are targets. Density counts eligible source–target
+  pairs, including zero learned entries. Frozen matrices W give the executed
+  per-connection values retained in the native snapshot; j indexes target and i
+  source neurons. Superscripts distinguish the three models. A→E is one-to-one;
+  its input carries each event's fitted amplitude. Absent denotes no projection.
+</Table>)}
+</> : <p>Native parameter evidence is unavailable.</p>}

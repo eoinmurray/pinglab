@@ -1,0 +1,6 @@
+---
+import { reportData } from '../../../site/src/lib/report-data';
+const data = await reportData('exp174', { allowUnavailable: true });
+const number = value => value == null ? 'unreached' : Number(value).toLocaleString('en-GB', { maximumFractionDigits: 1 });
+---
+{data ? <p>Frozen no-rate-penalty COBA, PING and artificial-I classifiers were replayed on {number(data.configuration.samples)} matched official MNIST test images without retraining. {data.conditions.map(c => `${c.label}: ${number(c.final_accuracy_pct)}% at 200 ms; sustained 80% latency ${number(c.latency_ms)}${c.latency_ms == null ? '' : ' ms'}, E spike budget ${number(c.e_spikes_at_threshold)} per image`).join('; ')}. These are single-seed measurements on exp171's retained test subset, not estimates from all 10,000 official test images or online stopping rules.</p> : <p>Completed measurements are unavailable.</p>}

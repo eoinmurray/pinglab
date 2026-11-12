@@ -619,61 +619,16 @@ and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
 
-Build and publish from the local checkout:
+Follow [Publishing Rules](../notes/rules/publishing.md) for local builds, asset
+bundling, `gh-pages` deployment, evidence manifests and publication retention.
+That document owns the publishing rules and procedure.
 
 ```sh
 cd site
-bun install --frozen-lockfile
 bun run publish
 ```
 
-`bun run build` builds without publishing; `bun run preview --port 3001` previews
-that output. The build freezes core's local index, renders Astro and copies only
-the run assets referenced by the generated pages, notes, slide decks and animation
-JSON into `dist/run-images/`. Figures and animations are served by Pages; raw
-scientific arrays and checkpoints are never copied into the site. Local selected
-evidence must be valid and available. Restore evicted inputs before publishing.
-No R2 catalog or payload is required for the local build.
-
-The publisher uses a separate temporary Git repository to push the output to
-`gh-pages`, preserving its history and rejecting competing pushes. It leaves the
-source checkout's branch and uncommitted work untouched. The manifest records the
-source revision and whether the source checkout had uncommitted changes.
-
-`.github/workflows/pages.yml` deploys pushes to `gh-pages`; pushes to `main` no
-longer publish. To retry manually, dispatch the workflow on `gh-pages`. Actions
-stamps the deployment identity, retains its evidence, and uploads the prebuilt
-site to Pages. It does not install Astro, rebuild the site, or transfer scientific
-payloads. The workflow itself is included on the publication branch; publication
-tools are checked out from `main`.
-
-The private `PINGLAB_RCLONE_CONFIG` Actions secret supplies small R2 coordination
-writes that protect active and incoming evidence from pruning. A self-contained
-local build can publish before its scientific runs are backed up. Cataloged
-records must still match; backup remains a separate operation. Deployment retries
-retain their evidence again. Activation follows successful Pages deployment and
-checks both GitHub's deployment identity and the served manifest before releasing
-old roots. An uncertain outcome keeps the previous and incoming evidence protected.
-
-Report HTML, bound values and inventory tables are build-time snapshots. New
-results require another local publish. `pingstore backup` neither builds nor
-publishes the site. Scientific backup and eviction requirements remain unchanged;
-a bundled figure is not a backup of its originating run. Pruning checks the
-complete retained graph across both stores and blocks if evidence is missing.
-
-The Git-ignored PDF library stays local; do not upload the library to the public assets bucket.
-Production paper links come from the tracked `papers/index.yaml` citation index.
-
-Every build also includes `/pingstore-evidence.json`, containing the build and
-revision identity, index generation, selections and exact payload/input digests.
-It ships through the existing Pages workflow. The manifest records build evidence;
-it does not itself prove successful deployment. Core checks the actual active
-Pages deployment and its manifest before pruning. Legacy bootstrap uses the exact
-authenticated successful Pages artifact; the self-contained recovered exp124 text
-archive does not promote its historical Dataset labels into live run roots.
-
-A data report with no completed runset shows “Evidence unavailable” and skips its
-MDX results, parameter tables and appendices. Its missing inputs are explicit in
-the build manifest. Invalid selected evidence still fails rendering; it is never
-hidden by this absence handling. No scientific results are invented or replaced
-with recipe defaults.
+Use `bun run build` without pushing, `bun run preview --port 3001` to preview the
+output, and `bun run build:remote` for separate remote-only validation before
+eviction. Scientific storage operations follow
+[Pingstore Rules](../notes/rules/pingstore.md).

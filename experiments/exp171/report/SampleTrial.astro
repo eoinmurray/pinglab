@@ -1,0 +1,142 @@
+---
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import pythonSource from "./sample-trial.py?raw";
+import Table from "../../../site/src/components/Table.astro";
+import { reportData, reportSnapshots } from "../../../site/src/lib/report-data";
+import { runStore } from "../../../site/src/lib/run-store";
+import { formatTableNumber as number } from "../../../site/src/lib/table-number";
+const data = await reportData("exp171", { allowUnavailable: true });
+const evidence = await reportSnapshots("exp171", {
+  snapshots: {},
+  computeInput: "compute",
+  allowUnavailable: true,
+});
+const trial = data?.raster;
+let stats;
+if (trial && evidence?.configuration.inhibition_method === "poisson_moment_matched_v1") {
+  const source = evidence.compute.run_id;
+  const saved = await runStore.json(source, "export/raster.json");
+  if (
+    saved.original_index !== trial.original_index ||
+    saved.validation_draw !== trial.validation_draw ||
+    saved.epoch !== trial.epoch
+  )
+    throw new Error("Sample table and selected raster identify different trials");
+  const pythonPath = resolve(process.env.PINGLAB_REPOSITORY_ROOT ?? "..", ".venv/bin/python");
+  const python = process.env.PINGLAB_PYTHON ?? (existsSync(pythonPath) ? pythonPath : "python3");
+  const parts = await Promise.all(
+    ["dataset", "calibration", "raster"].map(async (kind) => {
+      const input = await runStore.read(source, `export/${kind}.npz`);
+      return JSON.parse(
+        execFileSync(python, ["-c", pythonSource, kind, String(trial.original_index)], {
+          input,
+          maxBuffer: 1024 * 1024,
+        }).toString(),
+      );
+    }),
+  );
+  stats = Object.assign({}, ...parts);
+}
+const percent = (actual, target) => `${number(100 * (actual / target - 1))}%`;
+const parameterRows = stats
+  ? [
+      ["Teacher PING", { math: "\\mu_j" }, "Conductance mean", `${number(stats.teacherMean)} µS`],
+      [
+        "Teacher PING",
+        { math: "v_j" },
+        "Conductance variance",
+        `${number(stats.teacherVariance)} µS²`,
+      ],
+      [
+        "Teacher PING",
+        "I firing rate",
+        "Mean per I neuron",
+        `${number(stats.teacherRate)} spikes/s/neuron`,
+      ],
+      [
+        "Derived artificial I",
+        { math: "q_j" },
+        "Conductance jump per event",
+        `${number(stats.amplitude)} µS/event`,
+      ],
+      [
+        "Derived artificial I",
+        { math: "\\lambda_j" },
+        "Fitted event rate",
+        `${number(stats.rate)} events/s/channel`,
+      ],
+      [
+        "Realised artificial I",
+        "Sampled event rate",
+        "Mean per private channel",
+        `${number(trial.realized_artificial_rate_hz)} events/s/channel`,
+      ],
+    ]
+  : [];
+const momentRows = stats
+  ? [
+      [
+        "Conductance mean (µS)",
+        stats.teacherMean,
+        stats.expectedMean,
+        stats.actualMean,
+        percent(stats.actualMean, stats.teacherMean),
+      ],
+      [
+        "Conductance variance (µS²)",
+        stats.teacherVariance,
+        stats.expectedVariance,
+        stats.actualVariance,
+        percent(stats.actualVariance, stats.teacherVariance),
+      ],
+      [
+        "Conductance SD (µS)",
+        stats.teacherSd,
+        stats.expectedSd,
+        stats.actualSd,
+        percent(stats.actualSd, stats.teacherSd),
+      ],
+    ]
+  : [];
+---
+
+{stats ? (
+  <>
+    <h3>One sample trial: teacher targets and artificial inhibition</h3>
+    <p>
+      One saved {evidence.configuration.duration_ms}-ms validation trial: image{" "}
+      {String(trial.original_index)}, digit {String(trial.label)}, predicted{" "}
+      {String(trial.predicted)}; epoch {String(trial.epoch)}, draw{" "}
+      {String(trial.validation_draw + 1)}. This is a sample, not an average across trials.
+      Conductance statistics and fitted parameters average over {evidence.configuration.n_e}
+      E neurons; teacher I rate averages over {evidence.configuration.n_i} I neurons.
+    </p>
+    <Table
+      headers={["Category", "Parameter", "Meaning", "Mean value"]}
+      rows={parameterRows}
+      label="Sample-trial inhibition parameters"
+    />
+    <Table
+      headers={[
+        "Matched quantity",
+        "Teacher target",
+        "Artificial expectation",
+        "Realised trial",
+        "Trial difference",
+      ]}
+      rows={momentRows}
+      id="sample-trial-moments"
+      label="Sample-trial conductance moment comparison"
+    />
+  </>
+) : (
+  <p>Sample-trial Poisson comparison unavailable for the selected evidence.</p>
+)}
+
+<style>
+  :global(#sample-trial-moments) {
+    margin-top: 1.5rem;
+  }
+</style>

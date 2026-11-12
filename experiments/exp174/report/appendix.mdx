@@ -1,0 +1,25 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## A. Native architectures
+
+<RunFigure report="exp174" experiment="exp174" file="circuit-coba.svg" number="A1" id="fig-coba" alt="Frozen COBA baseline native architecture." allowUnavailable={true}>
+  COBA baseline. E→I and I→E projections are retained with zero executed weights;
+  biological I remains silent. Epoch-50 source checkpoint, exact refractory timing.
+</RunFigure>
+
+<RunFigure report="exp174" experiment="exp174" file="circuit-ping.svg" number="A2" id="fig-ping" alt="Frozen PING baseline native architecture." allowUnavailable={true}>
+  PING baseline. The trained E/I feedback loop is active. Epoch-50 source checkpoint,
+  exact refractory timing.
+</RunFigure>
+
+<RunFigure report="exp174" experiment="exp174" file="circuit-artificial.svg" number="A3" id="fig-artificial" alt="Frozen artificial-inhibition native architecture." allowUnavailable={true}>
+  Artificial-I classifier, final epoch 10 of fine-tuning. Each E neuron receives
+  private Poisson inhibition from a frozen image-specific moment fit. Biological
+  feedback is silent; the original legacy refractory timing is preserved. Event
+  amplitudes enter through the artificial input, with unit one-to-one weights.
+</RunFigure>
+
+## B. Parameters
+
+<ParameterTable />

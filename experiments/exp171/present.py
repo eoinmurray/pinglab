@@ -144,6 +144,109 @@ def ceiling_label(target):
     return "Off" if target is None else f"{target:g} Hz"
 
 
+def inhibitory_rates(computed, evaluated=None):
+    """Read paired test-image rates, including byte-preserving consolidated runs."""
+    source = evaluated or computed
+    if evaluated:
+        paths = None
+        record = source.record
+    else:
+        candidates = [
+            item
+            for item in source.record.get("consolidation", {})
+            .get("sources", {})
+            .values()
+            if "test-results.json" in item["export_paths"]
+        ]
+        if len(candidates) != 1:
+            raise ValueError(
+                "Missing unique retained test evaluation for I-rate comparison"
+            )
+        paths = candidates[0]["export_paths"]
+        record = candidates[0]["record"]
+
+    def saved(path):
+        return source.file(paths[path] if paths is not None else path)
+
+    cfg = record["execution"]["configuration"]
+    results = json.loads(saved("test-results.json").read_text())
+    rows = []
+    reference_ids = None
+    for case in sorted(
+        results["cases"], key=lambda c: (c["target_hz"] is None, c["target_hz"] or 0)
+    ):
+        label = case["label"]
+        with (
+            np.load(saved(label + "/dataset.npz")) as data,
+            np.load(saved(label + "/calibration.npz")) as cal,
+        ):
+            ids = data["ids"]
+            if reference_ids is not None:
+                np.testing.assert_array_equal(ids, reference_ids)
+            reference_ids = ids.copy()
+            artificial = data["poisson_rate_hz"]
+            counts = cal["teacher_i_spike_count"]
+            if artificial.shape != (case["samples"], cfg["n_e"]) or counts.shape != (
+                case["samples"],
+                cfg["n_i"],
+            ):
+                raise ValueError("Invalid inhibitory-rate array dimensions")
+            if not all(
+                np.isfinite(a).all() and np.all(a >= 0) for a in (artificial, counts)
+            ):
+                raise ValueError("Invalid inhibitory rates or spike counts")
+            rows.append(
+                dict(
+                    target_hz=case["target_hz"],
+                    teacher_hz=(
+                        counts.mean(axis=1) / (cfg["duration_ms"] / 1000)
+                    ).tolist(),
+                    artificial_hz=artificial.mean(axis=1).tolist(),
+                )
+            )
+    source.check_unchanged()
+    return dict(
+        duration_ms=cfg["duration_ms"],
+        n_i=cfg["n_i"],
+        n_channels=cfg["n_e"],
+        cases=rows,
+    )
+
+
+def inhibitory_rate_figure(rates):
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 4.3), layout="constrained")
+    x = np.arange(len(rates["cases"]))
+    for key, label, colour, offset, marker in (
+        ("teacher_hz", "Teacher PING I: spikes / neuron", theme.INK_BLACK, -0.13, "o"),
+        (
+            "artificial_hz",
+            "Artificial I: fitted events / channel",
+            theme.DEEP_RED,
+            0.13,
+            "s",
+        ),
+    ):
+        values = np.array([case[key] for case in rates["cases"]])
+        means = values.mean(axis=1)
+        low, high = np.quantile(values, [0.1, 0.9], axis=1)
+        ax.vlines(x + offset, low, high, color=colour, lw=2, alpha=0.6)
+        ax.scatter(
+            x + offset, means, color=colour, marker=marker, s=30, label=label, zorder=3
+        )
+    ax.set(
+        xticks=x,
+        xticklabels=[ceiling_label(c["target_hz"]) for c in rates["cases"]],
+        xlabel="Training E-rate ceiling",
+        ylabel="Inhibitory rate (Hz)",
+        ylim=(0, None),
+        title="Mean rates; bars show 10th–90th percentiles across test images",
+    )
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(frameon=False, loc="upper left", fontsize=theme.SIZE_LEGEND)
+    return fig
+
+
 def frontier_figure(cases, *, partition="validation"):
     theme.apply()
     fig, ax = plt.subplots(figsize=(6.5, 3.4), layout="constrained")
@@ -313,6 +416,28 @@ def learning_figure(results):
     return fig
 
 
+def presentation_timings(results, started):
+    results["timings"]["presentation_seconds"] = time.perf_counter() - started
+    results["timings"]["stages_total_seconds"] = sum(
+        results["timings"][key]
+        for key in ("compute_seconds", "analysis_seconds", "presentation_seconds")
+    )
+    if "sweep" in results:
+        results["timings"]["sweep_compute_seconds"] = sum(
+            cell["timings"]["compute_seconds"] for cell in results["sweep"]
+        )
+        results["timings"]["stages_total_seconds"] += (
+            results["timings"]["sweep_compute_seconds"]
+            - results["timings"]["compute_seconds"]
+        )
+
+
+def check_cell_inputs(inputs):
+    for role, cell in inputs.items():
+        if role.startswith("cell_"):
+            cell.check_unchanged()
+
+
 def present(identity, run_id=None):
     started = time.perf_counter()
     analysis = source_run(
@@ -373,6 +498,13 @@ def present(identity, run_id=None):
                 for ext in ("svg", "png"):
                     fig.savefig(run.export / ("activity-frontier." + ext), dpi=180)
                 plt.close(fig)
+            if "test_frontier" in results:
+                rates = inhibitory_rates(computed, inputs.get("test_evaluation"))
+                fig = inhibitory_rate_figure(rates)
+                for ext in ("svg", "png"):
+                    fig.savefig(run.export / ("inhibitory-rates." + ext), dpi=180)
+                plt.close(fig)
+                write_json(run.export / "inhibitory-rates.json", rates)
             raster_source = recorded or (
                 computed if cfg.get("execution_backend") == "snnlab.sim.train" else None
             )
@@ -392,19 +524,7 @@ def present(identity, run_id=None):
                 circuit(
                     bundle, run.export / (name + "-circuit." + ext), teacher=is_teacher
                 )
-        results["timings"]["presentation_seconds"] = time.perf_counter() - started
-        results["timings"]["stages_total_seconds"] = sum(
-            results["timings"][key]
-            for key in ("compute_seconds", "analysis_seconds", "presentation_seconds")
-        )
-        if "sweep" in results:
-            results["timings"]["sweep_compute_seconds"] = sum(
-                cell["timings"]["compute_seconds"] for cell in results["sweep"]
-            )
-            results["timings"]["stages_total_seconds"] += (
-                results["timings"]["sweep_compute_seconds"]
-                - results["timings"]["compute_seconds"]
-            )
+        presentation_timings(results, started)
         write_json(run.export / "numbers.json", results)
         run.record["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
@@ -413,9 +533,7 @@ def present(identity, run_id=None):
         computed.check_unchanged()
         if recorded:
             recorded.check_unchanged()
-        for role, cell in inputs.items():
-            if role.startswith("cell_"):
-                cell.check_unchanged()
+        check_cell_inputs(inputs)
     print(run.run_id, flush=True)
     return run.run_id
 

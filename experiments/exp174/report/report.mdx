@@ -1,0 +1,37 @@
+---
+id: exp174
+title: "Decision latency and spike budget"
+author: "Eoin Murray"
+created_at: "2026-11-12T11:16:43Z"
+updated_at: "2026-11-12T13:55:10Z"
+description: "A matched MNIST test-subset comparison of unpenalised COBA, PING and artificial inhibition."
+collection: ["experiments"]
+tags: ["data", "v0.32.3"]
+inputs: ["exp174"]
+thumbnail: decision-budget.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Results from './Results.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp174', { allowUnavailable: true });
+
+## Abstract
+
+<Results />
+
+## Results
+
+<RunFigure report="exp174" experiment="exp174" file="decision-budget.svg" number={1} id="fig-decision-budget" alt="Latency to sustained 80 percent accuracy versus cumulative E spike count, with temporal accuracy curves." allowUnavailable={true}>
+  Unpenalised final checkpoints, seed 42, on the first {data ? data.configuration.samples.toLocaleString('en-GB') : 'unavailable'} images of exp171's
+  ordered official-test subset. A: cumulative E spikes per image and simulated
+  latency at the earliest timestep after which accuracy remains at least 80%
+  through 200 ms. B: accuracy versus elapsed stimulus time. C: accuracy versus
+  mean cumulative E spikes across all images. Dots mark each model's sustained
+  threshold, when reached.
+  The same sensory spikes drive every model. Prefix decisions use the running
+  mean pre-reset readout voltage. One encoding/inhibition draw; no across-seed
+  inference. Teacher calibration and the artificial-I prehistory are excluded
+  from stimulus latency and spike budgets. Baselines retain exact refractory
+  timing; artificial I retains exp171's legacy timing and uses a new CPU Poisson draw.
+</RunFigure>

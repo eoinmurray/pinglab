@@ -25,6 +25,7 @@ export interface RunIndex {
   selection_errors: Record<string, string>;
   report_selections: Record<string, Record<string, string>>;
   report_inputs: Record<string, string[]>;
+  source_views?: Record<string, { run_id: string; payload_digest: string; source_digest: string }>;
   operation?: { kind: string; plan_hash: string; run_ids?: string[] } | null;
   publication_unavailable?: string[];
   inventory_generation?: string | null;
@@ -84,6 +85,17 @@ export function validateRunIndex(value: any): RunIndex {
     };
     visit(id);
     if (seen.size !== members.length) throw new Error(`Extraneous indexed ancestry: ${experiment}`);
+  }
+  if (value.source_views !== undefined) {
+    if (!mapping(value.source_views)) throw new Error('Invalid source views');
+    for (const [id, view] of Object.entries(value.source_views) as [string, any][]) {
+      if (!runPattern.test(id) || !mapping(view) || !runPattern.test(view.run_id)
+          || id.slice(0, 6) !== view.run_id.slice(0, 6)
+          || !/^sha256:[a-f0-9]{64}$/.test(view.source_digest)
+          || value.runs[view.run_id]?.record?.payload_digest !== view.payload_digest) {
+        throw new Error(`Invalid archived source view: ${id}`);
+      }
+    }
   }
   return value;
 }

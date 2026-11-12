@@ -2,9 +2,9 @@
 title: Pingstore Rules
 author: Eoin Murray
 collection: notes
-description: Current scientific runsets, validated storage, publication and inspected cleanup.
+description: Current scientific runsets, validated storage and inspected cleanup.
 created_at: "2026-09-11"
-updated_at: "2026-11-03T15:07:33Z"
+updated_at: "2026-11-12T12:03:36Z"
 ---
 
 # Pingstore Rules
@@ -68,9 +68,11 @@ apply to Pingstore runs; existing runs remain immutable.
    scope pruning explicitly. Preserve shared consumers, protections, unfinished
    work and publication roots. Validation failure never authorizes deletion.
 3. Resume interrupted operations with the same hash, scope and journal. Never
-   bypass fences or erase journals. Backup is not publication; release deployment
-   roots only through verified successful replacement. Finish with retained-graph
+   bypass fences or erase journals. Preserve deployment roots according to
+   [Publishing Rules](/notes/rules/publishing#evidence-and-retention). Finish with retained-graph
    and scoped inventory validation; report partial completion accurately.
 
 Read only the relevant [Pingstore Operations](/notes/rules/pingstore-operations) section
 before maintenance, recovery or changes to storage/reporting internals.
+For site builds, deployment and publication retention, follow
+[Publishing Rules](/notes/rules/publishing).
