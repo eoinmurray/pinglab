@@ -23,7 +23,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -34,7 +34,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+    if run.details["stage"] != stage or run.details["experiment"] != experiment:
         raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
     return run
 
@@ -45,7 +45,7 @@ def execution(
 ):
     ancestors = {}
     for run in sources.values():
-        ancestors.update(lineage(repo, run.record["run_id"], run.reference))
+        ancestors.update(lineage(repo, run.details["run_id"], run.reference))
     with stage_run(
         repo,
         recipe.SLUG,
@@ -67,8 +67,8 @@ def execution(
 
 
 def configuration(run):
-    cfg = recipe.validate_configuration(run.record["execution"].get("configuration"))
-    if set(run.record["inputs"]) != {"bank"}:
+    cfg = recipe.validate_configuration(run.details["execution"].get("configuration"))
+    if set(run.details["inputs"]) != {"bank"}:
         raise PingstoreError("exp082 compute must pin exactly one bank")
     return cfg
 
@@ -77,7 +77,7 @@ def compute_evidence(repo, run):
     from experiments.exp082.custom import evidence
 
     cfg = configuration(run)
-    pin = run.record["inputs"]["bank"]
+    pin = run.details["inputs"]["bank"]
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
     expected = {
@@ -97,7 +97,7 @@ def compute_evidence(repo, run):
         if expected["showcase"].get("training_contract") != contract:
             raise PingstoreError("combined showcase training contract differs")
         if (
-            run.record.get("showcase_configuration")
+            run.details.get("showcase_configuration")
             != expected["showcase"]["configuration"]
         ):
             raise PingstoreError("combined showcase execution configuration differs")

@@ -150,7 +150,7 @@ def test_poisson_dataset_calibration_and_replay_keep_multiplicity(tmp_path):
     assert validate_native_dataset(computed, cfg) == (0, 0)
     assert poisson_rate_summary(computed, cfg)["validation"]["mean"] == 1350
     restored = []
-    computed.record = {"execution": {"configuration": dict(cfg)}}
+    computed.details = {"execution": {"configuration": dict(cfg)}}
     computed.restore_bundle = lambda *args: restored.append(args)
     computed.check_unchanged = lambda: None
     pixels = np.zeros((43, 784), dtype=np.uint8)
@@ -476,7 +476,7 @@ def test_calibration_reuse_preserves_arrays_and_rejects_changes(tmp_path):
     )
     restored = []
     source = SimpleNamespace(
-        record={"execution": {"configuration": dict(cfg)}},
+        details={"execution": {"configuration": dict(cfg)}},
         file=lambda name: tmp_path / name,
         restore_bundle=lambda *args: restored.append(args),
         check_unchanged=lambda: None,
@@ -519,7 +519,7 @@ def test_sweep_analysis_pins_every_condition_and_orders_the_grid(monkeypatch, tm
     sources = {}
     for index, cfg in enumerate(recipe.sweep_configurations()):
         sources[str(index)] = SimpleNamespace(
-            record={"execution": {"configuration": cfg}},
+            details={"execution": {"configuration": cfg}},
             file=lambda *args: tmp_path / "dataset.npz",
             check_unchanged=lambda: None,
         )
@@ -538,7 +538,7 @@ def test_sweep_analysis_pins_every_condition_and_orders_the_grid(monkeypatch, tm
     def staged(*args, **kwargs):
         recorded.update(kwargs)
         yield SimpleNamespace(
-            export=tmp_path, run_id="analysis", record={"execution": {}}
+            export=tmp_path, run_id="analysis", details={"execution": {}}
         )
 
     monkeypatch.setattr(stage, "stage_run", staged)
@@ -1035,7 +1035,7 @@ def test_compute_delegates_training_to_native_api(
     @contextmanager
     def staged(*args, **kwargs):
         yield SimpleNamespace(
-            export=export, scratch=scratch, run_id="test", record={"execution": {}}
+            export=export, scratch=scratch, run_id="test", details={"execution": {}}
         )
 
     monkeypatch.setattr(stage, "stage_run", staged)

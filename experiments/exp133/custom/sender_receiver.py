@@ -214,7 +214,7 @@ def transferred_parameters(source):
 
 
 def compute_contract(source):
-    recorded = source.record["execution"].get("configuration", {})
+    recorded = source.details["execution"].get("configuration", {})
     if recorded.get("schema") not in {SCHEMA, HISTORICAL_SCHEMA, LEGACY_SCHEMA}:
         raise PingstoreError("unsupported sender–receiver configuration")
     legacy = recorded["schema"] == LEGACY_SCHEMA
@@ -225,10 +225,10 @@ def compute_contract(source):
         else None,
         standalone=recorded.get("standalone", False),
     )
-    pins = source.record["inputs"]
+    pins = source.details["inputs"]
     expected_pins = set() if cfg.get("standalone") else {"parameter_reference"}
     if (
-        source.record["execution"].get("configuration") != cfg
+        source.details["execution"].get("configuration") != cfg
         or set(pins) != expected_pins
     ):
         raise PingstoreError("sender–receiver compute recipe mismatch")

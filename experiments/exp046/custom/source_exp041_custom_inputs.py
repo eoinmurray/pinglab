@@ -10,7 +10,7 @@ from pingstore.library import PingstoreError
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
         or cfg.get("schema") not in ("exp041.recipe/v1", "exp041.recipe/v2")
@@ -20,7 +20,7 @@ def configuration(run):
             smoke=cfg["profile"] == "smoke",
             version=int(cfg["schema"].rsplit("v", 1)[1]),
         )
-        or set(run.record["inputs"]) != {"bank"}
+        or set(run.details["inputs"]) != {"bank"}
     ):
         raise PingstoreError("inconsistent exp041 compute recipe or bank input")
     return cfg

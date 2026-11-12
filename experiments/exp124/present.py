@@ -139,9 +139,9 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
-    pin = sources["analysis"].record["inputs"]["compute"]
+    pin = sources["analysis"].details["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore", pin["run_id"], reference=pin, stage="compute"
     )
@@ -151,28 +151,28 @@ def redraw_networks(presentation, *, run_id=None):
     ]
     with stage_run(
         REPO,
-        previous.record["experiment"],
+        previous.details["experiment"],
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         for source, prefix, stem in specs:
             bundle_path = (
                 source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
-                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                if source.details.get("scientific_artifacts", {}).get("native_paths")
                 else source.unit(*prefix.split("/"))
             )
             save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
 
 def draw_networks(recording, export):
     """Project the executed definitions, including historical pre-bundle evidence."""
-    for model in recording.record["execution"]["configuration"]["models"]:
+    for model in recording.details["execution"]["configuration"]["models"]:
         bundle = lang.Bundle(
             graph=network_definition(recording, model, "graph.json"),
             training=network_definition(recording, model, "training.json"),
@@ -243,7 +243,7 @@ def draw_training_curves(conditions, native_metrics, cfg, export):
 
 
 def render(source, recording, export):
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     results = load_json(source.file("results.json"))
     conditions = results["conditions"]
     sample = load_json(source.file("raster_measurements.json"))
@@ -251,7 +251,7 @@ def render(source, recording, export):
         "full_training": {
             "configuration": cfg,
             "conditions": conditions,
-            **source.record["execution"]["source_measurements"],
+            **source.details["execution"]["source_measurements"],
         },
         "sample_raster": sample,
     }
@@ -267,7 +267,7 @@ def render(source, recording, export):
         for model, populations in recorded_populations(recording).items():
             signals = {pop: spikes[f"{model}_{pop}"] for pop in populations}
             saved_info = (
-                recording.record["execution"].get("recording_info", {}).get(model)
+                recording.details["execution"].get("recording_info", {}).get(model)
             )
             # Historical dense rasters predate native coordinate exports; their
             # contiguous cells and full-window steps are explicit in the source.
@@ -394,20 +394,20 @@ def present(identity):
         stage="analyse",
         experiment=recipe.configuration()["experiment"],
     )
-    ref = source.record["inputs"]["compute"]
+    ref = source.details["inputs"]["compute"]
     recording = source_run(
         REPO / ".pingstore",
         ref["run_id"],
         stage="compute",
-        experiment=source.record["experiment"],
+        experiment=source.details["experiment"],
         reference=ref,
     )
     with stage_run(
         REPO,
-        source.record["experiment"],
+        source.details["experiment"],
         "present",
         inputs={"analysis": source},
-        configuration=source.record["execution"]["configuration"],
+        configuration=source.details["execution"]["configuration"],
     ) as run:
         render(source, recording, run.export)
         recording.check_unchanged()

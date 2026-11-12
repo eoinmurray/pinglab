@@ -42,7 +42,7 @@ def compute(identity, *, run_id=None):
     with inputs.execution(
         REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
     ) as run:
-        run.record["execution"]["environment"] = {
+        run.details["execution"]["environment"] = {
             "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"
         }
         for job in recipe.jobs(cfg):

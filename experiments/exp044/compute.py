@@ -252,7 +252,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
     with inputs.execution(
         REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
     ) as run:
-        run.record["execution"].update(
+        run.details["execution"].update(
             environment={
                 "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
                 **(
@@ -281,7 +281,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
             for cell, checkpoint in zip(
                 contract["cells"], checkpoint_rows, strict=True
             ):
-                run.record["execution"]["trials"].extend(
+                run.details["execution"]["trials"].extend(
                     evaluate_cell(
                         bank.unit(cell["cell_name"]),
                         checkpoint,

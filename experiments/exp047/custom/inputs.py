@@ -23,7 +23,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -34,7 +34,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != recipe.SLUG:
+    if run.details["stage"] != stage or run.details["experiment"] != recipe.SLUG:
         raise PingstoreError(f"{identity} is not an exp047 {stage} run")
     return run
 
@@ -44,7 +44,7 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
     ancestors = {}
     for source_ in sources.values():
         for identity, ancestor in lineage(
-            repo, source_.record["run_id"], source_.reference
+            repo, source_.details["run_id"], source_.reference
         ).items():
             if (
                 identity in ancestors

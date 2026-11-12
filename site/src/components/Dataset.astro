@@ -3,7 +3,6 @@ import { getReports } from '../lib/reports';
 import { getCollection } from 'astro:content';
 import { dependencies, downstream } from '../lib/dependencies';
 import { dataset } from '../lib/pingstore';
-import { evidenceForExperiment } from '../lib/run-index';
 import DatasetRuns from './DatasetRuns.astro';
 
 interface Props { experiment: string; inputs?: string[]; includeEvidence?: boolean; headingId?: string; datasets?: Awaited<ReturnType<typeof dataset>>[]; }
@@ -20,9 +19,8 @@ for (const run of datasets.flatMap(data => data.runs)) {
 const runs = [...runMap.values()].sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
 const upstream = [...new Set([...(dependencies[experiment] ?? []), ...datasets.flatMap(data => data.upstream), ...sourceExperiments.filter(id => id !== experiment)])].sort();
 
-const displayRuns = runs.map(run => ({ ...run, evidence: evidenceForExperiment(run.evidence, experiment) }));
-const currentRuns = displayRuns.filter(run => run.evidence.current.includes(experiment));
-const otherRuns = displayRuns.filter(run => !run.evidence.current.includes(experiment));
+const currentRuns = runs.filter(run => run.used);
+const otherRuns = runs.filter(run => !run.used);
 const dependents = [...new Set([
   ...downstream(experiment),
   ...entries.filter(entry => entry.id !== experiment && entry.data.inputs.includes(experiment)).map(entry => entry.id),
@@ -40,12 +38,12 @@ const experimentUrl = (id: string) => reports.has(id) || titles.has(id) ? `/${id
     <p>Upstream: {upstream.length ? upstream.map((id, index) => <>{index > 0 && ', '}<a href={experimentUrl(id)}>{id}</a> — <a href={experimentUrl(id)}><em>{titles.get(id) ?? id}</em></a></>) : '—'}</p>
     <p>Downstream: {dependents.length ? dependents.map((id, index) => <>{index > 0 && ', '}<a href={experimentUrl(id)}>{id}</a> — <a href={experimentUrl(id)}><em>{titles.get(id) ?? id}</em></a></>) : '—'}</p>
     {currentRuns.length > 0 && <>
-      <h4>Current runset</h4>
-      <DatasetRuns runs={currentRuns} label="Current runset" />
+      <h4>Report dependencies</h4>
+      <DatasetRuns runs={currentRuns} label="Report dependencies" />
     </>}
     {otherRuns.length > 0 && <details open={currentRuns.length === 0}>
       <summary>Other stored runs ({otherRuns.length})</summary>
-      <p>These runs are outside this experiment's current runset. Their evidence status explains why they remain stored.</p>
+      <p>These runs are outside this experiment's current runset. They are kept until explicitly deleted.</p>
       <DatasetRuns runs={otherRuns} label="Other stored runs" />
     </details>}
   </section>

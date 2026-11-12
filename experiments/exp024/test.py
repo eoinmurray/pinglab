@@ -12,14 +12,15 @@ import pytest
 from experiments.exp024 import analyse, present, recipe
 from pingstore import core
 from pingstore.library import (
-    RUN_SCHEMA,
     PingstoreError,
     discover_runs,
     initialize_layout,
     load_json,
+)
+from pingstore.tests.fixtures import (
     payload_digest,
-    validate_run_directory,
-    write_json_atomic,
+    read_details,
+    write_fixture_json,
 )
 
 
@@ -27,9 +28,6 @@ from pingstore.library import (
 def repo(tmp_path, monkeypatch):
     monkeypatch.setattr(analyse, "REPO", tmp_path)
     monkeypatch.setattr(present, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda repo: {"exp022": "demo", "exp024": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -97,12 +95,11 @@ def make_compute(repo, *, mutation=None):
             if mutation:
                 mutation(cfg, metrics)
             cell = directory / "export" / recipe.cell_name(model, seed)
-            write_json_atomic(cell / "config.json", cfg)
-            write_json_atomic(cell / "metrics.json", metrics)
-    write_json_atomic(
-        directory / "run.json",
+            write_fixture_json(cell / "config.json", cfg)
+            write_fixture_json(cell / "metrics.json", metrics)
+    write_fixture_json(
+        directory / "details.json",
         {
-            "schema": RUN_SCHEMA,
             "run_id": identity,
             "experiment": "exp022",
             "collection": "demo",
@@ -119,20 +116,23 @@ def make_compute(repo, *, mutation=None):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def test_analysis_rejects_non_v4_before_reserving(repo):
     identity, directory = make_compute(repo)
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["schema"] = "pingstore.run/v3"
-    write_json_atomic(directory / "run.json", record)
-    before = (directory / "run.json").read_bytes(), payload_digest(directory)
-    with pytest.raises(PingstoreError, match="operational run schema"):
+    write_fixture_json(directory / "details.json", record)
+    before = (directory / "details.json").read_bytes(), payload_digest(directory)
+    with pytest.raises(PingstoreError, match="migrate old records"):
         analyse.analyse(identity)
-    assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
+    assert before == (
+        (directory / "details.json").read_bytes(),
+        payload_digest(directory),
+    )
     assert list((repo / ".pingstore/runs").iterdir()) == [directory]
 
 
@@ -154,12 +154,12 @@ def test_stages_pin_sources_preserve_measurements_and_never_publish(repo):
     assert not (analysis_root / "export/numbers.json").exists()
     presentation_id = present.present(analysis_id)
     output = repo / ".pingstore/runs" / presentation_id
-    record = validate_run_directory(output)
+    record = read_details(output)
     numbers = load_json(output / "export/numbers.json")
     assert numbers["models"] == results["models"]
     assert numbers["cells"] == results["cells"]
     assert record["inputs"]["analysis"]["run_id"] == analysis_id
-    assert record["inputs"]["compute"]["payload_digest"] == before
+    assert record["inputs"]["compute"]["run_id"] == identity
     assert all((output / "export" / name).is_file() for name in recipe.FIGURES)
     assert "validation accuracy" in (output / "export/coba_curves.svg").read_text()
     assert presentation_id not in (output / "export/coba_curves.svg").read_text()
@@ -194,16 +194,14 @@ def test_missing_cell_and_tampered_sources_are_rejected(repo):
     identity, bank = make_compute(repo)
     target = bank / "export/coba__off__seed42/metrics.json"
     target.unlink()
-    with pytest.raises(
-        PingstoreError, match="checksum|scientific unit directories require"
-    ):
+    with pytest.raises((PingstoreError, FileNotFoundError)):
         analyse.analyse(identity)
     resign(bank)
     with pytest.raises((PingstoreError, FileNotFoundError)):
         analyse.analyse(identity)
 
 
-def test_present_rejects_wrong_stage_and_rechecks_compute_pin(repo):
+def test_present_rejects_wrong_stage_and_uses_explicit_compute_identity(repo):
     identity, bank = make_compute(repo)
     with pytest.raises(PingstoreError, match="not a analyse"):
         present.present(identity)
@@ -211,8 +209,7 @@ def test_present_rejects_wrong_stage_and_rechecks_compute_pin(repo):
     cfg = bank / "export/coba__off__seed42/config.json"
     cfg.write_text(cfg.read_text() + "\n")
     resign(bank)
-    with pytest.raises(PingstoreError, match="checksum changed"):
-        present.present(analysis_id)
+    assert present.present(analysis_id).endswith("-present")
 
 
 def test_diagnostics_use_endpoint_secant_absolute_threshold_and_first_crossing():

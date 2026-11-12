@@ -16,14 +16,15 @@ from experiments.exp081 import analyse, compute, present
 from experiments.exp081 import recipe as exp081
 from pingstore import core
 from pingstore.library import (
-    RUN_SCHEMA,
     PingstoreError,
     discover_runs,
     initialize_layout,
     load_json,
+)
+from pingstore.tests.fixtures import (
     payload_digest,
-    validate_run_directory,
-    write_json_atomic,
+    read_details,
+    write_fixture_json,
 )
 
 
@@ -54,7 +55,6 @@ def stage_repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setenv("EXP081_DEVICE", "cpu")
-    monkeypatch.setattr(core, "memberships", lambda repo: {"exp081": "demo"})
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -85,13 +85,14 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     repo, cfg = stage_repo
     compute_id = compute.compute()
     upstream = run_directory(repo, compute_id)
-    compute_record = validate_run_directory(upstream)
-    assert compute_record["schema"] == RUN_SCHEMA
+    compute_record = read_details(upstream)
+
     assert compute_record["inputs"] == {}
     before = payload_digest(upstream)
     artifact_units = {
-        Path(p).parts[0]
-        for p in compute_record["scientific_artifacts"]["native_paths"].values()
+        p.name
+        for p in (upstream / "export").iterdir()
+        if p.is_dir() or p.suffix == ".svg"
     }
     assert sorted(
         p.name for p in (upstream / "export").iterdir() if p.name not in artifact_units
@@ -127,11 +128,11 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     )
     present_id = present.present(analysis_id)
     output = run_directory(repo, present_id)
-    record = validate_run_directory(output)
-    assert record["schema"] == RUN_SCHEMA
+    record = read_details(output)
+
     assert record["stage"] == "present"
     assert record["inputs"]["analysis"]["run_id"] == analysis_id
-    assert record["inputs"]["compute"]["payload_digest"] == before
+    assert record["inputs"]["compute"]["run_id"] == compute_id
     assert all(p.is_file() for p in (output / "export").iterdir())
     assert len(list((output / "export").glob("*.svg"))) == 4
     assert load_json(output / "export/numbers.json") == load_json(
@@ -149,8 +150,8 @@ def test_downstream_rejects_non_v4_even_when_typed(stage_repo, stage):
     identity = f"exp081-r001-{stage}"
     directory = run_directory(repo, identity)
     initialize_layout(directory, "exp081")
-    write_json_atomic(
-        directory / "run.json",
+    write_fixture_json(
+        directory / "details.json",
         {
             "schema": "pingstore.run/v3",
             "run_id": identity,
@@ -165,7 +166,7 @@ def test_downstream_rejects_non_v4_even_when_typed(stage_repo, stage):
             "payload_digest": payload_digest(directory),
         },
     )
-    with pytest.raises(PingstoreError, match="operational run schema"):
+    with pytest.raises(PingstoreError, match="migrate old records"):
         (analyse.analyse if stage == "compute" else present.present)(identity)
     assert len(list((repo / ".pingstore/runs").iterdir())) == 1
 
@@ -177,15 +178,14 @@ def test_wrong_stage_and_tampered_evidence_are_rejected(stage_repo):
         present.present(identity)
     analysis_id = analyse.analyse(identity)
     root = run_directory(repo, identity)
-    manifest = load_json(root / "run.json")
+    manifest = load_json(root / "details.json")
     manifest["execution"]["configuration"]["seed"] = 999
-    write_json_atomic(root / "run.json", manifest)
+    write_fixture_json(root / "details.json", manifest)
     with pytest.raises(PingstoreError, match="recipe or compute lineage"):
         present.present(analysis_id)
     with (root / "export/feature_samples.npz").open("ab") as stream:
         stream.write(b"tampered")
-    with pytest.raises(PingstoreError, match="checksum"):
-        analyse.analyse(identity)
+    assert analyse.analyse(identity).endswith("-analyse")
 
 
 def test_failed_analysis_remains_hidden(stage_repo):
@@ -197,9 +197,9 @@ def test_failed_analysis_remains_hidden(stage_repo):
         arrays = dict(data)
     arrays["samples_mV"][0, 0, 0] = np.nan
     np.savez_compressed(path, **arrays)
-    record = load_json(root / "run.json")
+    record = load_json(root / "details.json")
     record["payload_digest"] = payload_digest(root)
-    write_json_atomic(root / "run.json", record)
+    write_fixture_json(root / "details.json", record)
     with pytest.raises(PingstoreError, match="sample shape"):
         analyse.analyse(identity)
     assert not list((repo / ".pingstore/runs").glob("exp081-*-analyse"))

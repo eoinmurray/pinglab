@@ -23,7 +23,7 @@ def analyse(*, source, mean_field=None, run_id=None):
     computed = source_run(
         REPO / ".pingstore", source, experiment="exp148", stage="compute"
     )
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     audit = load_json(computed.file("simulation/verification.json"))
     if not audit["native_modulation"] or not audit["stored_weights_unchanged"]:
         raise ValueError("simulation failed immutable-weight verification")
@@ -55,7 +55,7 @@ def analyse(*, source, mean_field=None, run_id=None):
         model = source_run(
             REPO / ".pingstore", mean_field, experiment="exp148", stage="compute"
         )
-        if model.record["inputs"].get("spiking") != computed.reference:
+        if model.details["inputs"].get("spiking") != computed.reference:
             raise ValueError("mean-field model uses different spiking evidence")
         inputs["mean_field"] = model
         saved = load_json(model.file("mean-field.json"))
@@ -83,7 +83,7 @@ def analyse(*, source, mean_field=None, run_id=None):
         run_id=run_id,
     ) as run:
         if "hold_dynamics" in numbers:
-            run.record["execution"]["hold_analysis_configuration"] = numbers[
+            run.details["execution"]["hold_analysis_configuration"] = numbers[
                 "hold_dynamics"
             ]["method"]
         write_json_atomic(run.export / "results.json", numbers)

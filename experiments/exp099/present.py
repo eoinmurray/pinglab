@@ -128,7 +128,7 @@ def render_networks(sources, export, scratch):
     compute = sources["compute"]
     bundle = (
         compute.restore_bundle("network.bundle", scratch / "network.bundle")
-        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        if compute.details.get("scientific_artifacts", {}).get("native_paths")
         else compute.unit("network.bundle")
     )
     save_circuit(lang.load_bundle(bundle), export / "network.svg")
@@ -142,19 +142,19 @@ def redraw_networks(presentation, *, run_id=None):
     )
     sources = {
         role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
-        for role, pin in previous.record["inputs"].items()
+        for role, pin in previous.details["inputs"].items()
     }
     with stage_run(
         REPO,
         "exp099",
         "present",
         inputs={**sources, "figure_source": previous},
-        configuration=previous.record["execution"]["configuration"],
+        configuration=previous.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
         render_networks(sources, run.export, run.scratch)
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         previous.check_unchanged()
     return run.run_id
 
@@ -207,7 +207,7 @@ page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False).save(sys.argv[2])
 def resolved(identity):
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    refs = analysis.record["inputs"]
+    refs = analysis.details["inputs"]
     if set(refs) != {"compute"}:
         raise PingstoreError("exp099 analysis must pin one compute input")
     compute = inputs.source(
@@ -245,7 +245,7 @@ def render_outputs(analysis, compute, cfg, results, output, *, scratch, view=Non
     )
     bundle_path = (
         compute.restore_bundle("network.bundle", scratch / "network.bundle")
-        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        if compute.details.get("scientific_artifacts", {}).get("native_paths")
         else compute.unit("network.bundle")
     )
     diagram_metadata = network_diagram(
@@ -292,8 +292,8 @@ def present(identity, *, run_id=None):
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        run.record["execution"]["presentation"] = view
-        run.record["execution"].update(
+        run.details["execution"]["presentation"] = view
+        run.details["execution"].update(
             render_outputs(
                 analysis,
                 compute,

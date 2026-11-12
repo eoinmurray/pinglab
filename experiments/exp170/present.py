@@ -97,11 +97,8 @@ def diagnostic_figure(row, cfg, *, voltage_limits, conductance_limit, private=Fa
 
 def diagnostic_rows(computed, bank, rows, traces):
     """Bind every diagnostic to the same immutable trial as its raster."""
-    pin = traces.record["inputs"]["compute"]
-    if (
-        pin["run_id"] != computed.record["run_id"]
-        or pin["payload_digest"] != computed.record["payload_digest"]
-    ):
+    pin = traces.details["inputs"]["compute"]
+    if pin["run_id"] != computed.details["run_id"]:
         raise ValueError("Membrane traces belong to a different compute run")
     summary = json.loads(traces.file("summary.json").read_text())
     if not summary["original_outputs_exact"] or not summary["frozen_parameters_exact"]:
@@ -199,7 +196,7 @@ def present(identity, *, traces_identity, run_id=None):
     analysis = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="analyse"
     )
-    pin = analysis.record["inputs"]["compute"]
+    pin = analysis.details["inputs"]["compute"]
     computed = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -217,7 +214,7 @@ def present(identity, *, traces_identity, run_id=None):
         phase="membrane-traces",
     )
     cfg = dict(cfg)
-    cfg["threshold_mv"] = traces.record["execution"]["configuration"]["threshold_mv"]
+    cfg["threshold_mv"] = traces.details["execution"]["configuration"]["threshold_mv"]
     rows = diagnostic_rows(computed, bank, rows, traces)
     results["diagnostic_neuron_index"] = rows[0]["neuron_index"]
     voltage_limits = (
@@ -271,7 +268,7 @@ def present(identity, *, traces_identity, run_id=None):
                 reference, run.export / ("reference-circuit." + ext), reference=True
             )
         (run.export / "numbers.json").write_text(json.dumps(results, indent=2) + "\n")
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=perf_counter() - started
         )
         for source in (analysis, computed, bank, traces):

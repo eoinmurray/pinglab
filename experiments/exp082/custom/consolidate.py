@@ -57,12 +57,12 @@ def consolidate(evaluation_identity, showcase_identity, *, run_id=None):
                         )
                     files[str(relative)] = checksum
             mappings[role] = {
-                "source_record": source.record,
+                "source_record": source.details,
                 "source_readme": (source.directory / "README.md").read_text(),
                 "evidence": load_json(source.export / "evidence.json"),
                 "copied_file_sha256": files,
             }
-        run.record["consolidation"] = {
+        run.details["consolidation"] = {
             "schema": "exp082.consolidation/v1",
             "meaning": (
                 "Self-contained byte-preserving consolidation; source identities are "
@@ -71,24 +71,24 @@ def consolidate(evaluation_identity, showcase_identity, *, run_id=None):
             ),
             "sources": mappings,
         }
-        run.record["historical_import"] = {
+        run.details["historical_import"] = {
             "schema": "exp082.consolidation/v1",
             "method": "consolidate-completed-evidence",
             "producer_origin": " and ".join(
-                sorted({evaluation.record["origin"], showcase.record["origin"]})
+                sorted({evaluation.details["origin"], showcase.details["origin"]})
             ),
             "note": "Separate original executions; no single combined scientific wall time.",
             "components": [
                 {
                     "role": role,
-                    "origin": source.record["origin"],
-                    "execution": source.record["execution"],
-                    "provenance": source.record["provenance"],
+                    "origin": source.details["origin"],
+                    "execution": source.details["execution"],
+                    "provenance": source.details["provenance"],
                 }
                 for role, source in (("evaluation", evaluation), ("showcase", showcase))
             ],
         }
-        run.record["showcase_configuration"] = selection["configuration"]
+        run.details["showcase_configuration"] = selection["configuration"]
         write_json_atomic(
             run.export / "evidence.json",
             {**saved, "schema": "exp082.compute/v3", "showcase": selection},
@@ -99,7 +99,7 @@ def consolidate(evaluation_identity, showcase_identity, *, run_id=None):
         showcase.check_unchanged()
         with (run.directory / "README.md").open("a") as history:
             history.write(
-                f"- {run.record['created_at']}: consolidated evaluation `{evaluation_identity}` "
+                f"- {run.details['created_at']}: consolidated evaluation `{evaluation_identity}` "
                 f"and showcase `{showcase_identity}` with unchanged scientific file bytes. "
                 "Original records, histories, evidence summaries and file hashes are retained "
                 "in run.json; both original exports are recoverable from this run. "

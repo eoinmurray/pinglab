@@ -23,7 +23,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -34,7 +34,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+    if run.details["stage"] != stage or run.details["experiment"] != experiment:
         raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
     return run
 
@@ -43,7 +43,7 @@ def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
 def execution(repo, stage, *, sources, run_id=None, configuration=None):
     ancestors = {}
     for run in sources.values():
-        ancestors.update(lineage(repo, run.record["run_id"], run.reference))
+        ancestors.update(lineage(repo, run.details["run_id"], run.reference))
     with stage_run(
         repo,
         recipe.SLUG,
@@ -64,7 +64,7 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
         or cfg.get("schema")
@@ -75,7 +75,7 @@ def configuration(run):
             smoke=cfg["profile"] == "smoke",
             version=int(cfg["schema"].rsplit("v", 1)[1]),
         )
-        or set(run.record["inputs"]) != {"bank"}
+        or set(run.details["inputs"]) != {"bank"}
     ):
         raise PingstoreError("inconsistent exp049 compute recipe or bank input")
     return cfg
@@ -85,7 +85,7 @@ def compute_evidence(repo, run):
     from experiments.exp049.custom import evidence
 
     cfg = configuration(run)
-    pin = run.record["inputs"]["bank"]
+    pin = run.details["inputs"]["bank"]
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
     expected = {
@@ -105,7 +105,9 @@ def paired_evidence(repo, run, compute, bank):
     from experiments.exp049.custom import evidence
 
     cfg = recipe.raster_configuration()
-    if run.record["execution"].get("configuration") != cfg or run.record["inputs"] != {
+    if run.details["execution"].get("configuration") != cfg or run.details[
+        "inputs"
+    ] != {
         "endpoints": compute.reference,
         "bank": bank.reference,
     }:

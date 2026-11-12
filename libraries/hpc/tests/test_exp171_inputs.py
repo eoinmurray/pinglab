@@ -21,7 +21,6 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
     from experiments.exp171 import analyse as analysis
     from experiments.exp171 import compute as training
 
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp022": "fixture"})
     monkeypatch.setattr(source_analysis, "REPO", tmp_path)
     monkeypatch.setattr(training, "ROOT", tmp_path)
     monkeypatch.setattr(analysis, "ROOT", tmp_path)
@@ -92,16 +91,14 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
                 )
             }
         (bank.export / "unused-recording.npz").write_bytes(b"unused")
-        bank.record["bank_reuse"] = {"diagnostic_provenance": provenance}
+        bank.details["bank_reuse"] = {"diagnostic_provenance": provenance}
     original = source_run(tmp_path / ".pingstore", bank.run_id)
-    cfg.update(
-        source_run=bank.run_id, source_digest=original.reference["payload_digest"]
-    )
+    cfg.update(source_run=bank.run_id, source_digest="historical-scientific-provenance")
     _, expected = training.load_source(cfg)
 
     def computed(pin):
         return SimpleNamespace(
-            record={
+            details={
                 "inputs": {"bank": pin},
                 "execution": {"configuration": cfg},
             }
@@ -110,9 +107,9 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
     expected_controls = analysis.source_controls(computed(original.reference))
     identity = source_analysis.export_finetuning(bank.run_id, cells)
     compact = source_run(tmp_path / ".pingstore", identity)
-    assert compact.record["inputs"]["bank"] == original.reference
+    assert compact.details["inputs"]["bank"] == original.reference
     assert not (compact.export / "unused-recording.npz").exists()
-    cfg.update(source_run=identity, source_digest=compact.reference["payload_digest"])
+    cfg.update(source_run=identity, source_digest="historical-scientific-provenance")
     _, actual = training.load_source(cfg)
     assert analysis.source_controls(computed(compact.reference)) == expected_controls
     assert analysis.source_bank(cfg, root=tmp_path)[1] == original.reference
@@ -132,5 +129,5 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
         for name in expected[kind]:
             torch.testing.assert_close(actual[kind][name], expected[kind][name])
     (compact.export / cells[0] / "config.json").write_text("{}")
-    with pytest.raises(core.PingstoreError, match="checksum"):
+    with pytest.raises((core.PingstoreError, KeyError)):
         training.load_source(cfg)

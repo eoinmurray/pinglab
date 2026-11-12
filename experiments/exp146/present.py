@@ -155,7 +155,7 @@ def present(*, source, run_id=None):
     analysed = source_run(
         REPO / ".pingstore", source, experiment="exp146", stage="analyse"
     )
-    ref = analysed.record["inputs"]["compute"]
+    ref = analysed.details["inputs"]["compute"]
     computed = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -163,9 +163,9 @@ def present(*, source, run_id=None):
         stage="compute",
         reference=ref,
     )
-    cfg = analysed.record["execution"]["configuration"]
+    cfg = analysed.details["execution"]["configuration"]
     validate_configuration(cfg)
-    if cfg != computed.record["execution"]["configuration"]:
+    if cfg != computed.details["execution"]["configuration"]:
         raise ValueError("analysis and compute configurations differ")
     numbers = load_json(analysed.file("results.json"))
     if not numbers["independent_euler_passed"]:
@@ -192,7 +192,7 @@ def present(*, source, run_id=None):
         with matplotlib.rc_context({"savefig.bbox": None}):
             for extension in ("svg", "png"):
                 viz.render_diagram(circuit, run.export / f"circuit.{extension}")
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         shutil.copyfile(analysed.file("results.json"), run.export / "numbers.json")
     return run.run_id
 

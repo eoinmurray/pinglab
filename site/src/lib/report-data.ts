@@ -17,7 +17,6 @@ export async function reportData(report: string, { experiment = report, allowUna
     if (allowUnavailable) return undefined;
     throw new Error(`No presentation data for ${report}/${experiment}`);
   }
-  if (!/^exp\d{3}-r\d+-present$/.test(run)) throw new Error(`Invalid presentation ID: ${run}`);
   if (process.env.NODE_ENV !== 'production') return runStore.json(run, 'export/numbers.json');
   if (!payloads.has(run)) {
     payloads.set(run, runStore.json(run, 'export/numbers.json'));

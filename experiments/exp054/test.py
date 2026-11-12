@@ -17,9 +17,8 @@ from pingstore.library import (
     PingstoreError,
     discover_runs,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 
 def recording(cfg):
@@ -48,11 +47,6 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        core,
-        "memberships",
-        lambda _: {"exp054": "test"},
-    )
-    monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
@@ -80,9 +74,9 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(path):
-    manifest = load_json(path / "run.json")
+    manifest = load_json(path / "details.json")
     manifest["payload_digest"] = payload_digest(path)
-    write_json_atomic(path / "run.json", manifest)
+    write_fixture_json(path / "details.json", manifest)
 
 
 @pytest.mark.parametrize("smoke", [False, True])
@@ -130,7 +124,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     root, calls = lab
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    assert len(calls) == 51 and source.record["inputs"] == {}
+    assert len(calls) == 51 and source.details["inputs"] == {}
     assert len(list(source.export.glob("probe--*--rasters.npz"))) == 51
     assert not list((source.directory / "export/evidence").rglob("rasters.npz"))
     original = source.reference
@@ -150,7 +144,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
         lambda *a: pytest.fail("presentation measured rasters"),
     )
     output = inputs.source(root, present.present(analysis_id), "present")
-    assert output.record["inputs"] == {"analysis": analysis.reference}
+    assert output.details["inputs"] == {"analysis": analysis.reference}
     assert all((output.export / name).stat().st_size > 1000 for name in recipe.FIGURES)
     assert all(p.is_file() for p in output.export.iterdir())
     document = load_json(output.export / "numbers.json")
@@ -158,7 +152,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     assert inputs.source(root, identity, "compute").reference == original
     assert not (root / ".artifacts").exists()
     assert [r["id"] for r in discover_runs(root / ".pingstore/runs")] == [
-        output.record["run_id"]
+        output.details["run_id"]
     ]
 
 
@@ -242,7 +236,7 @@ def test_corrupt_inputs_rejected_before_reservation(lab, damage):
     root, _ = lab
     identity = compute.compute()
     path = root / ".pingstore/runs" / identity
-    record = load_json(path / "run.json")
+    record = load_json(path / "details.json")
     if damage == "payload":
         next(path.glob("export/probe--*--rasters.npz")).write_bytes(b"corrupt")
     elif damage == "manifest":
@@ -256,9 +250,9 @@ def test_corrupt_inputs_rejected_before_reservation(lab, damage):
     elif damage == "inventory":
         index = load_json(path / "export/recordings.json")
         index["jobs"].pop()
-        write_json_atomic(path / "export/recordings.json", index)
+        write_fixture_json(path / "export/recordings.json", index)
         record["payload_digest"] = payload_digest(path)
-    write_json_atomic(path / "run.json", record)
+    write_fixture_json(path / "details.json", record)
     with pytest.raises((PingstoreError, ValueError)):
         analyse.analyse(identity)
     assert not list((root / ".pingstore/runs").glob(".exp054-*.tmp"))
@@ -268,10 +262,10 @@ def test_ancestor_metadata_change_does_not_change_payload_identity(lab):
     root, _ = lab
     identity = compute.compute()
     analysis = analyse.analyse(identity)
-    path = root / ".pingstore/runs" / identity / "run.json"
+    path = root / ".pingstore/runs" / identity / "details.json"
     record = load_json(path)
     record["execution"]["note"] = "changed authoritative provenance"
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     assert present.present(analysis).endswith("-present")
 
 
@@ -285,7 +279,7 @@ def test_source_change_during_stage_prevents_completion(lab, monkeypatch):
         path = root / ".pingstore/runs" / identity / "export/recordings.json"
         document = load_json(path)
         document["note"] = "changed during analysis"
-        write_json_atomic(path, document)
+        write_fixture_json(path, document)
         return result
 
     monkeypatch.setattr(measurements, "recordings", changing)
@@ -304,7 +298,7 @@ def test_hpc_requires_prior_reservation(lab, monkeypatch):
         root / ".pingstore", "exp054", "compute", origin="slurm"
     )
     assert compute.compute(run_id=identity) == identity
-    assert inputs.source(root, identity, "compute").record["origin"] == "slurm"
+    assert inputs.source(root, identity, "compute").details["origin"] == "slurm"
 
 
 def test_measured_rates_use_post_burn_full_populations(tmp_path):

@@ -34,8 +34,8 @@ def measure(events, g):
 
 
 def read_evidence(computed):
-    cfg = computed.record["execution"]["configuration"]
-    pin = computed.record["inputs"]["bank"]
+    cfg = computed.details["execution"]["configuration"]
+    pin = computed.details["inputs"]["bank"]
     bank = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -246,7 +246,7 @@ def analyse(identity, *, run_id=None):
         run_id=run_id,
     ) as run:
         (run.export / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=perf_counter() - started
         )
         computed.check_unchanged()

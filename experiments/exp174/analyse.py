@@ -69,7 +69,7 @@ def analyse(identity):
     source = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
     )
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     rows, curves = [], {"time_ms": (np.arange(cfg["steps"]) + 1) * cfg["dt_ms"]}
     reference_ids = reference_labels = None
     for kind, label in zip(recipe.KINDS, recipe.LABELS, strict=True):
@@ -111,7 +111,7 @@ def analyse(identity):
             {
                 "configuration": cfg,
                 "conditions": rows,
-                "timings": {"compute": source.record["execution"]["elapsed_seconds"]},
+                "timings": {"compute": source.details["execution"]["elapsed_seconds"]},
                 "limitations": [
                     f"{cfg['samples']}-image retained test subset, one model seed and one encoding/inhibition draw",
                     "Sustained threshold is retrospective cohort accuracy, not an image-wise online stopping rule",
@@ -121,7 +121,7 @@ def analyse(identity):
                 ],
             },
         )
-        run.record["execution"]["elapsed_seconds"] = time.perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = time.perf_counter() - started
     print(run.run_id, flush=True)
     return run.run_id
 

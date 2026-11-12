@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import torch
 from experiments.exp153 import analyse, compute, present, recipe
+from pingstore.tests.fixtures import write_fixture_json
 from snnlab import lang
 from snnlab import meanfield as mf
 
@@ -251,7 +252,7 @@ def test_compute_preparation_needs_no_upstream_runs(monkeypatch, tmp_path):
             export=export,
             directory=tmp_path,
             run_id="exp153-r999-compute",
-            record={"execution": {}},
+            details={"execution": {}},
         )
 
     def no_source(*args, **kwargs):
@@ -295,7 +296,7 @@ def test_stage_ancestry_rejects_foreign_runs_before_reading(monkeypatch, tmp_pat
         seen.append(identity)
         assert kwargs["experiment"] == recipe.SLUG
         return SimpleNamespace(
-            record={"inputs": {"foreign": {"run_id": "exp000-r001-compute"}}}
+            details={"inputs": {"foreign": {"run_id": "exp000-r001-compute"}}}
         )
 
     monkeypatch.setattr(compute, "source_run", source)
@@ -313,7 +314,6 @@ def test_qualitative_rhythms_need_not_be_gamma(fixture):
 
 
 def test_parallel_conditions_match_serial_native_integration(fixture, tmp_path):
-    from pingstore.library import write_json_atomic
 
     bundle, cfg = fixture
     cfg["duration_ms"] = 3
@@ -328,9 +328,9 @@ def test_parallel_conditions_match_serial_native_integration(fixture, tmp_path):
         execution=dict(configuration=cfg),
         provenance={},
     )
-    write_json_atomic(tmp_path / "run.json", record)
+    write_fixture_json(tmp_path / "details.json", record)
     (tmp_path / ".writer.lock").touch()
-    run = SimpleNamespace(directory=tmp_path, run_id=record["run_id"], record=record)
+    run = SimpleNamespace(directory=tmp_path, run_id=record["run_id"], details=record)
     items = [
         dict(
             id=f"cpu-{i}",
@@ -347,7 +347,7 @@ def test_parallel_conditions_match_serial_native_integration(fixture, tmp_path):
         arguments=(cfg,),
         inventory=compute.condition_inventory,
     )
-    assert len(workers) == len(run.record["execution"]["workers"]) == 2
+    assert len(workers) == len(run.details["execution"]["workers"]) == 2
     serial = compute.integrate(recipe.build_model(bundle, cfg), cfg)
     for item in items:
         _, state = analyse.read_trajectory(
@@ -549,7 +549,6 @@ def test_feedback_tuning_is_authored_before_initialization():
 
 
 def test_figure_two_preview_uses_pinned_rates_without_a_map(monkeypatch, tmp_path):
-    from pingstore.library import write_json_atomic
 
     cfg = recipe.configuration(onset_only=True, tau_rate_e_ms=10, sensory_gain=4.6)
     time = np.arange(0, 1500.5, 0.5)
@@ -560,19 +559,19 @@ def test_figure_two_preview_uses_pinned_rates_without_a_map(monkeypatch, tmp_pat
     }
     onset, trace, rates = analyse.diagnostic(time, state, cfg)
     analysis_cfg = recipe.analysis_configuration(cfg)
-    write_json_atomic(
+    write_fixture_json(
         tmp_path / "results.json", dict(configuration=analysis_cfg, onset=onset)
     )
-    write_json_atomic(tmp_path / "onset-phase.json", trace)
+    write_fixture_json(tmp_path / "onset-phase.json", trace)
     np.savez_compressed(tmp_path / "onset-rates.npz", **rates)
     verified = []
     computed = SimpleNamespace(
-        record=dict(execution=dict(configuration=cfg)),
+        details=dict(execution=dict(configuration=cfg)),
         reference=dict(run_id="exp153-r900-compute", payload_digest="compute-pin"),
         check_unchanged=lambda: verified.append("compute"),
     )
     analysed = SimpleNamespace(
-        record=dict(
+        details=dict(
             stage="analyse",
             execution=dict(configuration=analysis_cfg),
             inputs=dict(compute=dict(run_id="exp153-r900-compute")),

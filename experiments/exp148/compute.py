@@ -132,10 +132,10 @@ def compute(
     )
     torch.set_num_threads(cfg["torch_threads"])
     with stage_run(REPO, "exp148", "compute", configuration=cfg, run_id=run_id) as run:
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"simulation": ["start"]}
         )
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         print("Starting simulation", flush=True)
         execute(cfg, run.export / "simulation", diagram=True)
         print("Completed simulation", flush=True)
@@ -148,7 +148,7 @@ def compute_mean_field(source, *, run_id=None):
     spiking = source_run(
         REPO / ".pingstore", source, experiment="exp148", stage="compute"
     )
-    net = spiking.record["execution"]["configuration"]
+    net = spiking.details["execution"]["configuration"]
     snapshot = load_json(spiking.file("simulation/start/snapshot.json"))
     with np.load(spiking.file("simulation/start/parameters.npz")) as saved:
         sums = {
@@ -228,10 +228,10 @@ def compute_mean_field(source, *, run_id=None):
             time_ms=solution.time_ms,
             state=np.array(list(solution.state.values())).T,
         )
-        run.record["execution"]["backend"] = (
+        run.details["execution"]["backend"] = (
             "snnlab.meanfield four-state rate-conductance ODE"
         )
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         spiking.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id

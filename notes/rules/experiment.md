@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment scope, layout, configuration and native evidence.
 created_at: "2026-10-14"
-updated_at: "2026-11-04T12:29:22Z"
+updated_at: "2026-11-12T20:22:47Z"
 ---
 
 # Experiment Rules
@@ -18,7 +18,7 @@ updated_at: "2026-11-04T12:29:22Z"
    diagram edits do not authorize execution. Existing authorization remains valid
    within scope; ask before expanding it. Compilation for diagrams is allowed.
 2. Perform only requested stages. Compute → analyse → present → validate → back up
-   → publish → prune describes order, not automatic follow-up work.
+   → publish → delete describes order, not automatic follow-up work.
 3. Inspect source and diff for prose-only edits. For executable changes, use focused
    checks; broaden them when failures or scope justify it. Checks that simulate
    still require execution authorization. State when no simulation was run.

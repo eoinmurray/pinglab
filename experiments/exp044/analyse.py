@@ -45,7 +45,7 @@ def summarize(rows: list[dict], dts: list[float]) -> list[dict]:
 def analyse(identity: str, *, run_id: str | None = None) -> str:
     compute = inputs.source(REPO, identity, "compute")
     cfg = inputs.configuration(compute)
-    ref = compute.record["inputs"]["bank"]
+    ref = compute.details["inputs"]["bank"]
     bank = inputs.source(
         REPO, ref["run_id"], "compute", experiment="exp022", reference=ref
     )

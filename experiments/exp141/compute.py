@@ -83,7 +83,7 @@ def compute(*, run_id=None):
     ) as run:
         # Both models use the same split; downstream needs only the diagnostic image.
         digits = dataset.prepare(run.scratch / "dataset.npz", cfg)
-        run.record["execution"].update(
+        run.details["execution"].update(
             dataset={
                 **digits.provenance,
                 **{f"{split}_samples": count for split, count in digits.counts.items()},
@@ -99,7 +99,7 @@ def compute(*, run_id=None):
             sample=dict(
                 index=cfg["sample_index"],
                 label=int(partition.labels[sample_row]),
-                partition=run.record["execution"]["dataset"]["sample_partition"],
+                partition=run.details["execution"]["dataset"]["sample_partition"],
                 checkpoint="validation_selected",
             ),
             models={},
@@ -107,7 +107,7 @@ def compute(*, run_id=None):
         )
         # Explicit retention permits single end snapshots without weakening the
         # default start/end-pair check for other scientific executions.
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={
                 f"{mode}/{weights}": [stage]
                 for mode in cfg["models"]

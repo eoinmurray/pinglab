@@ -199,7 +199,7 @@ def analyse(source, *, run_id=None):
         experiment=cfg["experiment"],
     )
     # Reject histories from another recipe instead of silently mixing settings.
-    if upstream.record["execution"]["configuration"] != cfg:
+    if upstream.details["execution"]["configuration"] != cfg:
         raise ValueError("compute configuration differs from this recipe")
     results = load_json(upstream.file("results.json"))
     if results["schema"] != "exp141.results/v2":
@@ -226,7 +226,7 @@ def analyse(source, *, run_id=None):
         sample["index"] != cfg["sample_index"]
         or not 0 <= sample["label"] < cfg["n_classes"]
         or sample["partition"]
-        != upstream.record["execution"]["dataset"]["sample_partition"]
+        != upstream.details["execution"]["dataset"]["sample_partition"]
         or sample["checkpoint"] != "validation_selected"
     ):
         raise ValueError("invalid diagnostic sample metadata")
@@ -238,7 +238,7 @@ def analyse(source, *, run_id=None):
         rasters.update({f"{mode}--{name}": values for name, values in spikes.items()})
         training[mode] = results["models"][mode]["training"]
         history = training_history(
-            training[mode], cfg, upstream.record["execution"]["dataset"]
+            training[mode], cfg, upstream.details["execution"]["dataset"]
         )
         test_metrics[mode] = training[mode]["test"]
         sample["modes"][mode]["epoch"] = history.test.epoch
@@ -277,7 +277,7 @@ def analyse(source, *, run_id=None):
                 recording_info=results["recording_info"],
                 test=test_metrics,
                 sample=sample,
-                dataset=upstream.record["execution"]["dataset"],
+                dataset=upstream.details["execution"]["dataset"],
                 parameters={
                     mode: parameter_rows(upstream, mode) for mode in cfg["models"]
                 },

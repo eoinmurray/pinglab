@@ -1,9 +1,7 @@
 # Pinglab Astro publishing
 
-The reporting resolver also requires Python 3.10+ and PyYAML. A normal
-`uv sync --dev` supplies them. The site uses `.venv/bin/python` when available,
-otherwise `python3`; `PINGLAB_PYTHON` can select an explicit interpreter.
-Pages installs the resolver/S3 dependencies and rclone without installing scientific packages.
+Astro reads simple Pingstore metadata directly in TypeScript. Local rendering
+needs no Python interpreter, R2 access, or storage validation process.
 
 Run the site with Bun from `site/`:
 
@@ -28,14 +26,6 @@ targeted HTML reloads and other hot updates still pass through immediately.
 Each HTML request refreshes MDX bindings and their importers only in the SSR and
 prerender evaluated-module caches. Compiled server and browser modules stay cached;
 source edits still use normal Vite invalidation and HMR.
-
-Disposable catalog snapshots live under
-`node_modules/.cache/pinglab/catalogs/`, outside Astro's watched directories.
-They are validated and revalidated with the remote origin after a restart.
-Writing them under `.astro/` can create a feedback loop after a rendering or
-CSS-loading error: the cache write triggers error-recovery reloads, which render
-and write the cache again. Moving the cache breaks that loop while keeping
-ordinary source-edit recovery active.
 
 Development also records refresh diagnostics automatically. After an unexpected
 reload, run `bun run debug:refresh` from `site/` to print the latest 200 events,
@@ -101,7 +91,7 @@ The earlier published HTML is separately labelled at
 `public/recovered/exp124/`. It is an archive, not a recovered Pingstore run;
 its historical Dataset inventory is not a current local inventory.
 
-Development run assets use the exact local presentation when available, otherwise the verified R2 catalog;
+Development reads local runs by default. Explicit `auto` or `remote` mode enables R2 reads;
 they do not scan every article's runs. Missing assets return HTTP 404. During a
 static build, unavailable run exports are logged and skipped in asset enumeration,
 while data or figure errors fail the build. Shared article
@@ -124,17 +114,10 @@ as the article lists. Titles, descriptions, article IDs, and collection names
 are searchable. Experiment numbers also work without the `exp` prefix, with or
 without leading zeros (for example, `082` or `82`). New content appears
 automatically on the next content sync/build.
-The unlisted `/pingstore` page is available as Pingstore in the command palette,
-but has no homepage or sidebar entry. It shows the shared Dataset table for each
-experiment in the normal report appendix layout, newest experiment first,
-preserving core’s evidence classifications and retention reasons. The report body contains only a title
-and a short introduction, deduplicated Current/Required/Unresolved counts, and the
-all-run eviction dry-run/confirmation commands. Unresolved holdings are never
-classified as unused.
-Experiments without a selected presentation show any completed available history.
-The page requests search-engine exclusion with `noindex`. It is publicly
-accessible by URL; it is not access-controlled. Missing selected evidence is
-shown as unavailable for that experiment without blocking the other tables.
+The unlisted `/pingstore` page shows runs grouped by experiment, selected
+presentation dependency trees, storage, duration and size. Its report-use count
+reflects the current site snapshot, not deployment retention. It is public by URL
+and marked `noindex`.
 
 Individual papers appear in a Papers group with titles and authors, linking
 to publisher/repository sources in production and local PDFs in development. Paper titles, authors, permanent IDs, filenames, years,
@@ -526,109 +509,37 @@ unavailable; malformed records, mismatched pins and broken declared files fail.
 There is no fallback to another run, current recipe defaults or old table rows.
 
 
-The shared TypeScript run reader uses the public `pingstore/catalog.json` on
-`https://assets.eoinmurray.info`. The catalog embeds completed run records, exact
-input pins, and per-file sizes and SHA-256 checksums. JSON and media are fetched
-on demand and verified; full scientific arrays are not restored for rendering.
-Development uses local copies when present and otherwise reads R2. A
-report uses its latest local presentation if any, otherwise the latest remote
-presentation. Core owns this policy and validates digest-matched ancestry. The
-TypeScript readers consume `pingstore.index/v1` through `pingstore status --json`.
-Selections freeze per production build or development request. On localhost, a
-reload refreshes MDX module bindings, numbers, figures, snapshots and inventory
-together, without restarting the server. An existing but broken local run
-fails rather than being silently replaced by R2.
+The shared reader in `src/lib/run-store.ts` reads local metadata and requested
+files directly. `run.json` holds identity, experiment, optional stage, creation time,
+description, dependency IDs and small metadata. Scientific details live in ordinary
+files such as `details.json`. There is no Python subprocess or global payload scan.
 
-Development reloads revalidate the catalog with HTTP ETags, so unchanged catalogs
-do not download another 7 MB. A disposable checksummed catalog cache in
-`site/.astro/` survives server restarts, but must receive an R2 revalidation before
-use; changed responses still pass full catalog validation. Catalog and publication
-metadata requests run concurrently. Local reporting checks every entry's filesystem
-fingerprint on each request and reuses layout validation only when its version,
-record and complete fingerprint match. Changes still invalidate cached evidence;
-this does not relax ancestry, byte-verification or publication checks.
+Reports automatically select the newest `stage: "present"` run by `created_at`,
+then run ID. One selection is shared per development request or production build.
+Missing presentation data is unavailable; invalid selected evidence fails rather
+than falling back to older results. Named branches resolve parameter snapshots
+without assuming one compute/analyse/present triplet. Historical flattened native
+paths remain readable; new runs retain their authored file paths.
 
-Production publication builds use local evidence and freeze selection reads for
-the build. Use `bun run build:remote` for the separate remote-only validation
-required before eviction. In development, set `PINGLAB_RUN_SOURCE=remote` to
-test without local evidence, `auto` for the union, or `local` for offline reads. Set
-`PINGLAB_RUNS_ROOT` to override the local runs directory and
-`PINGLAB_ASSET_BASE_URL` to use another catalog/asset origin. Empty origin is
-supported only in local mode. Browser animation JSON uses public GET/HEAD CORS.
-Production publication bundles figures, videos and animation JSON on Pages.
-Remote-only validation still checks direct R2 assets. Local development routes
-serve local exports, proxy verified remote animation JSON, and redirect remote images/video to R2.
+Local reads are the default and make no network calls. Set `PINGLAB_RUN_SOURCE=remote`
+for explicit R2 reads or `auto` to combine local and remote metadata. Existing local
+runs remain authoritative. `PINGLAB_RUNS_ROOT` overrides the local runs directory;
+`PINGLAB_ASSET_BASE` overrides the public R2 asset origin. Remote metadata comes from
+`/pingstore-v2/index.json`, a rebuildable backup inventory, and files from
+`/pingstore-v2/runs/<id>/...`. Backup completion is not a read-back audit.
 
-`RunFigure` and `PublishedFigure` resolve a figure by its filename stem within
-the selected presentation: prefer `.svg`, then fall back to `.png`, regardless
-of which extension the article supplies. Clicking a linked figure opens that
-same resolved image in a near-fullscreen overlay with a translucent dark
-backdrop. Click again anywhere or press Escape to close it and return focus
-to the figure. Modified clicks retain the raw-image link behaviour.
-If neither exists, rendering fails; video filenames are used unchanged. Older
-PNG-only runs therefore remain usable when new presentations emit SVG.
-
-Native MDX bindings read the selected JSON through `src/lib/report-data.ts`,
-using the same frozen presentation selection as the figures. Bound
-numbers and complex-table values update during rendering when selections change.
-Authored calculations use ordinary JavaScript. Missing values or nonfinite results fail
-rather than becoming fabricated numbers. A data report whose declared input has
-no completed runset in the selected source shows an explicit Evidence unavailable
-page before evaluating its MDX bindings or appendix. Its Dataset table still
-explains the available inventory. If a presentation exists, missing or invalid
-fields still fail. Existing direct MDX calculations remain active when evidence
-is available. Authored literal numbers and interpretations remain authored;
-changing the dataset does not automatically rewrite scientific conclusions.
-
-Dataset footers and `/pingstore` use core's shared evidence classifications.
-The main Dataset table shows only the displayed experiment's current runset.
-Other stored runs remain available in an expandable section with their retention
-reasons; inputs current only in another experiment are labelled Required here.
-Runsets contain the presentation and its same-experiment analysis and compute
-branches. Links to previous presentations, parameter sources and earlier attempts
-are provenance rather than runset dependencies. Shading and the Report use column
-identify local report use and the recorded active GitHub Pages deployment;
-pending deployments and storage protections do not imply report use.
-Current identifies runsets selected by local report declarations; Required
-names other retention consumers. Historical holdings remain
-Unresolved while active and incoming deployment evidence is unknown. Storage is
-Local, R2 or Both, independently of Ran on. Verification distinguishes cached
-local byte validation, metadata-only local validation, and verified R2 catalog evidence. An R2 outage stays
-explicitly unresolved. Local validation caches are derived sidecars outside runs;
-changed file metadata makes evidence unresolved until `pingstore status --verify`
-authenticates it. Page rendering never hashes scientific arrays. Deleting caches
-returns local verification to metadata-only.
-Text-only dependent articles retain dependency
-links without inventing unavailable data.
-
-Experiment reports select the latest completed presentation. Their
-appendices read original native snapshots and recorded configurations; historical
-runs without snapshots show unavailable model values. Analytical and history-only
-studies identify their different evidence requirements. No current recipe defaults
-or copied parameter tables replace missing execution evidence.
-
-Each report declares its scientific `inputs` in frontmatter. Python execution
-reads its `collection` there. Pruning derives global report usage from the
-latest completed presentations for declared inputs and their complete ancestry, including
-cross-experiment dependencies. Unified `prune --storage` defaults to both stores
-and retains current runsets, manual protection, unfinished work, shared inputs and
-active/incoming deployment evidence. Status does not authorize deletion; each
-cleanup requires its inspected, unchanged plan hash.
-See [Pingstore Rules](../notes/rules/pingstore.md) for the hash-bound dry-run
-and confirmation workflow. Neither operation depends on historical `writings/`.
+Figures prefer SVG, then PNG. Animation JSON, images and video use the selected run.
+Bound values come from recorded data; missing or nonfinite values fail explicitly.
+Dataset tables show report dependencies and other stored runs without retention or
+verification classifications. Run sizes use cached insertion/migration statistics;
+an absent size cache shows unknown rather than scanning payloads during rendering.
 
 ## Publication
 
-Follow [Publishing Rules](../notes/rules/publishing.md) for local builds, asset
-bundling, `gh-pages` deployment, evidence manifests and publication retention.
-That document owns the publishing rules and procedure.
-
-```sh
-cd site
-bun run publish
-```
-
-Use `bun run build` without pushing, `bun run preview --port 3001` to preview the
-output, and `bun run build:remote` for separate remote-only validation before
-eviction. Scientific storage operations follow
-[Pingstore Rules](../notes/rules/pingstore.md).
+Follow [Publishing Rules](../notes/rules/publishing.md). `bun run build` freezes the
+local metadata selection and bundles referenced assets. `bun run publish` builds,
+then pushes a separate temporary checkout to `gh-pages`. GitHub Pages deploys the
+prebuilt artifact without Python, R2 credentials or storage coordination. The small
+`/pingstore-evidence.json` documents selected IDs but has no deletion authority.
+Use `bun run preview --port 3001` to preview the output. Remote-only builds are
+optional checks rather than a prerequisite for deleting local data.

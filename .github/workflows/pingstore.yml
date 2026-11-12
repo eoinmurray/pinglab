@@ -1,0 +1,27 @@
+name: Pingstore contracts
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install standalone storage package and test runner
+        run: python -m pip install ./libraries/pingstore pytest
+      - name: Verify standalone import
+        run: python -I -c 'from pingstore.library import Store'
+      - name: Storage, backup and migration contracts
+        run: python -m pytest -q libraries/pingstore/tests -o addopts=
+        env:
+          PYTHONPATH: libraries
+      - name: Direct TypeScript reader contracts
+        run: node --experimental-strip-types --test site/src/lib/run-store.test.ts

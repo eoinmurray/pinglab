@@ -94,23 +94,23 @@ def compute(*, run_id=None):
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {"simulation": ["start"]}
         }
         bundle = recipe.author_network(cfg)
         bundle.visualise(run.export / "network.svg", view="circuit")
         simulation_start = perf_counter()
         bundle, recording, weights = simulate(
-            cfg, artifacts=run.export / "simulation", execution=run.record["execution"]
+            cfg, artifacts=run.export / "simulation", execution=run.details["execution"]
         )
         simulation_seconds = perf_counter() - simulation_start
-        run.record["execution"]["simulation_seconds"] = simulation_seconds
+        run.details["execution"]["simulation_seconds"] = simulation_seconds
         print(f"Simulation wall time: {simulation_seconds:.3f} s", flush=True)
         bundle.write(run.export / "network.bundle", visualise=False)
         np.savez_compressed(run.export / "recording.npz", **recording)
         np.savez_compressed(run.export / "weights.npz", **weights)
-        run.record["execution"]["executor"] = "snnsim.GraphExecutor"
-        run.record["execution"]["parameter_binding"] = (
+        run.details["execution"]["executor"] = "snnsim.GraphExecutor"
+        run.details["execution"]["parameter_binding"] = (
             "weights.npz contains all actual execution matrices; diagonal external projections replace zero placeholders in network.bundle"
         )
     return run.run_id

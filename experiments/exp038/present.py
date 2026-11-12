@@ -175,7 +175,7 @@ def format_duration(seconds: float) -> str:
 def present(identity, *, run_id=None):
 
     source = inputs.source(REPO, identity, "analyse")
-    refs = source.record["inputs"]
+    refs = source.details["inputs"]
     if set(refs) != {"compute", "bank"}:
         raise PingstoreError("analysis must pin compute and bank")
     compute = inputs.source(
@@ -188,7 +188,7 @@ def present(identity, *, run_id=None):
         or result.get("schema") != "exp038.analysis/v1"
         or result.get("recipe") != cfg
         or result.get("measurement") != MEASUREMENT
-        or source.record["execution"].get("configuration") != MEASUREMENT
+        or source.details["execution"].get("configuration") != MEASUREMENT
         or result.get("checkpoint_policy") != recipe.CHECKPOINT_POLICY
         or result.get("checkpoint_provenance") != contract["checkpoints"]
     ):
@@ -252,7 +252,7 @@ def present(identity, *, run_id=None):
                 "run_id": rid,
                 "duration_s": duration,
                 "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )

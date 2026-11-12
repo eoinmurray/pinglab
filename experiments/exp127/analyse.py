@@ -91,7 +91,7 @@ def _measure_training_trace(*, source, cfg):
 
 def analyse(identity):
     source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     if cfg.get("schema") != "exp127.learning/v1":
         raise ValueError("unsupported recorded learning protocol")
     learning = load_json(source.file("learning.json"))
@@ -156,7 +156,7 @@ def analyse(identity):
         REPO, SLUG, "analyse", inputs={"compute": source}, configuration=cfg
     ) as run:
         write_json_atomic(run.export / "numbers.json", numbers)
-        run.record["execution"]["source_measurements"] = source.record["execution"][
+        run.details["execution"]["source_measurements"] = source.details["execution"][
             "versions"
         ]
     print(run.run_id)

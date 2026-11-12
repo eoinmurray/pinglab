@@ -168,17 +168,17 @@ def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
 def present(identity, *, run_id=None):
 
     analysis = inputs.source(REPO, identity, "analyse")
-    if set(analysis.record["inputs"]) != {"compute", "bank"}:
+    if set(analysis.details["inputs"]) != {"compute", "bank"}:
         raise PingstoreError("exp042 analysis must pin compute and bank")
-    ref = analysis.record["inputs"]["compute"]
+    ref = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, ref["run_id"], "compute", reference=ref)
     cfg = inputs.configuration(compute)
     data = load_json(analysis.export / "results.json")
     if (
-        compute.record["inputs"]["bank"] != analysis.record["inputs"]["bank"]
+        compute.details["inputs"]["bank"] != analysis.details["inputs"]["bank"]
         or data.get("schema") != "exp042.analysis/v4"
         or data.get("recipe") != cfg
-        or data.get("measurement") != analysis.record["execution"]["configuration"]
+        or data.get("measurement") != analysis.details["execution"]["configuration"]
     ):
         raise PingstoreError("inconsistent exp042 analysis lineage or payload")
     samples = {}
@@ -208,7 +208,7 @@ def present(identity, *, run_id=None):
             run.export / "numbers.json",
             {**data, "run_id": run.run_id, "circuit_files": copy_circuits(run)},
         )
-        run.record["presentation_lineage"] = {
+        run.details["presentation_lineage"] = {
             "analysis": analysis.reference,
             "operation": "render saved summaries and illustrative spikes",
         }

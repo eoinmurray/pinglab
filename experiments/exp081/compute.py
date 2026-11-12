@@ -92,7 +92,7 @@ def compute(*, run_id: str | None = None) -> str:
             "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
             "EXP081_DEVICE": str(torch_device()),
         }
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         rates, probes = np.meshgrid(cfg["input_rate_grid_hz"], cfg["probes_uS"])
         with external_execution(
             run.export / "moment-simulation",

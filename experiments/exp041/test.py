@@ -13,6 +13,7 @@ import pytest
 from experiments.exp041 import analyse, compute, present, recipe
 from experiments.exp041.custom import evidence, inputs
 from experiments.exp041.recipe import refractory_configuration
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 
 def _common_config() -> dict:
@@ -82,8 +83,6 @@ from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -91,9 +90,6 @@ from pingstore.library import (
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp041": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -115,7 +111,7 @@ def lab(tmp_path, monkeypatch):
                     "n_inh": 2,
                     "hidden_sizes": [4],
                 }
-                write_json_atomic(cell / "config.json", cfg)
+                write_fixture_json(cell / "config.json", cfg)
                 checkpoints = {}
                 for role, filename in (
                     ("final_epoch", "weights_final.pth"),
@@ -128,7 +124,7 @@ def lab(tmp_path, monkeypatch):
                         "epoch": recipe.EPOCHS,
                         "sha256": file_sha256(path),
                     }
-                write_json_atomic(
+                write_fixture_json(
                     cell / "metrics.json",
                     {
                         "config": cfg,
@@ -152,7 +148,7 @@ def lab(tmp_path, monkeypatch):
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(attachments / "request.json", request)
+        write_fixture_json(attachments / "request.json", request)
         cfg = training
         if request["input"] == "snapshot":
             steps = round(cfg["t_ms"] / cfg["dt"])
@@ -164,7 +160,7 @@ def lab(tmp_path, monkeypatch):
             )
         else:
             samples = request["samples"]
-            write_json_atomic(
+            write_fixture_json(
                 out / "metrics.json",
                 {
                     "config": {
@@ -193,9 +189,9 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def test_ancestor_metadata_amendment_during_stage_is_allowed(lab):
@@ -204,20 +200,20 @@ def test_ancestor_metadata_amendment_during_stage_is_allowed(lab):
     compute_id = compute.compute(bank_id)
     source = inputs.source(root, compute_id, "compute")
     with inputs.execution(root, "analyse", sources={"compute": source}) as run:
-        record = load_json(bank.directory / "run.json")
+        record = load_json(bank.directory / "details.json")
         record["execution"]["changed"] = True
-        write_json_atomic(bank.directory / "run.json", record)
-        write_json_atomic(run.export / "fixture.json", {})
+        write_fixture_json(bank.directory / "details.json", record)
+        write_fixture_json(run.export / "fixture.json", {})
     assert (root / ".pingstore/runs" / run.run_id).is_dir()
 
 
 def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
     root, bank_id, calls = lab
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     r = load_json(path)
     r["schema"] = "pingstore.run/v2"
-    write_json_atomic(path, r)
-    with pytest.raises(PingstoreError, match="pingstore.run/v4"):
+    write_fixture_json(path, r)
+    with pytest.raises(PingstoreError, match="migrate old records"):
         compute.compute(bank_id)
     assert calls == []
 
@@ -225,10 +221,10 @@ def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
 def test_changed_authoritative_ancestor_metadata_is_allowed(lab):
     root, bank_id, _ = lab
     compute_id = compute.compute(bank_id)
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     r = load_json(path)
     r["execution"]["note"] = "manifest-only change"
-    write_json_atomic(path, r)
+    write_fixture_json(path, r)
     assert analyse.analyse(compute_id).endswith("-analyse")
 
 
@@ -258,7 +254,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         path = bank.export / recipe.cell_name(4.5, 42) / "metrics.json"
         r = load_json(path)
         r["epochs"].pop()
-        write_json_atomic(path, r)
+        write_fixture_json(path, r)
         resign(bank.directory)
         with pytest.raises(PingstoreError, match="incomplete training history"):
             compute.compute(bank_id)
@@ -274,7 +270,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         r["n_total"] = 0
     else:
         r["rates_hz"]["hid"] = float("nan")
-    write_json_atomic(path, r)
+    write_fixture_json(path, r)
     resign(output.directory)
     with pytest.raises(PingstoreError):
         analyse.analyse(compute_id)
@@ -291,7 +287,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     assert len(calls) == 24
     assert sum(request["input"] == "snapshot" for request in calls) == 6
     output = inputs.source(root, compute_id, "compute")
-    assert output.record["inputs"] == {"bank": before}
+    assert output.details["inputs"] == {"bank": before}
     assert len(list(output.export.glob("infer--*/pop_traces.npz"))) == 18
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
@@ -331,7 +327,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     )
     present_id = present.present(analysis_id)
     presentation = inputs.source(root, present_id, "present")
-    assert presentation.record["inputs"] == {"analysis": analysis_run.reference}
+    assert presentation.details["inputs"] == {"analysis": analysis_run.reference}
     assert all((presentation.export / name).is_file() for name in recipe.FIGURES)
     assert all(p.is_file() for p in presentation.export.iterdir())
     numbers = load_json(presentation.export / "numbers.json")
@@ -412,7 +408,7 @@ def test_corrupt_scientific_evidence_fails_closed(lab, damage):
         path = directory / "metrics.json"
         data = load_json(path)
         data["config"]["tau_gaba_ms"] = 99
-        write_json_atomic(path, data)
+        write_fixture_json(path, data)
     elif damage == "snapshot_shape":
         path = run.file("snapshot", recipe.cell_name(4.5, 42), "recording.npz")
         np.savez_compressed(
@@ -431,7 +427,7 @@ def test_corrupt_scientific_evidence_fails_closed(lab, damage):
         if damage == "flat_spectrum":
             arrays["pop_e"][:] = 0
         np.savez_compressed(path, **arrays)
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(PingstoreError):
         analyse.analyse(identity)
     resign(run.directory)
     with pytest.raises(PingstoreError):
@@ -442,7 +438,7 @@ def test_corrupt_scientific_evidence_fails_closed(lab, damage):
 
 def test_strict_lineage_does_not_ignore_missing_historical_input(lab):
     root, bank_id, calls = lab
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     record = load_json(path)
     record["inputs"] = {
         "missing": {
@@ -450,7 +446,7 @@ def test_strict_lineage_does_not_ignore_missing_historical_input(lab):
             "payload_digest": "sha256:" + "0" * 64,
         }
     }
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     with pytest.raises((PingstoreError, FileNotFoundError)):
         compute.compute(bank_id)
     assert not calls

@@ -232,11 +232,13 @@ def compute(*, run_id=None, **overrides):
         error = run_ros(args)
         # Completed acquisition may contain a failed behaviour/timing verdict.
         # Preserve it for independent analysis instead of losing the diagnostics.
-        run.record["execution"]["acquisition_error"] = error
+        run.details["execution"]["acquisition_error"] = error
         snapshots = {}
         for path in run.export.rglob("snapshot.json"):
             snapshots[path.parent.parent.relative_to(run.export).as_posix()] = ["start"]
-        run.record.setdefault("scientific_artifacts", {})["snapshot_stages"] = snapshots
+        run.details.setdefault("scientific_artifacts", {})["snapshot_stages"] = (
+            snapshots
+        )
     return run.run_id
 
 

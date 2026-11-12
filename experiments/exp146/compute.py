@@ -26,10 +26,10 @@ def compute(*, run_id=None):
     bundle = recipe.author_network(cfg)
     drive = recipe.current_waveform(cfg)
     with stage_run(REPO, "exp146", "compute", configuration=cfg, run_id=run_id) as run:
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"simulation": ["start"]}
         )
-        run.record["execution"].update(
+        run.details["execution"].update(
             snnlab_version=version("snnlab"), device=cfg["device"], dtype=cfg["dtype"]
         )
         bundle.write(run.export / "simulation" / "network.bundle", visualise=False)

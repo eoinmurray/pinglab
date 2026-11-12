@@ -59,8 +59,8 @@ def compute(args):
     with stage_run(
         REPO, "exp145", "compute", configuration=cfg, run_id=args.run_id
     ) as run:
-        run.record["execution"]["snnlab_version"] = version("snnlab")
-        run.record["scientific_artifacts"] = dict(
+        run.details["execution"]["snnlab_version"] = version("snnlab")
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"simulation": ["start"]}
         )
         np.savez_compressed(

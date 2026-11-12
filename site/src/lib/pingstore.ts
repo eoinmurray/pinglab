@@ -13,7 +13,7 @@ async function findLatestPresentation(experiment: string): Promise<Presentation 
   const id = await runStore.latest(experiment);
   if (!id) return undefined;
   const record = await runStore.json(id);
-  return { id, completedAt: Date.parse(record.execution.completed_at) };
+  return { id, completedAt: Date.parse(record.created_at) };
 }
 
 // Freeze builds; development shares the current request’s core selection.
@@ -63,47 +63,16 @@ export async function presentationJson(experiment: string, filename: string) {
   return runStore.json(run.id, `export/${filename}`);
 }
 
-interface RunRecord {
-  experiment: string;
-  stage: string;
-  origin: string;
-  created_at: string;
-  inputs: Record<string, { run_id: string }>;
-  execution: { started_at: string; completed_at: string; operation?: string };
-  scientific_execution?: { started_at: string; completed_at: string; origin: string };
-  completed_hpc_import?: {
-    source_execution: { started_at: string; completed_at: string };
-    source_origin: string;
-  };
-}
-
-async function exportSize(id: string): Promise<number> {
-  return [...(await runStore.files(id)).values()].reduce((sum, bytes) => sum + bytes, 0);
-}
-
 async function findDataset(experiment: string, runId?: string) {
-  const selected = runId ? { id: runId } : await optionalPresentation(experiment);
   const index = await runStore.index();
-  const seen = new Set<string>();
-  const upstream = new Set<string>();
-  const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean; evidence: import('./run-index.ts').IndexRun }[] = [];
-
-  // Core supplies the bounded runset; full input pins also contain provenance.
-  for (const id of selected ? index.runsets[experiment] ?? [] : []) {
-    seen.add(id);
-    const record: RunRecord = await runStore.json(id);
-    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id,
-      used: true, evidence: index.runs[id] });
-  }
-  // Keep the selected lineage, plus this experiment's completed stage history.
-  for (const id of Object.keys(index.runs).filter(id => id.startsWith(`${experiment}-`))) {
-    if (seen.has(id)) continue;
-    const record: RunRecord = index.runs[id].record;
-    if (!record) continue;
-    runs.push({ id, record, bytes: await exportSize(id), selected: false, used: false, evidence: index.runs[id] });
-  }
-  runs.sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
-  return { runs, upstream: [...upstream].sort() };
+  const selected = runId ?? index.selections[experiment];
+  const used = new Set(selected ? index.runsets[experiment] ?? [selected] : []);
+  const runs = Object.entries(index.runs).filter(([id, row]) => row.record.experiment === experiment || used.has(id))
+    .map(([id, row]) => ({ id, record: row.record, bytes: row.bytes, selected: id === selected,
+      used: used.has(id), evidence: row }))
+    .sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
+  return { runs, upstream: [...new Set(runs.filter(run => run.used && run.record.experiment !== experiment)
+    .map(run => run.record.experiment))] };
 }
 
 const datasets = new Map<string, ReturnType<typeof findDataset>>();

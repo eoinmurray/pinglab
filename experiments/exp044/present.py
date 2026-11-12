@@ -162,20 +162,20 @@ def format_duration(seconds: float) -> str:
 def present(identity: str, *, run_id: str | None = None) -> str:
 
     analysis = inputs.source(REPO, identity, "analyse")
-    if set(analysis.record["inputs"]) != {"compute", "bank"}:
+    if set(analysis.details["inputs"]) != {"compute", "bank"}:
         raise PingstoreError(
             "exp044 analysis must pin its computation and training bank"
         )
-    ref = analysis.record["inputs"]["compute"]
+    ref = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, ref["run_id"], "compute", reference=ref)
     cfg = inputs.configuration(compute)
-    if compute.record["inputs"]["bank"] != analysis.record["inputs"]["bank"]:
+    if compute.details["inputs"]["bank"] != analysis.details["inputs"]["bank"]:
         raise PingstoreError("analysis and compute disagree on the training bank")
     result = load_json(analysis.export / "results.json")
     if (
         result.get("schema") != "exp044.analysis/v1"
         or result.get("recipe") != cfg
-        or result.get("measurement") != analysis.record["execution"]["configuration"]
+        or result.get("measurement") != analysis.details["execution"]["configuration"]
     ):
         raise PingstoreError("unsupported or inconsistent exp044 analysis payload")
     samples = []
@@ -211,11 +211,11 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             cfg["seeds"],
             run.export / "training_curves",
         )
-        run.record["presentation_lineage"] = {
+        run.details["presentation_lineage"] = {
             "analysis": analysis.reference,
             "operation": "render saved measurements and selected raster samples",
-            "historical_training_curves": analysis.record["inputs"]["bank"],
-            "new_inference": analysis.record["inputs"]["compute"],
+            "historical_training_curves": analysis.details["inputs"]["bank"],
+            "new_inference": analysis.details["inputs"]["compute"],
         }
         write_json_atomic(
             run.export / "numbers.json",
@@ -224,7 +224,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
                 "run_id": run.run_id,
                 "duration_s": time.monotonic() - started,
                 "duration": format_duration(time.monotonic() - started),
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )

@@ -234,7 +234,7 @@ def analyse_sender_receiver(compute, *, run_id=None):
 
 def analyse(identity, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
-    if compute.record["execution"]["configuration"].get("schema") in {
+    if compute.details["execution"]["configuration"].get("schema") in {
         sender_receiver.SCHEMA,
         sender_receiver.HISTORICAL_SCHEMA,
         sender_receiver.LEGACY_SCHEMA,

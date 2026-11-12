@@ -1,338 +1,115 @@
-"""Command interface for Pingstore's core storage operations.
-
-Run ``pingstore --help`` for commands. Mutating maintenance commands require a
-separate dry-run and its complete confirmation hash; experiment execution uses
-``pingstore.library`` instead.
-"""
-
-from __future__ import annotations
+"""A small CLI over the same Store API used by Python."""
 
 import argparse
 import json
-import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
-from . import core
+from .core import Store, discover_runs, load_json
+from .remote import DEFAULT_DESTINATION, Remote
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="pingstore",
-        description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
+def parser():
+    result = argparse.ArgumentParser(prog="pingstore")
+    result.add_argument("--root", type=Path, default=Path(".pingstore"))
+    commands = result.add_subparsers(dest="command", required=True)
+    insert = commands.add_parser("insert", help="insert a completed directory")
+    insert.add_argument("directory", type=Path)
+    insert.add_argument("--record", type=Path, help="run.json metadata to use")
+    get = commands.add_parser("get", help="read one run's metadata")
+    get.add_argument("id")
+    listing = commands.add_parser(
+        "list", help="list run metadata without reading payloads"
     )
-    commands = parser.add_subparsers(dest="command", required=True)
-    detach = commands.add_parser(
-        "detach-runsets", help="correct old metadata to retain independent runsets"
-    )
-    detach.add_argument("--root", type=Path, default=Path("."))
-    detach.add_argument(
-        "--destination", help="also correct the matching R2 metadata and catalog"
-    )
-    detach_action = detach.add_mutually_exclusive_group(required=True)
-    detach_action.add_argument("--dry-run", action="store_true")
-    detach_action.add_argument("--confirm", metavar="PLAN_HASH")
-    detach.set_defaults(handler=_detach_runsets)
-    status = commands.add_parser("status", help="explain current runsets and storage")
-    status.add_argument("--root", type=Path, default=Path("."))
-    status.add_argument("--runs-root", type=Path)
-    status.add_argument("--source", choices=("auto", "local", "remote"), default="auto")
-    status.add_argument("--asset-base", default="https://assets.eoinmurray.info")
-    status.add_argument("--json", action="store_true")
-    status.add_argument(
-        "--inventory",
-        action="store_true",
-        help="refresh authenticated R2 object inventory",
-    )
-    status.add_argument(
-        "--destination",
-        default=os.environ.get("PINGLAB_R2_REMOTE", "r2")
-        + ":"
-        + os.environ.get("PINGLAB_R2_BUCKET", "pinglab")
-        + "/pingstore/runs",
-    )
-    status.add_argument(
-        "--verify",
-        action="store_true",
-        help="validate local payload bytes before indexing",
-    )
-    status.add_argument(
-        "--verify-run",
-        action="append",
-        default=[],
-        metavar="RUN_ID",
-        help="validate only these local runs before refreshing their index entries; repeatable",
-    )
-    status.add_argument(
-        "--index-path", type=Path, help="save a rebuildable versioned JSON index"
-    )
-    status.add_argument("--catalog-stdin", action="store_true", help=argparse.SUPPRESS)
-    status.set_defaults(handler=_status)
-    discover = commands.add_parser(
-        "discover", help="emit validated runs as Demolab discovery JSON"
-    )
-    discover.add_argument(
-        "--source",
-        type=Path,
-        help="runs directory (default: DEMOLAB_PREVIEW_SOURCE, then .pingstore/runs)",
-    )
-    backup = commands.add_parser(
-        "backup", help="append verified complete runs to an R2 backup using rclone"
-    )
-    backup.add_argument(
-        "--source",
-        type=Path,
-        default=Path(".pingstore/runs"),
-        help="runs directory (default: .pingstore/runs in the current directory)",
-    )
-    remote = os.environ.get("PINGLAB_R2_REMOTE", "r2")
-    bucket = os.environ.get("PINGLAB_R2_BUCKET", "pinglab")
-    backup.add_argument(
-        "--destination",
-        default=f"{remote}:{bucket}/pingstore/runs",
-        help="rclone remote ending in /pingstore/runs (default: r2:pinglab/pingstore/runs; PINGLAB_R2_REMOTE and PINGLAB_R2_BUCKET override)",
-    )
-    backup_action = backup.add_mutually_exclusive_group(required=True)
-    backup_action.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="inspect the exact backup plan without uploading",
-    )
-    backup_action.add_argument(
-        "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
-    )
-    prune = commands.add_parser(
-        "prune",
-        help="remove unused runs while retaining report and manually protected ancestry",
-    )
-    prune.add_argument(
-        "--root",
-        type=Path,
-        default=Path("."),
-        help="lab directory (default: current directory)",
-    )
-    scope = prune.add_mutually_exclusive_group(required=True)
-    scope.add_argument(
-        "--all",
-        action="store_true",
-        help="consider all experiments",
-    )
-    scope.add_argument(
-        "--experiment",
-        action="append",
-        dest="experiments",
-        metavar="EXPNNN",
-        help="limit pruning to this experiment (repeatable)",
-    )
-    prune.add_argument(
-        "--stage",
-        action="append",
-        dest="stages",
-        choices=("compute", "analyse", "present"),
-        help="limit pruning to this stage (repeatable); other stages stay protected",
-    )
-    prune.add_argument("--storage", choices=("local", "r2", "both"), default="both")
-    prune.add_argument("--destination", default=f"{remote}:{bucket}/pingstore/runs")
-    prune.add_argument("--asset-base", default="https://assets.eoinmurray.info")
-    prune.add_argument("--json", action="store_true")
-    prune.add_argument(
-        "--malformed-run",
-        action="append",
-        dest="malformed_runs",
-        help="explicit bounded malformed holding to remove (repeatable)",
-    )
-    action = prune.add_mutually_exclusive_group(required=True)
-    action.add_argument(
-        "--dry-run", action="store_true", help="print the exact immutable prune plan"
-    )
-    action.add_argument(
-        "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
-    )
-    evict = commands.add_parser(
-        "evict", help="remove verified local backup copies, including report-used runs"
-    )
-    evict.add_argument("--root", type=Path, default=Path("."))
-    evict.add_argument("--destination", default=f"{remote}:{bucket}/pingstore/runs")
-    evict.add_argument("--asset-base", default="https://assets.eoinmurray.info")
-    evict_scope = evict.add_mutually_exclusive_group(required=True)
-    evict_scope.add_argument("--all", action="store_true")
-    evict_scope.add_argument("--run", action="append", dest="run_ids")
-    evict_action = evict.add_mutually_exclusive_group(required=True)
-    evict_action.add_argument("--dry-run", action="store_true")
-    evict_action.add_argument("--confirm", metavar="PLAN_HASH")
-    discover.set_defaults(handler=_discover)
-    backup.set_defaults(handler=_backup, argument_error=backup.error)
-    prune.set_defaults(handler=_prune)
-    evict.set_defaults(handler=_evict)
-    return parser
-
-
-def _discover(args) -> int:
-    source = args.source or Path(
-        os.environ.get("DEMOLAB_PREVIEW_SOURCE") or ".pingstore/runs"
-    )
-    records = core.discover_runs(source)
-    # A single JSON document, only after all candidates passed. No partial output.
-    print(json.dumps(records, ensure_ascii=False))
-    return 0
-
-
-def _detach_runsets(args):
-    if args.dry_run:
-        plan = core.detach_runsets_plan(args.root, args.destination)
-        print(f"Metadata corrections: {len(plan['changes'])}")
-        for identity, change in sorted(plan["changes"].items()):
-            print(
-                f"{identity}: detach {', '.join(change['detached_roles']) or 'no historical links'}"
+    listing.add_argument("--experiment")
+    listing.add_argument("--stage")
+    for name in ("backup", "restore", "delete"):
+        command = commands.add_parser(name)
+        command.add_argument("ids", nargs="*" if name == "backup" else "+")
+        command.add_argument("--destination", default=DEFAULT_DESTINATION)
+        if name == "delete":
+            command.add_argument("--storage", choices=("local", "r2"), default="local")
+            command.add_argument(
+                "--yes",
+                action="store_true",
+                help="confirm explicit targets, including dependant warnings",
             )
-        print(f"Plan: {plan['plan_hash']}")
-    else:
-        result = core.apply_detach_runsets(args.root, args.confirm, args.destination)
-        print(
-            f"Metadata correction {result['phase']}: {len(result['plan']['changes'])} runs"
-        )
-    return 0
-
-
-def _status(args) -> int:
-    catalog, remote_known = None, args.source != "local"
-    publications = None
-    operation = None
-    if args.source != "local":
-        if args.catalog_stdin:
-            supplied = json.load(sys.stdin)
-            if isinstance(supplied, dict) and "catalog" in supplied:
-                catalog = supplied["catalog"]
-                publications = (supplied.get("control") or {}).get("publications")
-                operation = (supplied.get("control") or {}).get("operation")
-            else:
-                catalog = supplied
-            remote_known = catalog is not None
-        else:
-            try:
-                request = core.Request(
-                    args.asset_base.rstrip("/") + "/pingstore/catalog.json",
-                    headers={"User-Agent": "Pinglab-Pingstore/1.0"},
-                )
-                with core.urlopen(request, timeout=30) as response:
-                    catalog = json.load(response)
-                try:
-                    control = core.public_json(
-                        args.asset_base.rstrip("/") + "/pingstore/control.json"
-                    )
-                    publications = control["publications"]
-                    operation = control.get("operation")
-                except OSError:
-                    publications = core.empty_publications()
-            except (OSError, ValueError) as exc:
-                if args.source == "remote":
-                    raise core.PingstoreError(
-                        f"R2 inventory unavailable: {exc}"
-                    ) from exc
-                remote_known = False
-    inventory_state = None
-    if args.inventory:
-        if args.source == "local":
-            raise core.PingstoreError("--inventory requires auto or remote source mode")
-        snapshot = core._maintenance_remote_snapshot(
-            args.destination, args.root.resolve()
-        )
-        catalog = {**snapshot["catalog"], "runs": snapshot["valid"]}
-        inventory_state = core.inventory_projection(
-            snapshot["objects"], snapshot["valid"]
-        )
-        publications = snapshot["control"]["publications"]
-        operation = snapshot["control"]["operation"]
-        remote_known = True
-    index = core.reporting_index(
-        args.root,
-        runs=args.runs_root,
-        catalog=catalog,
-        source=args.source,
-        remote_known=remote_known,
-        verify=args.verify,
-        verify_runs=getattr(args, "verify_run", ()),
-        publications=publications,
-        operation=operation,
-        inventory_state=inventory_state,
+            command.add_argument("--dry-run", action="store_true")
+    discover = commands.add_parser("discover", help="Demolab discovery")
+    discover.add_argument("--source", type=Path)
+    migrate = commands.add_parser(
+        "migrate", help="copy old records to a separate simple store"
     )
-    if args.index_path:
-        core.write_json_atomic(args.index_path, index)
-    print(json.dumps(index, sort_keys=True) if args.json else core.render_status(index))
-    return 0
-
-
-def _backup(args) -> int:
-    source = args.source.expanduser().absolute()
-    if not source.is_dir():
-        args.argument_error("source must be an existing Pingstore runs directory")
-    destination = args.destination.rstrip("/")
-    if ":" not in destination or not destination.endswith("/pingstore/runs"):
-        args.argument_error(
-            "destination must be an rclone remote ending in /pingstore/runs"
-        )
-    return core.backup_runs(
-        source, destination, dry_run=args.dry_run, confirm=args.confirm
+    migrate.add_argument("source", type=Path, help="existing .pingstore directory")
+    migrate.add_argument(
+        "--apply", action="store_true", help="otherwise show the migration plan"
     )
+    return result
 
 
-def _prune(args) -> int:
-    options = dict(
-        storage=args.storage,
-        destination=args.destination,
-        malformed_runs=args.malformed_runs,
-    )
-    if args.storage == "local":
-        options["remote_snapshot"] = core.public_maintenance_snapshot(args.asset_base)
-    if args.dry_run:
-        plan = core.unified_prune_plan(
-            args.root, args.experiments, args.stages, **options
-        )
-        print(
-            json.dumps(plan, sort_keys=True)
-            if args.json
-            else core.render_unified_prune_plan(plan)
-        )
-    else:
-        result = core.apply_unified_prune(
-            args.root, args.confirm, args.experiments, args.stages, **options
-        )
-        plan = result["plan"]
-        print(
-            f"Cleanup {result['phase']}: "
-            + "; ".join(
-                f"{target}: {len(objects)} objects, {sum(row['bytes'] for row in objects.values())} bytes"
-                for target, objects in plan["objects"].items()
-            )
-        )
-    return 0
-
-
-def _evict(args) -> int:
-    if args.dry_run:
-        print(
-            core.render_eviction_plan(
-                core.eviction_plan(
-                    args.root, args.destination, args.run_ids, args.asset_base
-                )
-            )
-        )
-    else:
-        result = core.apply_eviction(
-            args.root, args.destination, args.confirm, args.run_ids, args.asset_base
-        )
-        print(f"Evicted {len(result['evict'])} local copies; R2 backups retained.")
-    return 0
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+def main(argv=None):
+    args = parser().parse_args(argv)
+    started = time.perf_counter()
+    store = Store(args.root)
     try:
-        return args.handler(args)
-    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
-        print(f"pingstore {args.command}: {exc}", file=sys.stderr)
+        if args.command == "insert":
+            result = store.insert(
+                args.directory, record=load_json(args.record) if args.record else None
+            ).record
+        elif args.command == "get":
+            result = store.get(args.id).record
+        elif args.command == "list":
+            result = store.list(experiment=args.experiment, stage=args.stage)
+        elif args.command == "backup":
+            result = store.backup(args.destination, args.ids or None)
+        elif args.command == "restore":
+            result = store.restore(args.destination, args.ids)
+        elif args.command == "discover":
+            result = discover_runs(args.source or store.runs)
+        elif args.command == "migrate":
+            from .migration import migrate
+
+            result = migrate(args.source, store.root, apply=args.apply)
+        else:
+            remote = Remote(args.destination) if args.storage == "r2" else None
+            deps = store.dependants(args.ids)
+            if remote:
+                index = remote.index()
+                deps.update(
+                    {
+                        i: r["record"]["depends_on"]
+                        for i, r in index["runs"].items()
+                        if i not in args.ids
+                        and set(args.ids).intersection(r["record"]["depends_on"])
+                    }
+                )
+            plan = {"delete": args.ids, "storage": args.storage, "dependants": deps}
+            print(json.dumps(plan, indent=2), file=sys.stderr)
+            if args.dry_run:
+                result = plan
+            else:
+                if (
+                    not args.yes
+                    and input(
+                        "Delete these runs, including any dependency breakage? [y/N] "
+                    ).lower()
+                    != "y"
+                ):
+                    return 1
+                result = (
+                    remote.delete(store, args.ids, allow_dependants=True)
+                    if remote
+                    else store.delete(args.ids, allow_dependants=True)
+                )
+        print(json.dumps(result, indent=2))
+        return 0
+    except (OSError, ValueError, EOFError, subprocess.CalledProcessError) as error:
+        print(f"pingstore: {error}", file=sys.stderr)
         return 1
+    finally:
+        print(f"Elapsed: {time.perf_counter() - started:.3f}s", file=sys.stderr)
 
 
 if __name__ == "__main__":

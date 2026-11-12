@@ -311,7 +311,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
     ):
         raise PingstoreError("unsupported exp024 analysis payload")
     inputs = {"analysis": analysis}
-    for role, ref in analysis.record["inputs"].items():
+    for role, ref in analysis.details["inputs"].items():
         inputs[role] = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -352,13 +352,13 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             }
             for name in recipe.FIGURES
         ]
-        run.record["presentation_lineage"] = lineage
+        run.details["presentation_lineage"] = lineage
         write_json_atomic(
             run.export / "numbers.json",
             {
                 **results,
                 "run_id": run.run_id,
-                "git_sha": run.record["provenance"]["git_commit"],
+                "git_sha": run.details["provenance"]["git_commit"],
                 "duration_s": time.monotonic() - started,
                 "final": {
                     row["name"]: {

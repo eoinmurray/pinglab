@@ -192,7 +192,10 @@ def compute(
         check=True,
     )
     completed = temporary.with_name(run_id)
-    record = validate_operational_run_directory(completed)
+    validate_operational_run_directory(completed)
+    from pingstore.library import load_json
+
+    record = load_json(completed / "details.json")
     if record["inputs"] != input_refs:
         raise ValueError("completed Modal compute used different inputs")
     record["execution"]["modal"] = {
@@ -200,7 +203,7 @@ def compute(
         "function_call_id": modal.current_function_call_id(),
         "dispatch": dispatch,
     }
-    write_json_atomic(completed / "run.json", record)
+    write_json_atomic(completed / "details.json", record)
     validate_operational_run_directory(completed)
     destination = OUTPUT.resolve() / dispatch / ".pingstore" / "runs" / run_id
     staging = destination.with_name(f".{run_id}.tmp")
@@ -258,7 +261,7 @@ def main(
     print(json.dumps(receipt), flush=True)
     print(
         "Check/collect later with: uv run --no-project --python 3.12 "
-        "--with 'modal>=1.1,<2' --with PyYAML "
+        "--with 'modal>=1.1,<2' "
         "python -m libraries.modal_dispatcher check "
         f"--run-id {receipt['run_id']} --collect"
         + (f" --root {str(store)!r}" if store else ""),

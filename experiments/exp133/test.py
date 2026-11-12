@@ -158,11 +158,11 @@ def test_diagram_refresh_uses_analysis_instead_of_retaining_a_presentation(monke
     from experiments.exp133 import present
 
     previous = SimpleNamespace(
-        record={"inputs": {"analysis": {"run_id": "analysis"}}},
+        details={"inputs": {"analysis": {"run_id": "analysis"}}},
         check_unchanged=lambda: None,
     )
     analysis = SimpleNamespace(
-        record={
+        details={
             "run_id": "analysis",
             "execution": {"configuration": {"schema": "exp133.analysis/v2"}},
         }
@@ -238,7 +238,7 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
     monkeypatch.setattr(recipe, "T_MS", 10.0)
     monkeypatch.setattr(compute, "REPO", tmp_path)
     monkeypatch.setattr(
-        "pingstore.core.memberships", lambda repo: {recipe.SLUG: "demo"}
+        "pingstore.core.capture_code", lambda *args: {"git_commit": "fixture"}
     )
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(
@@ -259,16 +259,13 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
     identity = compute.compute()
     source = source_run(tmp_path / ".pingstore", identity)
     assert evidence.compute_contract(source) == recipe.configuration()
-    corrupted = copy.deepcopy(source.record)
+    corrupted = copy.deepcopy(source.details)
     corrupted["execution"]["simulations"]["coupling-060"]["batches"] = 999
     with pytest.raises(PingstoreError, match="coverage"):
-        evidence.compute_contract(replace(source, record=corrupted))
-    mapping = source.record["scientific_artifacts"]["native_paths"]
-    assert [key for key in mapping if key.endswith(".svg")] == [
-        "paired-ping.bundle/reports/circuit.svg"
-    ]
-    assert not any("/end/" in key for key in mapping)
-    path = source.export / mapping["coupling-060-execution/start/snapshot.json"]
+        evidence.compute_contract(replace(source, _details=corrupted))
+    assert source.file("paired-ping.bundle/reports/circuit.svg").is_file()
+    assert not list(source.export.rglob("end/snapshot.json"))
+    path = source.file("coupling-060-execution/start/snapshot.json")
     metadata = json.loads(path.read_text())
     corrupted = copy.deepcopy(metadata)
     corrupted["parameter_file_sha256"] = "0" * 64
@@ -362,7 +359,7 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
     monkeypatch.setattr(recipe, "N_INPUT", 128)
     monkeypatch.setattr(compute, "REPO", tmp_path)
     monkeypatch.setattr(
-        "pingstore.core.memberships", lambda repo: {recipe.SLUG: "demo"}
+        "pingstore.core.capture_code", lambda *args: {"git_commit": "fixture"}
     )
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(
@@ -425,5 +422,5 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
     assert set(actual) == set(expected)
     for key in expected:
         np.testing.assert_allclose(actual[key], expected[key], rtol=1e-6, atol=1e-9)
-    assert sr.record["execution"]["configuration"]["onset_ms"] == 500.0
+    assert sr.details["execution"]["configuration"]["onset_ms"] == 500.0
     assert len(actual) == 14

@@ -180,7 +180,7 @@ def compute(identity, *, run_id=None, collect=False):
                 if k in os.environ
             },
         }
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         if not collect:
             _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
         worker = Inference(bank, run.directory, cfg)
@@ -198,7 +198,7 @@ def compute(identity, *, run_id=None, collect=False):
         showcase = illustrate.write_showcase(
             bank, run, contract, inference_configuration=cfg
         )
-        run.record["showcase_configuration"] = showcase["configuration"]
+        run.details["showcase_configuration"] = showcase["configuration"]
         write_json_atomic(
             run.export / "evidence.json",
             {

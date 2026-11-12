@@ -491,8 +491,8 @@ def validate_native_raster(computed, cfg, parameters, *, dataset_source=None):
 
 
 def validate_cached_calibration(computed, cfg):
-    if "calibration" in computed.record["inputs"]:
-        cached_pin = computed.record["inputs"]["calibration"]
+    if "calibration" in computed.details["inputs"]:
+        cached_pin = computed.details["inputs"]["calibration"]
         cached = source_run(
             ROOT / ".pingstore",
             cached_pin["run_id"],
@@ -501,7 +501,7 @@ def validate_cached_calibration(computed, cfg):
             reference=cached_pin,
         )
         check_calibration_configuration(
-            cached.record["execution"]["configuration"], cfg
+            cached.details["execution"]["configuration"], cfg
         )
         # The retained scientific calibration must be exactly the pinned one.
         for filename in ("dataset.npz", "calibration.npz"):
@@ -536,15 +536,16 @@ def validate_final_training_metrics(metrics, cfg):
 
 
 def validate_native(computed):
-    cfg = computed.record["execution"]["configuration"]
-    pin = computed.record["inputs"]["bank"]
+    cfg = computed.details["execution"]["configuration"]
+    pin = computed.details["inputs"]["bank"]
     if (
-        set(computed.record["inputs"]) not in ({"bank"}, {"bank", "calibration"})
+        set(computed.details["inputs"]) not in ({"bank"}, {"bank", "calibration"})
         or pin["run_id"] != cfg["source_run"]
-        or pin["payload_digest"] != cfg["source_digest"]
     ):
         raise ValueError("Scientific dependency boundary violated")
-    if pin != {"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]}:
+    if pin != {
+        "run_id": cfg["source_run"],
+    }:
         raise ValueError("Scientific dependency boundary violated")
     bank, _ = source_bank(cfg, root=ROOT)
     actual_spec = json.loads(
@@ -651,16 +652,15 @@ def validate_native(computed):
 
 def validate(computed):
     if (
-        computed.record["execution"]["configuration"].get("execution_backend")
+        computed.details["execution"]["configuration"].get("execution_backend")
         == "snnlab.sim.train"
     ):
         return validate_native(computed)
-    cfg = computed.record["execution"]["configuration"]
-    pin = computed.record["inputs"]["bank"]
+    cfg = computed.details["execution"]["configuration"]
+    pin = computed.details["inputs"]["bank"]
     if (
-        set(computed.record["inputs"]) != {"bank"}
+        set(computed.details["inputs"]) != {"bank"}
         or pin["run_id"] != "exp022-r015-compute"
-        or pin["payload_digest"] != recipe.configuration()["source_digest"]
     ):
         raise ValueError("Scientific dependency boundary violated")
     bank = source_run(
@@ -795,9 +795,9 @@ def validate(computed):
 
 
 def validate_raster(recorded, training):
-    if recorded.record["inputs"]["training"] != training.reference:
+    if recorded.details["inputs"]["training"] != training.reference:
         raise ValueError("Raster and training evidence pins differ")
-    cfg = recorded.record["execution"]["configuration"]
+    cfg = recorded.details["execution"]["configuration"]
     summary = json.loads(recorded.file("raster.json").read_text())
     metrics = json.loads(training.file("metrics.json").read_text())
     if summary["epoch"] != metrics["best_epoch"]:
@@ -867,10 +867,10 @@ def validate_raster(recorded, training):
 
 
 def validate_correct_native_raster(recorded, training):
-    if recorded.record["inputs"] != {"training": training.reference}:
+    if recorded.details["inputs"] != {"training": training.reference}:
         raise ValueError("Raster and training evidence pins differ")
-    cfg = recorded.record["execution"]["configuration"]
-    original = training.record["execution"]["configuration"]
+    cfg = recorded.details["execution"]["configuration"]
+    original = training.details["execution"]["configuration"]
     for key in original:
         if key not in {"device", "threads"} and cfg.get(key) != original[key]:
             raise ValueError("Raster changed its training configuration")
@@ -940,9 +940,11 @@ def validate_sweep_configurations(configurations):
 
 
 def source_controls(computed):
-    cfg = computed.record["execution"]["configuration"]
-    pin = computed.record["inputs"]["bank"]
-    if pin != {"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]}:
+    cfg = computed.details["execution"]["configuration"]
+    pin = computed.details["inputs"]["bank"]
+    if pin != {
+        "run_id": cfg["source_run"],
+    }:
         raise ValueError("Scientific dependency boundary violated")
     bank, _ = source_bank(cfg, root=ROOT)
     controls = {}
@@ -977,13 +979,13 @@ def prepare_test_inputs(identities, baseline_id, run_id=None):
         source_run(ROOT / ".pingstore", i, experiment=recipe.SLUG, stage="compute")
         for i in identities
     ]
-    configs = [s.record["execution"]["configuration"] for s in sources]
+    configs = [s.details["execution"]["configuration"] for s in sources]
     validate_sweep_configurations(configs)
     baseline = source_run(
         ROOT / ".pingstore", baseline_id, experiment="exp025", stage="analyse"
     )
     original = source_bank(configs[0], root=ROOT)[1]
-    if baseline.record["inputs"].get("bank") != original:
+    if baseline.details["inputs"].get("bank") != original:
         raise ValueError("Test baselines do not pin the training bank")
     controls = json.loads(baseline.file("results.json").read_text())["results"]
     inputs = {
@@ -1057,8 +1059,8 @@ def prepare_test_inputs(identities, baseline_id, run_id=None):
                 original_bank=original,
             ),
         )
-        run.record["scientific_artifacts"] = {"snapshot_stages": snapshots}
-        run.record["execution"].update(
+        run.details["scientific_artifacts"] = {"snapshot_stages": snapshots}
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
         )
     return run.run_id
@@ -1094,12 +1096,12 @@ def validate_test_weights(evaluated, package, label):
 
 
 def validate_test_evaluation(evaluated, computations):
-    if evaluated.record["execution"]["operation"] != "test-final-checkpoints":
+    if evaluated.details["execution"]["operation"] != "test-final-checkpoints":
         raise ValueError("Expected final-checkpoint test evaluation")
     package = source_run(
         ROOT / ".pingstore",
-        evaluated.record["inputs"]["test_inputs"]["run_id"],
-        reference=evaluated.record["inputs"]["test_inputs"],
+        evaluated.details["inputs"]["test_inputs"]["run_id"],
+        reference=evaluated.details["inputs"]["test_inputs"],
         experiment=recipe.SLUG,
         stage="analyse",
     )
@@ -1109,7 +1111,9 @@ def validate_test_evaluation(evaluated, computations):
     if results["protocol"] != protocol or spec["protocol"] != protocol:
         raise ValueError("Test protocol changed")
     expected = {
-        recipe.target_label(c.record["execution"]["configuration"]["rate_target_hz"]): c
+        recipe.target_label(
+            c.details["execution"]["configuration"]["rate_target_hz"]
+        ): c
         for c in computations
     }
     if len(results["cases"]) != 6 or {c["label"] for c in results["cases"]} != set(
@@ -1130,7 +1134,7 @@ def validate_test_evaluation(evaluated, computations):
     official_labels = official.targets.numpy().astype(np.int64)
     np.testing.assert_array_equal(features, official_pixels[ids])
     np.testing.assert_array_equal(labels, official_labels[ids])
-    if evaluated.record["execution"]["configuration"]["dataset_sha256"] != dict(
+    if evaluated.details["execution"]["configuration"]["dataset_sha256"] != dict(
         pixels=digest(official_pixels), labels=digest(official_labels)
     ):
         raise ValueError("Official test dataset fingerprint differs")
@@ -1140,7 +1144,7 @@ def validate_test_evaluation(evaluated, computations):
     for row in results["cases"]:
         label = row["label"]
         training = expected[label]
-        cfg = training.record["execution"]["configuration"]
+        cfg = training.details["execution"]["configuration"]
         entry = packages[label]
         validate_test_weights(evaluated, package, label)
         if (
@@ -1223,11 +1227,11 @@ def analyse(identity, run_id=None, *, raster_source=None, test_source=None):
     ]
     if len(computations) > 1:
         validate_sweep_configurations(
-            [c.record["execution"]["configuration"] for c in computations]
+            [c.details["execution"]["configuration"] for c in computations]
         )
         computations.sort(
             key=lambda c: recipe.RATE_TARGETS_HZ.index(
-                c.record["execution"]["configuration"].get("rate_target_hz")
+                c.details["execution"]["configuration"].get("rate_target_hz")
             )
         )
     computed = computations[0]
@@ -1237,7 +1241,7 @@ def analyse(identity, run_id=None, *, raster_source=None, test_source=None):
         cases = []
         with np.load(computed.file("dataset.npz")) as primary:
             for index, cell in enumerate(computations):
-                cfg = cell.record["execution"]["configuration"]
+                cfg = cell.details["execution"]["configuration"]
                 measured = results if index == 0 else validate(cell)
                 role = (
                     "compute"
@@ -1289,12 +1293,12 @@ def analyse(identity, run_id=None, *, raster_source=None, test_source=None):
         recipe.SLUG,
         "analyse",
         inputs=inputs,
-        configuration=computed.record["execution"]["configuration"],
+        configuration=computed.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         results["timings"]["analysis_seconds"] = time.perf_counter() - start
         write_json(run.export / "results.json", results)
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - start
         )
         for cell in computations:

@@ -35,8 +35,7 @@ uv run python -m libraries.hpc deploy \
    For an explicit reserved `--run-id`, add `--reserved-run RUN_ID` before the
    argument separator; the worker restores that exact reservation before compute.
 5. For source data, repeat `--input RUN_ID` for the explicit local completed runs.
-   The tool validates and uploads their full ancestry, preserves manifests and
-   checksums, then validates the pins again on the worker. Pass the corresponding
+   The tool validates and uploads their full ancestry, preserves run metadata and files, then checks the input identities again on the worker. Pass the corresponding
    experiment arguments too, for example `--stage analyse --input RUN_ID ... --
    --source RUN_ID`. Datasets and other files outside Git/Pingstore are not
    uploaded; provision them explicitly and pass the experiment's supported cache

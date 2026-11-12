@@ -1,36 +1,17 @@
 ---
 import type { RunTreeNode } from '../lib/run-lineage';
-import type { RunMetrics } from '../lib/run-metrics';
-interface Props { node: RunTreeNode; experiment: string; metrics: Map<string, RunMetrics>; nested?: boolean }
-const { node, experiment, metrics, nested = false } = Astro.props;
-const { entry } = node;
-const ownExperiment = (entry.row?.record?.experiment ?? entry.id.split('-')[0]) === experiment;
-const storage = entry.row?.storage;
-const details = [node.issue, ...entry.issues, ...(entry.row?.unresolved ?? []),
-  node.repeated ? 'Shared dependency; expanded above' : undefined,
-  !storage || storage === 'Unavailable' || storage === 'Unknown' ? 'Storage unavailable or unknown' : undefined,
-].filter(Boolean).join('; ');
+import { runWalltime, dataSize } from '../lib/run-metrics';
+interface Props { node: RunTreeNode; path?: string[]; }
+const { node } = Astro.props;
 ---
-<ol class:list={['tree', { nested }]} aria-label={nested ? undefined : `Run tree for ${entry.id}`}>
-  <li>
-    <div class:list={['node', ownExperiment ? 'own-experiment' : 'external-experiment']} title={details || undefined}>
-      <code>{entry.id}</code>
-      {(storage === 'R2' || storage === 'Both') && <span class="tag">R2</span>}
-      {(storage === 'Local' || storage === 'Both') && <span class="tag">Local</span>}
-      <span class="tag" title="Producing execution walltime; excludes upstream runs and import time">{metrics.get(entry.id)?.walltime ?? '—'}</span>
-      <span class="tag" title="Retained data size in export/ per stored copy">{metrics.get(entry.id)?.size ?? '—'}</span>
-    </div>
-    {ownExperiment && node.children.map(child => <Astro.self node={child} experiment={experiment} metrics={metrics} nested />)}
+<ol class="tree">
+  <li><code>{node.id}</code> — {node.row?.storage ?? 'Unavailable'} · {runWalltime(node.row?.record)} · {dataSize(node.row?.bytes)}
+    {node.issue && <strong> · {node.issue}</strong>}
+    {node.children.map(child => <Astro.self node={child} />)}
   </li>
 </ol>
 <style>
-  .tree { list-style: none; margin: 0; padding: 0; font-size: .75rem; line-height: 1.5; }
-  li { list-style: none; margin: 0; padding: 0; position: relative; }
-  .nested { margin-left: .3rem; padding-left: 1rem; border-left: 1px solid rgb(var(--ink) / .2); }
-  .nested > li::before { content: ''; position: absolute; left: -1rem; top: .7rem; width: .75rem; border-top: 1px solid rgb(var(--ink) / .2); }
-  .node { display: flex; align-items: center; gap: .35rem; width: fit-content; margin: .1rem 0; padding: .05rem .3rem; border: 1px solid transparent; border-radius: 3px; white-space: nowrap; }
-  .own-experiment { background: rgb(var(--ink) / .08); }
-  .external-experiment { background: none; border-color: rgb(var(--ink) / .22); }
-  .node code { font-size: .75rem; padding: 0; background: none; border: 0; box-shadow: none; }
-  .tag { font: 500 .6rem/1.4 system-ui, sans-serif; color: rgb(var(--ink) / .65); }
+  .tree { margin: .35rem 0; padding-left: 1.25rem; font-size: .75rem; }
+  code { font-size: inherit; }
+  strong { color: #b42318; }
 </style>

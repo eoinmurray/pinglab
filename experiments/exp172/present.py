@@ -1072,7 +1072,7 @@ def load_cue_comparisons(
         cue_analysis = source_run(
             REPO / ".pingstore", cue_source, experiment="exp172", stage="analyse"
         )
-        ref = cue_analysis.record["inputs"]["compute"]
+        ref = cue_analysis.details["inputs"]["compute"]
         cue_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1081,12 +1081,12 @@ def load_cue_comparisons(
             reference=ref,
         )
         assert (
-            cue_compute.record["inputs"]["background_analyse"]["run_id"]
+            cue_compute.details["inputs"]["background_analyse"]["run_id"]
             == background_source
         )
         assert (
-            cue_compute.record["inputs"]["reference_compute"]
-            == inputs["background_analyse"].record["inputs"]["compute"]
+            cue_compute.details["inputs"]["reference_compute"]
+            == inputs["background_analyse"].details["inputs"]["compute"]
         )
         cue_sweep = json.loads(cue_analysis.file("results.json").read_text())[
             "cue_sweep"
@@ -1099,7 +1099,7 @@ def load_cue_comparisons(
         contrast_analysis = source_run(
             REPO / ".pingstore", contrast_source, experiment="exp172", stage="analyse"
         )
-        ref = contrast_analysis.record["inputs"]["compute"]
+        ref = contrast_analysis.details["inputs"]["compute"]
         contrast_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1107,10 +1107,10 @@ def load_cue_comparisons(
             stage="compute",
             reference=ref,
         )
-        assert contrast_compute.record["inputs"]["cue_analyse"]["run_id"] == cue_source
+        assert contrast_compute.details["inputs"]["cue_analyse"]["run_id"] == cue_source
         assert (
-            contrast_compute.record["inputs"]["reference_compute"]
-            == cue_analysis.record["inputs"]["compute"]
+            contrast_compute.details["inputs"]["reference_compute"]
+            == cue_analysis.details["inputs"]["compute"]
         )
         contrast_sweep = json.loads(contrast_analysis.file("results.json").read_text())[
             "contrast_sweep"
@@ -1142,7 +1142,7 @@ def load_phase_comparisons(
             experiment="exp172",
             stage="analyse",
         )
-        phase_ref = phase_analysis.record["inputs"]["compute"]
+        phase_ref = phase_analysis.details["inputs"]["compute"]
         phase_compute = source_run(
             REPO / ".pingstore",
             phase_ref["run_id"],
@@ -1151,15 +1151,15 @@ def load_phase_comparisons(
             reference=phase_ref,
         )
         assert (
-            phase_compute.record["inputs"]["reference_compute"]
-            == background_analysis.record["inputs"]["compute"]
+            phase_compute.details["inputs"]["reference_compute"]
+            == background_analysis.details["inputs"]["compute"]
         )
         phase_inhibition = json.loads(phase_analysis.file("results.json").read_text())[
             "phase_inhibition"
         ]
         assert (
             phase_inhibition["source_reference"]
-            == background_analysis.record["inputs"]["compute"]
+            == background_analysis.details["inputs"]["compute"]
         )
         inputs.update(
             phase_inhibition_analyse=phase_analysis,
@@ -1175,7 +1175,7 @@ def load_phase_comparisons(
         probe_analysis = source_run(
             REPO / ".pingstore", probe_source, experiment="exp172", stage="analyse"
         )
-        ref = probe_analysis.record["inputs"]["compute"]
+        ref = probe_analysis.details["inputs"]["compute"]
         probe_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1188,7 +1188,7 @@ def load_phase_comparisons(
         ]
         assert (
             probe_window["reference_background"]
-            == background_analysis.record["inputs"]["compute"]
+            == background_analysis.details["inputs"]["compute"]
         )
         inputs.update(probe_analyse=probe_analysis, probe_compute=probe_compute)
     used_window = None
@@ -1204,7 +1204,7 @@ def load_phase_comparisons(
             experiment="exp172",
             stage="analyse",
         )
-        ref = used_analysis.record["inputs"]["compute"]
+        ref = used_analysis.details["inputs"]["compute"]
         used_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1217,7 +1217,7 @@ def load_phase_comparisons(
         ]
         assert (
             used_window["reference_background"]
-            == background_analysis.record["inputs"]["compute"]
+            == background_analysis.details["inputs"]["compute"]
         )
         inputs.update(
             used_window_analyse=used_analysis, used_window_compute=used_compute
@@ -1247,10 +1247,10 @@ def present(
     )
     computed = source_run(
         REPO / ".pingstore",
-        analysed.record["inputs"]["compute"]["run_id"],
+        analysed.details["inputs"]["compute"]["run_id"],
         experiment="exp172",
         stage="compute",
-        reference=analysed.record["inputs"]["compute"],
+        reference=analysed.details["inputs"]["compute"],
     )
     inputs = {"analyse": analysed, "compute": computed}
     analysis = json.loads(analysed.file("results.json").read_text())
@@ -1260,7 +1260,7 @@ def present(
         diagnostic = source_run(
             REPO / ".pingstore", mechanism_source, experiment="exp172", stage="analyse"
         )
-        diagnostic_ref = diagnostic.record["inputs"]["compute"]
+        diagnostic_ref = diagnostic.details["inputs"]["compute"]
         diagnostic_compute = source_run(
             REPO / ".pingstore",
             diagnostic_ref["run_id"],
@@ -1268,8 +1268,8 @@ def present(
             stage="compute",
             reference=diagnostic_ref,
         )
-        baseline_ref = diagnostic_compute.record["inputs"]["reference_compute"]
-        assert baseline_ref == analysed.record["inputs"]["compute"]
+        baseline_ref = diagnostic_compute.details["inputs"]["reference_compute"]
+        assert baseline_ref == analysed.details["inputs"]["compute"]
         mechanism_compute = diagnostic_compute
         mechanism = json.loads(diagnostic.file("results.json").read_text())["mechanism"]
         inputs.update(
@@ -1281,7 +1281,7 @@ def present(
         candidate_analysis = source_run(
             REPO / ".pingstore", candidate_source, experiment="exp172", stage="analyse"
         )
-        ref = candidate_analysis.record["inputs"]["compute"]
+        ref = candidate_analysis.details["inputs"]["compute"]
         candidate_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1290,8 +1290,8 @@ def present(
             reference=ref,
         )
         assert (
-            candidate_compute.record["inputs"]["reference_compute"]
-            == analysed.record["inputs"]["compute"]
+            candidate_compute.details["inputs"]["reference_compute"]
+            == analysed.details["inputs"]["compute"]
         )
         candidate = json.loads(candidate_analysis.file("results.json").read_text())[
             "candidate"
@@ -1305,7 +1305,7 @@ def present(
         background_analysis = source_run(
             REPO / ".pingstore", background_source, experiment="exp172", stage="analyse"
         )
-        ref = background_analysis.record["inputs"]["compute"]
+        ref = background_analysis.details["inputs"]["compute"]
         background_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1314,8 +1314,8 @@ def present(
             reference=ref,
         )
         assert (
-            background_compute.record["inputs"]["reference_compute"]
-            == analysed.record["inputs"]["compute"]
+            background_compute.details["inputs"]["reference_compute"]
+            == analysed.details["inputs"]["compute"]
         )
         background_sweep = json.loads(
             background_analysis.file("results.json").read_text()
@@ -1329,7 +1329,7 @@ def present(
         arrival_analysis = source_run(
             REPO / ".pingstore", arrival_source, experiment="exp172", stage="analyse"
         )
-        ref = arrival_analysis.record["inputs"]["compute"]
+        ref = arrival_analysis.details["inputs"]["compute"]
         arrival_compute = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1338,12 +1338,12 @@ def present(
             reference=ref,
         )
         assert (
-            arrival_compute.record["inputs"]["figure1_compute"]
-            == analysed.record["inputs"]["compute"]
+            arrival_compute.details["inputs"]["figure1_compute"]
+            == analysed.details["inputs"]["compute"]
         )
         assert (
-            arrival_compute.record["inputs"]["figure6_compute"]["run_id"]
-            == candidate_compute.record["run_id"]
+            arrival_compute.details["inputs"]["figure6_compute"]["run_id"]
+            == candidate_compute.details["run_id"]
         )
         arrival_distribution = json.loads(
             arrival_analysis.file("results.json").read_text()
@@ -1388,7 +1388,7 @@ def present(
         selected = render(work, run.export, args)
         figure2_selection = dict(
             selected,
-            background_hz=computed.record["execution"]["configuration"][
+            background_hz=computed.details["execution"]["configuration"][
                 "background_hz"
             ],
         )
@@ -1397,7 +1397,7 @@ def present(
                 inputs.get("background_compute"),
                 run.export,
                 figure2_seed,
-                computed.record["execution"]["configuration"],
+                computed.details["execution"]["configuration"],
                 phase_inhibition=phase_inhibition,
                 probe_window=probe_window,
                 used_window=used_window,
@@ -1449,7 +1449,7 @@ def present(
             )
         trials = json.loads((work / "summary.json").read_text())["trials"]
         trial = next(r for r in trials if r["id"] == selected["trial_id"])
-        cfg = computed.record["execution"]["configuration"]
+        cfg = computed.details["execution"]["configuration"]
         parameters = NetworkSnapshot.read(
             work / trial["id"] / "start/snapshot.json"
         ).load_parameters()
@@ -1498,7 +1498,7 @@ def present(
             )
             + "\n"
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     print(f"Presentation {perf_counter() - started:.2f} s; no simulation")
     return run.run_id
 

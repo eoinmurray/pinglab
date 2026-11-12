@@ -1300,7 +1300,7 @@ def _finalize_bank(manifest_path: Path, manifest: dict, status: dict) -> str:
     ) as run:
         inventory = copy_bank(bank, run.export / "cells")
         shutil.copy2(manifest_path, run.scratch / "bank.json")
-        run.record["execution"]["bank"] = {
+        run.details["execution"]["bank"] = {
             "manifest_sha256": manifest["manifest_sha256"],
             "trained_cells": len(manifest["cells"]),
             "scientific_files": len(inventory),
@@ -1336,25 +1336,25 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
         "compute",
         inputs={"import": source},
         run_id=run_id,
-        configuration=source.record["execution"].get("configuration"),
+        configuration=source.details["execution"].get("configuration"),
         operation="import",
     ) as run:
         inventory = copy_bank(source.export, run.export / "cells")
         promote_cells(run.export)
         record_snapshot_policy(run)
-        native = source.record.get("scientific_artifacts", {}).get("native_paths", {})
+        native = source.details.get("scientific_artifacts", {}).get("native_paths", {})
         retained = {
             original: stored
             for original, stored in native.items()
             if (run.export / stored).is_file()
         }
         if retained:
-            run.record["scientific_artifacts"] = {"native_paths": retained}
-        run.record["execution"]["imported_files"] = len(inventory)
-        run.record["execution"]["imported_bytes"] = sum(
+            run.details["scientific_artifacts"] = {"native_paths": retained}
+        run.details["execution"]["imported_files"] = len(inventory)
+        run.details["execution"]["imported_bytes"] = sum(
             row["size_bytes"] for row in inventory
         )
-        run.record["historical_evidence"] = {
+        run.details["historical_evidence"] = {
             "source": source.reference,
             "note": "Historical cell attempts and inherited/repaired lineage are preserved; "
             "this execution copied evidence and did not train or simulate.",

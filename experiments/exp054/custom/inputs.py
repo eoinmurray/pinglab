@@ -24,7 +24,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -35,7 +35,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+    if run.details["stage"] != stage or run.details["experiment"] != experiment:
         raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
     return run
 
@@ -49,7 +49,7 @@ def execution(
     ancestors = {}
     for run in sources.values():
         for name, ancestor in lineage(
-            repo, run.record["run_id"], run.reference
+            repo, run.details["run_id"], run.reference
         ).items():
             if name in ancestors and ancestors[name].reference != ancestor.reference:
                 raise PingstoreError("conflicting exp054 input ancestry")
@@ -75,5 +75,5 @@ def execution(
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     return recipe.validate(cfg)

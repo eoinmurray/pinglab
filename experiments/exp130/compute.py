@@ -94,7 +94,7 @@ def compute(*, run_id=None):
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {
                 f"{condition}--simulation": ["start"] for condition in cfg["conditions"]
             }
@@ -111,10 +111,10 @@ def compute(*, run_id=None):
             bundle, recording, weights = simulate(
                 condition_cfg,
                 artifacts=run.export / f"{condition}--simulation",
-                execution=run.record["execution"].setdefault(condition, {}),
+                execution=run.details["execution"].setdefault(condition, {}),
             )
             seconds = perf_counter() - simulation_start
-            run.record["execution"].setdefault("simulation_seconds", {})[condition] = (
+            run.details["execution"].setdefault("simulation_seconds", {})[condition] = (
                 seconds
             )
             if reference_weights is None:
@@ -142,7 +142,7 @@ def compute(*, run_id=None):
             np.savez_compressed(output / "recording.npz", **recording)
             np.savez_compressed(output / "weights.npz", **weights)
             print(f"{condition}: {seconds:.3f} s", flush=True)
-        run.record["execution"].update(
+        run.details["execution"].update(
             executor="snnlab.sim.GraphExecutor",
             paired_weights_exact=True,
             paired_burn_in_exact=True if cfg["burn_in_ms"] > 0 else None,

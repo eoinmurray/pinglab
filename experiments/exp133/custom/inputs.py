@@ -21,7 +21,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -32,9 +32,9 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != recipe.SLUG:
+    if run.details["stage"] != stage or run.details["experiment"] != recipe.SLUG:
         raise PingstoreError(f"expected a {recipe.SLUG} {stage} run")
-    if run.record.get("scope", "full") != "full":
+    if run.details.get("scope", "full") != "full":
         raise PingstoreError("a full compute result is required")
     return run
 
@@ -43,7 +43,7 @@ def source(repo, identity, stage, *, reference=None):
 def execution(repo, stage, *, sources=None, run_id=None, configuration=None):
     ancestors = {}
     for selected in (sources or {}).values():
-        ancestors.update(lineage(repo, selected.record["run_id"], selected.reference))
+        ancestors.update(lineage(repo, selected.details["run_id"], selected.reference))
     with stage_run(
         repo,
         recipe.SLUG,

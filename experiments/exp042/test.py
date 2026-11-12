@@ -11,7 +11,8 @@ import pytest
 from experiments.exp042 import analyse, compute, present, recipe
 from experiments.exp042.custom import inputs, simulation, transforms
 from pingstore import core
-from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
+from pingstore.library import PingstoreError, file_sha256, load_json
+from pingstore.tests.fixtures import write_fixture_json
 
 
 def test_execution_identity_covers_reorganised_snnlab_sources(monkeypatch):
@@ -37,9 +38,6 @@ def test_execution_identity_covers_reorganised_snnlab_sources(monkeypatch):
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp042": "demo"}
-    )
 
     def code(*args):
         return {"git_commit": "fixture", "dirty": False, "code_dirty": False}
@@ -85,10 +83,10 @@ def lab(tmp_path, monkeypatch):
                 "ei_ratio": 2.0,
                 "w_in": [0.9, 0.09],
             }
-            write_json_atomic(cell / "config.json", config)
+            write_fixture_json(cell / "config.json", config)
             (cell / "weights_final.pth").write_bytes(b"final epoch")
             (cell / "weights.pth").write_bytes(b"not the selected checkpoint")
-            write_json_atomic(
+            write_fixture_json(
                 cell / "metrics.json",
                 {
                     "config": config,
@@ -178,16 +176,13 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
                 row["metrics"]
                 == load_json(raw.file(source + "--metrics.json"))["metrics"]
             )
-    assert raw.record["inputs"] == {"bank": before}
+    assert raw.details["inputs"] == {"bank": before}
     assert not list(raw.directory.glob(".scratch-*"))
     assert not list(raw.export.rglob("rasters.npz"))
     for filename in ("cell.npz", "cycle.npz"):
         with np.load(raw.export / filename) as data:
             assert set(data.files) == {"spk_e", "spk_i", "label"}
-    artifact_units = {
-        Path(path).parts[0]
-        for path in raw.record["scientific_artifacts"]["native_paths"].values()
-    }
+    artifact_units = {p.name for p in raw.export.iterdir() if p.is_dir()}
     assert artifact_units
     assert {
         p.name for p in raw.export.iterdir() if not p.name.startswith("circuit-")
@@ -219,7 +214,7 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     assert results["rasters"]["cycle"]["e_rate_hz"] == 2500
     presentation_id = present.present(analysis_id)
     presentation = inputs.source(root, presentation_id, "present")
-    assert presentation.record["inputs"] == {"analysis": analysis.reference}
+    assert presentation.details["inputs"] == {"analysis": analysis.reference}
     assert all(path.is_file() for path in presentation.export.iterdir())
     assert {
         p.name
@@ -245,7 +240,7 @@ def test_missing_metric_fails_without_simulation(lab, monkeypatch):
         "infer_batches",
         lambda *a, **k: pytest.fail("missing-data fallback"),
     )
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(PingstoreError, match="missing|invalid"):
         analyse.analyse(identity)
 
 
@@ -261,10 +256,10 @@ def test_wrong_source_stage_rejected_before_reservation(lab, stage):
 
 def test_v2_and_missing_ancestor_rejected_before_reservation(lab):
     root, bank_id, calls = lab
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     record = load_json(path)
-    write_json_atomic(path, {**record, "schema": "pingstore.run/v2"})
-    with pytest.raises(PingstoreError, match="v4"):
+    write_fixture_json(path, {**record, "schema": "pingstore.run/v2"})
+    with pytest.raises(PingstoreError, match="migrate old records"):
         compute.compute(bank_id)
     record["inputs"] = {
         "missing": {
@@ -272,7 +267,7 @@ def test_v2_and_missing_ancestor_rejected_before_reservation(lab):
             "payload_digest": "sha256:" + "a" * 64,
         }
     }
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     with pytest.raises(PingstoreError):
         compute.compute(bank_id)
     assert len(list((root / ".pingstore/runs").iterdir())) == 1
@@ -314,10 +309,10 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     )  # only two illustrative arms and their shared baseline
     output = inputs.source(root, identity, "compute")
     assert len(list(output.export.glob("eval__*--metrics.json"))) == 30
-    assert output.record["origin"] == "slurm-wilkes"
-    assert output.record["execution"]["requests"]
+    assert output.details["origin"] == "slurm-wilkes"
+    assert output.details["execution"]["requests"]
     assert all(
-        isinstance(request, dict) for request in output.record["execution"]["requests"]
+        isinstance(request, dict) for request in output.details["execution"]["requests"]
     )
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
@@ -413,7 +408,7 @@ def test_zero_replay_cache_rejects_recipe_drift(lab):
     path = next(scratch.glob("zero-replay/*/*/result.json"))
     record = load_json(path)
     record["request"]["recipe"]["evaluation_samples"] += 1
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     with pytest.raises(PingstoreError, match="zero-replay scratch"):
         list(
             simulation.evaluate_jobs(
@@ -653,13 +648,13 @@ def test_active_worker_blocks_collection(lab):
         pytest.raises(PingstoreError, match="busy"),
     ):
         compute.compute(bank_id, run_id=identity, collect=True)
-    assert not (directory / "run.json").exists()
+    assert not (directory / "details.json").exists()
 
 
 @pytest.mark.parametrize("envelope", [{"requests": {}}, {"requests": ["invalid"]}, {}])
 def test_malformed_shard_requests_are_rejected(tmp_path, envelope):
     path = tmp_path / "requests.json"
-    write_json_atomic(path, envelope)
+    write_fixture_json(path, envelope)
     with pytest.raises(PingstoreError, match="invalid shard request envelope"):
         compute._shard_requests(path)
 
@@ -668,7 +663,7 @@ def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):
     root, bank_id, _ = lab
     compute_id = compute.compute(bank_id)
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
-    record = dict(bank.record)
+    record = dict(bank.details)
     record["execution"] = {**record["execution"], "note": "fixture manifest change"}
-    write_json_atomic(bank.directory / "run.json", record)
+    write_fixture_json(bank.directory / "details.json", record)
     assert analyse.analyse(compute_id).endswith("-analyse")

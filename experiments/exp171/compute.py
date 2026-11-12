@@ -708,19 +708,21 @@ def source_bank(cfg, *, root=None):
         (ROOT if root is None else root) / ".pingstore",
         cfg["source_run"],
         experiment="exp022",
-        reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
+        reference={
+            "run_id": cfg["source_run"],
+        },
     )
-    if bank.record["stage"] == "analyse":
-        if bank.record["execution"]["operation"] != "export-finetuning-inputs":
+    if bank.details["stage"] == "analyse":
+        if bank.details["execution"]["operation"] != "export-finetuning-inputs":
             raise ValueError("Source must be a fine-tuning input export")
-        if set(bank.record["inputs"]) != {"bank"}:
+        if set(bank.details["inputs"]) != {"bank"}:
             raise ValueError("Compact source must pin exactly one original bank")
-        original = bank.record["inputs"]["bank"]
+        original = bank.details["inputs"]["bank"]
         if not original["run_id"].startswith("exp022-") or not original[
             "run_id"
         ].endswith("-compute"):
             raise ValueError("Compact source must pin an exp022 compute bank")
-    elif bank.record["stage"] == "compute":
+    elif bank.details["stage"] == "compute":
         original = bank.reference
     else:
         raise ValueError("Unsupported source stage")
@@ -730,9 +732,9 @@ def source_bank(cfg, *, root=None):
 def load_source(cfg):
     bank, _ = source_bank(cfg)
     provenance = (
-        bank.record["execution"]["configuration"]["diagnostic_provenance"]
-        if bank.record["stage"] == "analyse"
-        else bank.record["bank_reuse"]["diagnostic_provenance"]
+        bank.details["execution"]["configuration"]["diagnostic_provenance"]
+        if bank.details["stage"] == "analyse"
+        else bank.details["bank_reuse"]["diagnostic_provenance"]
     )
     params, configurations, pins = {}, {}, {}
     for kind in ("coba", "ping"):
@@ -805,7 +807,7 @@ def check_calibration_configuration(previous, cfg):
 
 def reuse_calibration(source, cfg, ids, pixels, labels, snapshot):
     """Reuse only an explicit, authenticated and scientifically compatible input."""
-    check_calibration_configuration(source.record["execution"]["configuration"], cfg)
+    check_calibration_configuration(source.details["execution"]["configuration"], cfg)
     with np.load(source.file("dataset.npz")) as data:
         for key, expected in (
             ("ids", ids),
@@ -1524,7 +1526,7 @@ def compute(
             stage="compute",
         )
         check_calibration_configuration(
-            cached.record["execution"]["configuration"], cfg
+            cached.details["execution"]["configuration"], cfg
         )
         inputs["calibration"] = cached
     with stage_run(
@@ -1680,14 +1682,14 @@ def compute(
                     * (1 if sys.platform == "darwin" else 1024),
                 },
             )
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {
                 "training": ["start", "end"],
                 "teacher": ["start"],
                 "best-validation": ["end"],
             }
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=False,
             elapsed_seconds=timings["compute_seconds"],
             timings=timings,
@@ -1897,8 +1899,8 @@ def evaluate_test_inputs(identity, run_id=None):
         write_json(
             run.export / "test-results.json", dict(protocol=protocol, cases=cases)
         )
-        run.record["scientific_artifacts"] = {"snapshot_stages": snapshot_stages}
-        run.record["execution"].update(
+        run.details["scientific_artifacts"] = {"snapshot_stages": snapshot_stages}
+        run.details["execution"].update(
             no_simulation=False, elapsed_seconds=time.perf_counter() - started
         )
     return run.run_id
@@ -1927,7 +1929,7 @@ def replay_correct(identity, run_id=None):
     training = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
     )
-    cfg = dict(training.record["execution"]["configuration"])
+    cfg = dict(training.details["execution"]["configuration"])
     if cfg.get("execution_backend") != "snnlab.sim.train":
         raise ValueError("Correct-image replay requires native training evidence")
     cfg.update(
@@ -1968,10 +1970,10 @@ def replay_correct(identity, run_id=None):
             np.testing.assert_array_equal(
                 replay["batch_scores"].argmax(axis=1), expected_predictions
             )
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {"best-validation": ["start", "end"]}
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=False, elapsed_seconds=time.perf_counter() - started
         )
         training.check_unchanged()

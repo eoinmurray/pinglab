@@ -144,7 +144,7 @@ def parameter_reference():
         cfg["source_run"],
         experiment="exp172",
         stage="compute",
-        reference=dict(run_id=cfg["source_run"], payload_digest=cfg["source_digest"]),
+        reference=dict(run_id=cfg["source_run"]),
     )
 
 
@@ -191,7 +191,7 @@ def compute_mechanism(source_id, run_id=None):
         REPO / ".pingstore", source_id, experiment="exp172", stage="compute"
     )
     cfg = dict(
-        source.record["execution"]["configuration"],
+        source.details["execution"]["configuration"],
         mechanism=recipe.mechanism_configuration(),
         stage_mode="mechanism",
     )
@@ -234,10 +234,10 @@ def compute_mechanism(source_id, run_id=None):
             run.export / "timings.json",
             dict(simulation_seconds=sum(r["simulation_seconds"] for r in records)),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={r["id"]: ["start"] for r in records}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     print(run.run_id, flush=True)
     return run.run_id
 
@@ -263,7 +263,7 @@ def compute_candidate(source_id, run_id=None):
         REPO / ".pingstore", source_id, experiment="exp172", stage="compute"
     )
     cfg = dict(
-        source.record["execution"]["configuration"],
+        source.details["execution"]["configuration"],
         candidate=recipe.candidate_configuration(),
         stage_mode="candidate",
     )
@@ -297,10 +297,10 @@ def compute_candidate(source_id, run_id=None):
             run.export / "timings.json",
             dict(simulation_seconds=record["simulation_seconds"]),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={record["id"]: ["start"]}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -352,7 +352,7 @@ def compute_background_sweep(source_id, run_id=None, parallel=False):
     )
     settings = recipe.background_sweep_configuration()
     cfg = dict(
-        source.record["execution"]["configuration"],
+        source.details["execution"]["configuration"],
         background_sweep=settings,
         stage_mode="background_sweep",
     )
@@ -425,10 +425,10 @@ def compute_background_sweep(source_id, run_id=None, parallel=False):
                 wall_seconds=perf_counter() - started,
             ),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={r["id"]: ["start"] for r in records}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -439,7 +439,7 @@ def compute_cue_sweep(source_id, run_id=None, parallel=False):
     analysed = source_run(
         REPO / ".pingstore", source_id, experiment="exp172", stage="analyse"
     )
-    ref = analysed.record["inputs"]["compute"]
+    ref = analysed.details["inputs"]["compute"]
     source = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -509,10 +509,10 @@ def compute_cue_sweep(source_id, run_id=None, parallel=False):
             run.export / "summary.json",
             dict(trials=records, compute_seconds=perf_counter() - started),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={r["id"]: ["start"] for r in records}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -523,7 +523,7 @@ def compute_contrast_sweep(source_id, run_id=None, parallel=False, extend_source
     analysed = source_run(
         REPO / ".pingstore", source_id, experiment="exp172", stage="analyse"
     )
-    ref = analysed.record["inputs"]["compute"]
+    ref = analysed.details["inputs"]["compute"]
     source = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -559,7 +559,7 @@ def compute_contrast_sweep(source_id, run_id=None, parallel=False, extend_source
             k: v for k, v in settings.items() if k != "rates_hz"
         }
         assert set(old["settings"]["rates_hz"]).issubset(settings["rates_hz"])
-        ref_previous = previous.record["inputs"]["compute"]
+        ref_previous = previous.details["inputs"]["compute"]
         previous_compute = source_run(
             REPO / ".pingstore",
             ref_previous["run_id"],
@@ -567,9 +567,8 @@ def compute_contrast_sweep(source_id, run_id=None, parallel=False, extend_source
             stage="compute",
             reference=ref_previous,
         )
-        assert previous_compute.record["inputs"]["cue_analyse"] == {
-            "run_id": analysed.record["run_id"],
-            "payload_digest": analysed.record["payload_digest"],
+        assert previous_compute.details["inputs"]["cue_analyse"] == {
+            "run_id": analysed.details["run_id"],
         }
         plan = [
             item
@@ -634,10 +633,10 @@ def compute_contrast_sweep(source_id, run_id=None, parallel=False, extend_source
             run.export / "summary.json",
             dict(trials=records, compute_seconds=perf_counter() - started),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={r["id"]: ["start"] for r in records}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -653,7 +652,7 @@ def compute_arrivals(source_id, candidate_id, run_id=None):
         REPO / ".pingstore", candidate_id, experiment="exp172", stage="compute"
     )
     settings = recipe.arrival_distribution_configuration()
-    base_cfg = baseline.record["execution"]["configuration"]
+    base_cfg = baseline.details["execution"]["configuration"]
     base_item = next(
         i
         for i in recipe.trial_plan(base_cfg)
@@ -728,10 +727,10 @@ def compute_arrivals(source_id, candidate_id, run_id=None):
             run.export / "timings.json",
             dict(simulation_seconds=sum(r["simulation_seconds"] for r in records)),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={r["id"]: ["start"] for r in records}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -749,10 +748,10 @@ def compute_phase_inhibition(source_id, run_id=None):
         for item in plan["trials"]
         if item["seed"] == settings["seed"]
         and item["background_hz"]
-        == source.record["execution"]["configuration"]["background_hz"]
+        == source.details["execution"]["configuration"]["background_hz"]
     )
     cfg = json.loads(source.file(original_id, "configuration.json").read_text())
-    ref = source.record["inputs"]["reference_compute"]
+    ref = source.details["inputs"]["reference_compute"]
     baseline = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -792,10 +791,10 @@ def compute_phase_inhibition(source_id, run_id=None):
             ),
         )
         dump(run.export / "summary.json", dict(trials=[record]))
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={item["id"]: ["start"]}
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -977,7 +976,7 @@ def compute_probe_window(source_id, run_id=None):
                 exact_control=True,
                 reference_trial=descriptor["reference_trial"],
                 reference_seed=cfg["trial"]["seed"],
-                reference_background=source.record["inputs"]["reference_compute"],
+                reference_background=source.details["inputs"]["reference_compute"],
                 response_definition="Net extra C E spikes versus paired control in [arrival, arrival+5ms)",
             ),
         )
@@ -985,8 +984,8 @@ def compute_probe_window(source_id, run_id=None):
             run.export / "timings.json",
             dict(simulation_seconds=sum(timings), calls=len(timings)),
         )
-        run.record["scientific_artifacts"] = dict(snapshot_stages=snapshots)
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["scientific_artifacts"] = dict(snapshot_stages=snapshots)
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1149,15 +1148,15 @@ def compute_used_window(source_id, run_id=None):
                 exact_control=True,
                 reference_trial=descriptor["reference_trial"],
                 reference_seed=cfg["trial"]["seed"],
-                reference_background=source.record["inputs"]["reference_compute"],
+                reference_background=source.details["inputs"]["reference_compute"],
             ),
         )
         dump(
             run.export / "timings.json",
             dict(simulation_seconds=sum(timings), calls=len(timings)),
         )
-        run.record["scientific_artifacts"] = dict(snapshot_stages=snapshots)
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["scientific_artifacts"] = dict(snapshot_stages=snapshots)
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1270,13 +1269,13 @@ def compute(
                 )
             ),
         )
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={
                 r["id"]: ["start"]
                 for r in records + mechanism_records + [candidate_record]
             }
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 

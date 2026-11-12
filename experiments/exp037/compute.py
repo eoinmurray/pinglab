@@ -193,7 +193,7 @@ def compute(identity, *, run_id=None, collect=False):
         if collect:
             concurrent_compute.retain_worker_provenance(run, shard_records)
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         if not collect:
             _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
         resolved = evidence.resolved_jobs(

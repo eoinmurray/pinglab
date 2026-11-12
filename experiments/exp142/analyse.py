@@ -24,7 +24,7 @@ def analyse(identity, *, run_id=None):
         REPO / ".pingstore", identity, experiment="exp142", stage="compute"
     )
     # Interpret the evidence from its recorded recipe, including older retained runs.
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     if cfg["schema"] not in ("exp142.recipe/v4", "exp142.recipe/v5"):
         raise ValueError("incompatible physical-time protocol")
     audit = load_json(source.file("audit.json"))
@@ -43,7 +43,7 @@ def analyse(identity, *, run_id=None):
     ):
         raise ValueError("incomplete input replay audit")
     checks = load_json(source.file("checks.json"))
-    trained_pin = source.record["inputs"]["trained"]
+    trained_pin = source.details["inputs"]["trained"]
     trained = source_run(
         REPO / ".pingstore",
         trained_pin["run_id"],
@@ -51,7 +51,7 @@ def analyse(identity, *, run_id=None):
         stage="compute",
         reference=trained_pin,
     )
-    encoding = source.record["execution"]["input_encoding"]
+    encoding = source.details["execution"]["input_encoding"]
     if (
         audit["input_rate_hz"] != cfg["input_rate_hz"]
         or encoding["protocol"]["dataset_binding"]["encoder"]["max_rate_hz"]
@@ -90,7 +90,7 @@ def analyse(identity, *, run_id=None):
         refinements = refinement_check(
             recordings["continuous"], recordings["continuous-refined"], cfg, ni
         )
-        control_diagnostics = source.record["execution"]["cases"][
+        control_diagnostics = source.details["execution"]["cases"][
             f"{mode}-source-control"
         ]
         if control_diagnostics["input_event_sha256"] != audit["source_event_sha256"]:
@@ -380,7 +380,7 @@ def output_clock(source, mode, case, cfg):
     from pingstore.library import load_json
 
     if case.startswith("continuous"):
-        diagnostics = source.record["execution"]["cases"][f"{mode}-{case}"]
+        diagnostics = source.details["execution"]["cases"][f"{mode}-{case}"]
         if "COBA-LIF" not in diagnostics["readout"]:
             raise ValueError("continuous case lacks the continuous COBA-LIF output")
         return dict(network_dt_ns=None, output_dt_ns=None, kind="continuous COBA-LIF")

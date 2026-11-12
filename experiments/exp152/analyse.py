@@ -381,7 +381,7 @@ def analyse(source, *, run_id=None):
     upstream = source_run(
         REPO / ".pingstore", source, stage="compute", experiment="exp152"
     )
-    cfg = upstream.record["execution"]["configuration"]
+    cfg = upstream.details["execution"]["configuration"]
     raw = load_json(upstream.file("diagnostics.json"))
     args = argparse.Namespace(
         **cfg,

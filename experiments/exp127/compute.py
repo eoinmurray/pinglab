@@ -48,7 +48,7 @@ def compute(*, run_id=None):
     with stage_run(REPO, SLUG, "compute", configuration=cfg, run_id=run_id) as run:
         path = bundle.write(run.export / "classifier.bundle", visualise=False)
         bundle.visualise(run.export / "circuit.svg", view="circuit")
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {
                 "teaching-train": ["end"],
                 "train": ["end"],
@@ -141,7 +141,7 @@ def compute(*, run_id=None):
                 flush=True,
             )
         np.savez_compressed(run.export / "recording.npz", **recordings)
-        run.record["execution"].update(
+        run.details["execution"].update(
             {
                 "device": "cpu",
                 "cpu_threads": 1,

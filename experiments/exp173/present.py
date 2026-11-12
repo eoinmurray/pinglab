@@ -106,7 +106,7 @@ def present(identity):
     )
     numbers = json.loads(source.file("numbers.json").read_text())
     cfg = numbers["configuration"]
-    pin = source.record["inputs"]["compute"]
+    pin = source.details["inputs"]["compute"]
     compute = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -290,7 +290,7 @@ def present(identity):
                 run.export / f"firing-rates.{suffix}", dpi=plt.rcParams["savefig.dpi"]
             )
         plt.close(fig)
-        run.record["execution"]["elapsed_s"] = time.perf_counter() - started
+        run.details["execution"]["elapsed_s"] = time.perf_counter() - started
     print(run.run_id, flush=True)
     return run.run_id
 

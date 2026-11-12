@@ -178,7 +178,7 @@ def present(source, *, run_id=None):
     with np.load(upstream.file("traces.npz"), allow_pickle=False) as data:
         values = dict(data)
     payload = recording(values, numbers)
-    reference = upstream.record["inputs"]["compute"]
+    reference = upstream.details["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -204,7 +204,7 @@ def present(source, *, run_id=None):
         with matplotlib.rc_context({"savefig.bbox": None}):
             for extension in ("svg", "png"):
                 viz.render_diagram(circuit, run.export / f"circuit.{extension}")
-        run.record["execution"]["snnlab_version"] = version("snnlab")
+        run.details["execution"]["snnlab_version"] = version("snnlab")
         write_json_atomic(run.export / "numbers.json", numbers)
     return run.run_id
 

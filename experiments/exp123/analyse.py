@@ -33,7 +33,10 @@ def analyse(identity, workers=1, reuse_identity=None):
     source = source_run(
         REPO / ".pingstore", identity, stage="compute", experiment=recipe.SLUG
     )
-    if source.record["execution"]["configuration"].get("schema") != "exp123.compute/v3":
+    if (
+        source.details["execution"]["configuration"].get("schema")
+        != "exp123.compute/v3"
+    ):
         raise ValueError("expected the uniform shared-sweep compute protocol")
     reuse = (
         source_run(
@@ -852,14 +855,14 @@ def measure_overview_rasters(source, run, definition):
 
 
 def analyse_shared(source, workers=1, reuse=None):
-    definition = source.record["execution"]["configuration"]
+    definition = source.details["execution"]["configuration"]
     cfg = dict(definition["sweep"], shared_sweep=True)
     inputs = {"compute": source}
     if reuse is not None:
         if (
-            reuse.record["execution"]["configuration"].get("schema")
+            reuse.details["execution"]["configuration"].get("schema")
             != "exp123.shared.measurement/v1"
-            or reuse.record["inputs"].get("compute") != source.reference
+            or reuse.details["inputs"].get("compute") != source.reference
         ):
             raise ValueError(
                 "Reused shared measurements must reference this exact compute payload"

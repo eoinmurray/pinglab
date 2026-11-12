@@ -15,10 +15,10 @@ uvx --from 'modal>=1.1,<2' modal setup
 Dispatch, then use the exact printed compute ID for collection:
 
 ```sh
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' \
   python -m libraries.modal_dispatcher dispatch --experiment exp141 --gpu H100
 
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' \
   python -m libraries.modal_dispatcher check --run-id COMPUTE_ID --collect
 ```
 
@@ -42,7 +42,7 @@ and pass its run ID through the experiment's own CLI. Roles must exactly match
 those recorded by the experiment's `stage_run(inputs=...)` call:
 
 ```sh
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' \
   python -m libraries.modal_dispatcher dispatch --experiment exp134 \
   --gpu none --cpu 1 --timeout 21600 \
   --input trained_network=exp022-r001-compute \
@@ -51,11 +51,9 @@ uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
 ```
 
 Explicit inputs and their complete ancestry are validated, transferred using
-checksum-addressed volume paths, and restored before compute. Pending input pins
-protect local source runs from pruning. Use `--direct-inputs-only` for complete
+immutable run-ID volume paths, and restored before compute. Deleting inputs remains an explicit user decision; inspect dependant warnings before deletion. Use `--direct-inputs-only` for complete
 compact input exports whose parent payloads the experiment does not read; parent
-references remain recorded without transferring their payloads. Collection rejects changed local inputs
-or a worker result with different roles or checksums. `--root PATH` selects a
+references remain recorded without transferring their payloads. Collection checks submitted identities, roles and execution metadata. Scientific consumers validate their own payloads. `--root PATH` selects a
 local Pingstore for both commands; the worker uses its isolated `.pingstore`.
 
 ## Experiment contract and sources
@@ -63,7 +61,7 @@ local Pingstore for both commands; the worker uses its isolated `.pingstore`.
 There is no experiment allowlist. The tool discovers
 `experiments/expXXX/compute.py`, checks its declared CLI flags without importing
 it, and supplies one reserved `--run-id`. The entrypoint must accept that option
-and complete that same Pingstore v4 compute run. Arguments cannot override the
+and complete that same Pingstore compute run. Arguments cannot override the
 reserved identity. Analysis and presentation remain independently invoked stages.
 An existing compute entrypoint is not a guarantee of Linux, CUDA, dependency or
 dataset compatibility: inspect the recipe and its input requirements first.

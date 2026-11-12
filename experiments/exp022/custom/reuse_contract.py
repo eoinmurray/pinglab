@@ -22,7 +22,6 @@ from pingstore.library import PingstoreError, SourceRun, file_sha256, source_run
 
 SOURCE_REFERENCE = {
     "run_id": "exp022-r007-compute",
-    "payload_digest": "sha256:6bfeda8ce5e32bb35748f335338ee6af29bedf76ac606babc9823a466da640c0",
 }
 CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")
 
@@ -99,7 +98,7 @@ def _inspect_reused_cell(source: SourceRun, cell: dict) -> dict:
             "refractory_policy",
         }:
             interpretation = (
-                source.record.get("bank_reuse", {})
+                source.details.get("bank_reuse", {})
                 .get("cell_provenance", {})
                 .get(name, {})
                 .get("refractory_interpretation")
@@ -190,8 +189,8 @@ def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
         "diagnostic_policy": "regenerate_all_34_seed42_final_epoch_snapshots",
         "per_cell": records,
         "source_operation": {
-            "origin": source.record["origin"],
-            "operation": source.record["execution"].get("operation"),
+            "origin": source.details["origin"],
+            "operation": source.details["execution"].get("operation"),
         },
     }
     source.check_unchanged()

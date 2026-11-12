@@ -20,9 +20,9 @@ def copy_circuits(run):
             return
         seen.add(identity)
         source = source_run(run.directory.parents[1], identity, reference=reference)
-        if source.record["experiment"] != run.record["experiment"]:
+        if source.details["experiment"] != run.details["experiment"]:
             return
-        if source.record["stage"] == "compute":
+        if source.details["stage"] == "compute":
             for path in source.export.glob("circuit*.svg"):
                 target = run.export / path.name
                 if target.exists() and target.read_bytes() != path.read_bytes():
@@ -30,9 +30,9 @@ def copy_circuits(run):
                 shutil.copyfile(path, target)
                 files.add(path.name)
         else:
-            for parent in source.record["inputs"].values():
+            for parent in source.details["inputs"].values():
                 visit(parent)
 
-    for reference in run.record["inputs"].values():
+    for reference in run.details["inputs"].values():
         visit(reference)
     return sorted(files)

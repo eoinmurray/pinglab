@@ -21,16 +21,20 @@ def load_sources(cfg):
         cfg["source_run"],
         experiment="exp171",
         stage="compute",
-        reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
+        reference={
+            "run_id": cfg["source_run"],
+        },
     )
     bank = source_run(
         ROOT / ".pingstore",
         cfg["bank_run"],
         experiment="exp022",
         stage="compute",
-        reference={"run_id": cfg["bank_run"], "payload_digest": cfg["bank_digest"]},
+        reference={
+            "run_id": cfg["bank_run"],
+        },
     )
-    retained = source.record["consolidation"]["sources"]["exp171-r047-compute"][
+    retained = source.details["consolidation"]["sources"]["exp171-r047-compute"][
         "record"
     ]["execution"]["configuration"]
     if retained["rate_penalty"] != 0 or retained["rate_target_hz"] is not None:
@@ -39,7 +43,7 @@ def load_sources(cfg):
     for kind in ("coba", "ping"):
         cell = kind + "__off__seed42"
         conf = json.loads(bank.file(cell, "config.json").read_text())
-        provenance = bank.record["bank_reuse"]["diagnostic_provenance"][cell]
+        provenance = bank.details["bank_reuse"]["diagnostic_provenance"][cell]
         pin = provenance["checkpoint"]
         expected = retained["source_checkpoints"][kind]
         if (
@@ -149,7 +153,7 @@ class PrefixCollector:
         return scores
 
 
-def execute(cfg):
+def execute(cfg, *, run_id=None):
     started = time.perf_counter()
     torch.set_num_threads(cfg["threads"])
     source, bank, weights = load_sources(cfg)
@@ -193,6 +197,7 @@ def execute(cfg):
         inputs={"exp171": source, "bank": bank},
         configuration=cfg,
         operation="prototype-test-prefix",
+        run_id=run_id,
     ) as run:
         dataset_path = run.export / "dataset.npz"
         np.savez_compressed(dataset_path, **arrays)
@@ -311,10 +316,10 @@ def execute(cfg):
                 f"{kind}: {(collector.predictions[-1] == arrays['labels'][: cfg['samples']]).mean():.1%}; {timings[kind]:.2f}s",
                 flush=True,
             )
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {k: ["start"] for k in recipe.KINDS}
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             elapsed_seconds=time.perf_counter() - started,
             condition_seconds=timings,
             no_training=True,
@@ -336,5 +341,9 @@ if __name__ == "__main__":
         "--samples", type=int, default=recipe.configuration()["samples"]
     )
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--run-id")
     args = parser.parse_args()
-    execute(recipe.configuration(samples=args.samples, batch_size=args.batch_size))
+    execute(
+        recipe.configuration(samples=args.samples, batch_size=args.batch_size),
+        run_id=args.run_id,
+    )

@@ -117,7 +117,7 @@ def present(source, *, run_id=None):
     analysed = source_run(
         REPO / ".pingstore", source, experiment=recipe.SLUG, stage="analyse"
     )
-    pins = analysed.record["inputs"]
+    pins = analysed.details["inputs"]
     origins = {
         recurrence: source_run(
             REPO / ".pingstore",
@@ -138,7 +138,7 @@ def present(source, *, run_id=None):
         recipe.SLUG,
         "present",
         inputs={"analyse": analysed},
-        configuration=analysed.record["execution"]["configuration"],
+        configuration=analysed.details["execution"]["configuration"],
         run_id=run_id,
     ) as run:
         for recurrence, prefix in (
@@ -146,7 +146,7 @@ def present(source, *, run_id=None):
             ("off", "recurrence-off-rasters"),
         ):
             origin = origins[recurrence]
-            configurations = origin.record["execution"]["configuration"]["conditions"]
+            configurations = origin.details["execution"]["configuration"]["conditions"]
             figure, axes = plt.subplots(2, 1, figsize=(12, 8.5), layout="constrained")
             for index, state in enumerate(recipe.CONDITIONS):
                 panel(
@@ -170,7 +170,7 @@ def present(source, *, run_id=None):
                         run.export / f"recurrence-{recurrence}-circuit.{extension}",
                     )
         write_json_atomic(run.export / "numbers.json", {**numbers, "figure": "both"})
-        run.record["execution"]["elapsed_s"] = perf_counter() - started
+        run.details["execution"]["elapsed_s"] = perf_counter() - started
     return run.run_id
 
 

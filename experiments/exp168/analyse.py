@@ -22,7 +22,6 @@ def _origin(run_id, reference):
         run_id,
         reference={
             "run_id": run_id,
-            "payload_digest": reference,
         },
     )
 
@@ -97,7 +96,7 @@ def analyse(*, run_id=None):
     configurations = {}
     metrics = {}
     for recurrence, origin in origins.items():
-        source_configurations = origin.record["execution"]["configuration"][
+        source_configurations = origin.details["execution"]["configuration"][
             "conditions"
         ]
         configurations[recurrence] = source_configurations
@@ -143,7 +142,7 @@ def analyse(*, run_id=None):
                 ],
             ),
         )
-        run.record["execution"]["elapsed_s"] = perf_counter() - started
+        run.details["execution"]["elapsed_s"] = perf_counter() - started
     return run.run_id
 
 

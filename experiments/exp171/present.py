@@ -149,11 +149,11 @@ def inhibitory_rates(computed, evaluated=None):
     source = evaluated or computed
     if evaluated:
         paths = None
-        record = source.record
+        record = source.details
     else:
         candidates = [
             item
-            for item in source.record.get("consolidation", {})
+            for item in source.details.get("consolidation", {})
             .get("sources", {})
             .values()
             if "test-results.json" in item["export_paths"]
@@ -443,7 +443,7 @@ def present(identity, run_id=None):
     analysis = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="analyse"
     )
-    pin = analysis.record["inputs"]["compute"]
+    pin = analysis.details["inputs"]["compute"]
     computed = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -451,10 +451,10 @@ def present(identity, run_id=None):
         stage="compute",
         reference=pin,
     )
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     results = json.loads(analysis.file("results.json").read_text())
     inputs = {"analyse": analysis, "compute": computed}
-    for role, pin in analysis.record["inputs"].items():
+    for role, pin in analysis.details["inputs"].items():
         if role.startswith(("cell_", "test_evaluation")):
             inputs[role] = source_run(
                 ROOT / ".pingstore",
@@ -464,8 +464,8 @@ def present(identity, run_id=None):
                 reference=pin,
             )
     recorded = None
-    if "raster" in analysis.record["inputs"]:
-        pin = analysis.record["inputs"]["raster"]
+    if "raster" in analysis.details["inputs"]:
+        pin = analysis.details["inputs"]["raster"]
         recorded = source_run(
             ROOT / ".pingstore",
             pin["run_id"],
@@ -526,7 +526,7 @@ def present(identity, run_id=None):
                 )
         presentation_timings(results, started)
         write_json(run.export / "numbers.json", results)
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
         )
         analysis.check_unchanged()

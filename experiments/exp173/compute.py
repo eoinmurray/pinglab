@@ -22,11 +22,13 @@ def load_source(cfg):
         cfg["source_run"],
         experiment="exp022",
         stage="compute",
-        reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
+        reference={
+            "run_id": cfg["source_run"],
+        },
     )
     cell = cfg["source_cell"]
     conf = json.loads(source.file(cell, "config.json").read_text())
-    provenance = source.record["bank_reuse"]["diagnostic_provenance"][cell]
+    provenance = source.details["bank_reuse"]["diagnostic_provenance"][cell]
     pin = provenance["checkpoint"]
     path = source.file(cell, pin["filename"])
     if (
@@ -144,7 +146,7 @@ def valid_counts(values):
     return values
 
 
-def execute(cfg):
+def execute(cfg, *, run_id=None):
     started = time.perf_counter()
     torch.set_num_threads(cfg["threads"])
     source, weights = load_source(cfg)
@@ -196,9 +198,14 @@ def execute(cfg):
         compile_mode=None, precision="highest", projection_mode="fast"
     )
     with stage_run(
-        ROOT, recipe.SLUG, "compute", inputs={"bank": source}, configuration=cfg
+        ROOT,
+        recipe.SLUG,
+        "compute",
+        inputs={"bank": source},
+        configuration=cfg,
+        run_id=run_id,
     ) as run:
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {f"i{n}": ["start"] for n in cfg["pool_sizes"]}
         }
         np.savez_compressed(
@@ -320,7 +327,7 @@ def execute(cfg):
             run.export / "accuracy-input-hashes.json",
             {"batch_sha256": reference_accuracy_hashes},
         )
-        run.record["execution"].update(
+        run.details["execution"].update(
             elapsed_s=time.perf_counter() - started, condition_seconds=timings
         )
     print(run.run_id, flush=True)
@@ -331,9 +338,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--source-digest", required=True)
+    parser.add_argument("--run-id")
     args = parser.parse_args()
     execute(
-        recipe.configuration(source_run=args.source, source_digest=args.source_digest)
+        recipe.configuration(source_run=args.source, source_digest=args.source_digest),
+        run_id=args.run_id,
     )
 
 

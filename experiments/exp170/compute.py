@@ -181,9 +181,11 @@ def compute(*, run_id=None):
         cfg["source_run"],
         experiment="exp169",
         stage="compute",
-        reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
+        reference={
+            "run_id": cfg["source_run"],
+        },
     )
-    pin = old.record["inputs"]["bank"]
+    pin = old.details["inputs"]["bank"]
     bank = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -192,7 +194,7 @@ def compute(*, run_id=None):
         reference=pin,
     )
     original = json.loads(old.file("summary.json").read_text())
-    oldcfg = old.record["execution"]["configuration"]
+    oldcfg = old.details["execution"]["configuration"]
     data = {}
     for key, cell in [("coba", oldcfg["coba_cell"]), ("ping", oldcfg["ping_cell"])]:
         with np.load(bank.file("snapshots", cell, "recording.npz")) as z:
@@ -345,10 +347,10 @@ def compute(*, run_id=None):
             original_control_E_rate_hz=original["rate_e_hz"],
         )
         (run.export / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {"execution": ["start"]}
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=False,
             simulation_seconds=sim_seconds,
             elapsed_seconds=summary["total_seconds"],
@@ -370,7 +372,7 @@ def import_retained(identity, *, run_id=None):
         stage="compute",
         phase="scratch-count-matched-inhibition",
     )
-    pin = source.record["inputs"]["bank"]
+    pin = source.details["inputs"]["bank"]
     bank = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -378,7 +380,7 @@ def import_retained(identity, *, run_id=None):
         stage="compute",
         reference=pin,
     )
-    cfg = source.record["execution"]["configuration"]
+    cfg = source.details["execution"]["configuration"]
     with stage_run(
         ROOT,
         recipe.SLUG,
@@ -399,17 +401,17 @@ def import_retained(identity, *, run_id=None):
                 assert file_sha256(item) == file_sha256(
                     run.export / item.relative_to(source.outputs)
                 )
-        run.record["scientific_artifacts"] = source.record["scientific_artifacts"]
-        run.record["migration"] = {
+        run.details["scientific_artifacts"] = source.details["scientific_artifacts"]
+        run.details["migration"] = {
             "source": source.reference,
             "method": "byte-identical copy of retained export; no simulation",
-            "original_scientific_execution": source.record.get(
-                "scientific_execution", source.record["execution"]
+            "original_scientific_execution": source.details.get(
+                "scientific_execution", source.details["execution"]
             ),
             "original_configuration_preserved": True,
             "historical_scripts": "Retained root Python files are historical provenance, not experiment entry points.",
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - tick
         )
         source.check_unchanged()
@@ -431,7 +433,7 @@ def record_traces(identity, *, run_id=None):
     computed = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
     )
-    pin = computed.record["inputs"]["bank"]
+    pin = computed.details["inputs"]["bank"]
     bank = source_run(
         ROOT / ".pingstore",
         pin["run_id"],
@@ -440,7 +442,7 @@ def record_traces(identity, *, run_id=None):
         reference=pin,
     )
     cfg = recipe.recorded_configuration(
-        computed.record["execution"]["configuration"],
+        computed.details["execution"]["configuration"],
         json.loads(computed.file("network.bundle", "graph.json").read_text()),
     )
     neuron = 512
@@ -546,10 +548,10 @@ def record_traces(identity, *, run_id=None):
             )
             + "\n"
         )
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {"execution": ["start"]}
         }
-        run.record["execution"].update(
+        run.details["execution"].update(
             no_simulation=False,
             simulation_seconds=simulation_seconds,
             elapsed_seconds=time.perf_counter() - started,

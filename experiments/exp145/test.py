@@ -155,12 +155,12 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
     assert expected <= labels
     refreshed_id = present.redraw_networks(present_id)
     refreshed = core.source_run(tmp_path / ".pingstore", refreshed_id, stage="present")
-    assert refreshed.record["inputs"]["figure_source"] == output.reference
-    assert refreshed.record["inputs"]["analyse"] == output.record["inputs"]["analyse"]
+    assert refreshed.details["inputs"]["figure_source"] == output.reference
+    assert refreshed.details["inputs"]["analyse"] == output.details["inputs"]["analyse"]
     for name in ("onset.png", "ai-diagnostics.png", "numbers.json"):
         assert refreshed.file(name).read_bytes() == output.file(name).read_bytes()
     output.check_unchanged()
-    assert output.record["inputs"]["compute"]["run_id"] == compute_id
+    assert output.details["inputs"]["compute"]["run_id"] == compute_id
 
 
 def test_pair_covariance_matches_direct_lagged_pairs():

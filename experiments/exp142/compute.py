@@ -44,7 +44,7 @@ def compute(identity, *, run_id=None, input_rate_hz=None):
         configuration=cfg,
         run_id=run_id,
     ) as run:
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={
                 f"{mode}-{case}": ["start"]
                 for mode in cfg["models"]
@@ -72,7 +72,7 @@ def compute(identity, *, run_id=None, input_rate_hz=None):
         events, encoding = encode_sample(
             graph, dataset_path, cfg, max_rate_hz=cfg["input_rate_hz"]
         )
-        run.record["execution"]["input_encoding"] = dict(
+        run.details["execution"]["input_encoding"] = dict(
             protocol=encoding,
             source_protocol=source_encoding,
             source_encoding_bitwise_equal=True,
@@ -126,7 +126,7 @@ def simulate_models(run, source, models, source_events, cfg, audit, label):
         validate(control, cfg, ni, sample_dt_ns=cfg["native_sample_dt_ns"])
         anchors[mode] = check_anchor(control, originals, cfg, ni)
         np.savez_compressed(control_dir / "recording.npz", **control)
-        run.record["execution"].setdefault("cases", {})[f"{mode}-source-control"] = (
+        run.details["execution"].setdefault("cases", {})[f"{mode}-source-control"] = (
             control_diagnostics
         )
         conditions = [("native", cfg["input_grid_ns"], False)] + [
@@ -201,7 +201,7 @@ def simulate_models(run, source, models, source_events, cfg, audit, label):
                 input_event_sha256=event_digest(replay),
                 max_time_error_ns=0,
             )
-            run.record["execution"].setdefault("cases", {})[unit] = diagnostics
+            run.details["execution"].setdefault("cases", {})[unit] = diagnostics
             print(
                 f"{unit}: prediction={recording['class_scores'].argmax()}, label={label}, counts={recording['class_scores'].tolist()}",
                 flush=True,

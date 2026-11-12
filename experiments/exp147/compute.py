@@ -25,10 +25,10 @@ def compute(*, run_id=None):
     torch.set_num_threads(cfg["torch_threads"])
     bundle = recipe.author_network(cfg)
     with stage_run(REPO, "exp147", "compute", configuration=cfg, run_id=run_id) as run:
-        run.record["scientific_artifacts"] = dict(
+        run.details["scientific_artifacts"] = dict(
             snapshot_stages={"simulation": ["start"]}
         )
-        run.record["execution"].update(
+        run.details["execution"].update(
             snnlab_version=version("snnlab"), device=cfg["device"], dtype=cfg["dtype"]
         )
         bundle.write(run.export / "simulation" / "network.bundle", visualise=False)

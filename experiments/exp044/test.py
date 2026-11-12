@@ -18,6 +18,7 @@ from experiments.exp044.recipe import (
     refractory_configuration,
     refractory_execution_configuration,
 )
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 """Temporary synthetic banks and mocked inference; never run scientific experiments."""
 
@@ -32,8 +33,6 @@ from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -41,9 +40,6 @@ from pingstore.library import (
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp044": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
@@ -64,7 +60,7 @@ def lab(tmp_path, monkeypatch):
                     "n_inh": 2,
                     "hidden_sizes": [4],
                 }
-                write_json_atomic(cell / "config.json", cfg)
+                write_fixture_json(cell / "config.json", cfg)
                 checkpoints = {}
                 for role, filename in (
                     ("final_epoch", "weights_final.pth"),
@@ -77,7 +73,7 @@ def lab(tmp_path, monkeypatch):
                         "epoch": recipe.EPOCHS,
                         "sha256": file_sha256(path),
                     }
-                write_json_atomic(
+                write_fixture_json(
                     cell / "metrics.json",
                     {
                         "config": cfg,
@@ -117,7 +113,7 @@ def lab(tmp_path, monkeypatch):
                 np.savez_compressed(out / "spikes.npz", spk_e=e, spk_i=i, dt=cfg["dt"])
             else:
                 samples = config["evaluation_samples"]
-                write_json_atomic(
+                write_fixture_json(
                     out / "metrics.json",
                     {
                         "config": {
@@ -143,9 +139,9 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch):
@@ -156,7 +152,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert len(calls) == 20
     assert calls.count("snapshot") == 5
     output = inputs.source(root, compute_id, "compute")
-    assert output.record["inputs"] == {"bank": before}
+    assert output.details["inputs"] == {"bank": before}
     assert len(list(output.export.glob("snapshot--*--spikes.npz"))) == 5
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
@@ -198,7 +194,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     )
     presentation_id = present.present(analysis_id)
     presentation = inputs.source(root, presentation_id, "present")
-    assert presentation.record["inputs"] == {"analysis": analysis_run.reference}
+    assert presentation.details["inputs"] == {"analysis": analysis_run.reference}
     assert all((presentation.export / name).is_file() for name in recipe.FIGURES)
     assert all(p.is_file() for p in presentation.export.iterdir())
     assert (
@@ -214,30 +210,31 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
 def test_selected_bank_is_new_source_without_requiring_its_import_history(lab):
     root, bank_id, calls = lab
     directory = root / ".pingstore/runs" / bank_id
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["inputs"] = {
         "import": {
             "run_id": "exp022-r999-compute",
             "payload_digest": "sha256:" + "0" * 64,
         }
     }
-    write_json_atomic(directory / "run.json", record)
-    before = (directory / "run.json").read_bytes()
+    write_fixture_json(directory / "details.json", record)
+    before = (directory / "details.json").read_bytes()
     identity = compute.compute(bank_id)
     result = inputs.source(root, identity, "compute")
-    boundary = result.record["source_boundary"]
+    boundary = result.details["source_boundary"]
     assert boundary["policy"] == "selected-v4-training-bank"
     assert (
         boundary["banks"][bank_id]["historical_inputs_not_traversed"]
         == record["inputs"]
     )
-    assert boundary["banks"][bank_id]["reference"] == result.record["inputs"]["bank"]
+    assert boundary["banks"][bank_id]["reference"] == result.details["inputs"]["bank"]
     analysis_id = analyse.analyse(identity)
     present_id = present.present(analysis_id)
     assert (
-        inputs.source(root, present_id, "present").record["source_boundary"] == boundary
+        inputs.source(root, present_id, "present").details["source_boundary"]
+        == boundary
     )
-    assert (directory / "run.json").read_bytes() == before
+    assert (directory / "details.json").read_bytes() == before
     assert len(calls) == 20
 
 
@@ -267,7 +264,7 @@ def test_corrupt_payload_and_snapshot_geometry_are_rejected(lab):
     output = inputs.source(root, identity, "compute")
     path = output.file("snapshot", recipe.cell_name(0.05, 42), "spikes.npz")
     np.savez_compressed(path, spk_e=np.zeros((2, 4)), spk_i=np.zeros((2, 2)), dt=0.05)
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(PingstoreError, match="snapshot shape"):
         analyse.analyse(identity)
     resign(output.directory)
     with pytest.raises(PingstoreError, match="snapshot shape"):
@@ -281,10 +278,10 @@ def test_ancestor_metadata_amendment_during_stage_is_allowed(lab):
     compute_id = compute.compute(bank_id)
     source = inputs.source(root, compute_id, "compute")
     with inputs.execution(root, "analyse", sources={"compute": source}) as run:
-        record = load_json(bank.directory / "run.json")
+        record = load_json(bank.directory / "details.json")
         record["execution"]["changed"] = True
-        write_json_atomic(bank.directory / "run.json", record)
-        write_json_atomic(run.export / "fixture.json", {})
+        write_fixture_json(bank.directory / "details.json", record)
+        write_fixture_json(run.export / "fixture.json", {})
     assert (root / ".pingstore/runs" / run.run_id).is_dir()
 
 
@@ -314,11 +311,11 @@ def test_production_and_snapshot_caps_are_explicit():
 
 def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
     root, bank_id, calls = lab
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     r = load_json(path)
     r["schema"] = "pingstore.run/v2"
-    write_json_atomic(path, r)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    write_fixture_json(path, r)
+    with pytest.raises(PingstoreError, match="migrate old records"):
         compute.compute(bank_id)
     assert calls == []
 
@@ -326,10 +323,10 @@ def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
 def test_changed_authoritative_ancestor_metadata_is_allowed(lab):
     root, bank_id, _ = lab
     compute_id = compute.compute(bank_id)
-    path = root / ".pingstore/runs" / bank_id / "run.json"
+    path = root / ".pingstore/runs" / bank_id / "details.json"
     r = load_json(path)
     r["execution"]["note"] = "manifest-only change"
-    write_json_atomic(path, r)
+    write_fixture_json(path, r)
     assert analyse.analyse(compute_id).endswith("-analyse")
 
 
@@ -359,7 +356,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         path = bank.export / recipe.cell_name(0.05, 42) / "metrics.json"
         r = load_json(path)
         r["epochs"].pop()
-        write_json_atomic(path, r)
+        write_fixture_json(path, r)
         resign(bank.directory)
         with pytest.raises(PingstoreError, match="incomplete training history"):
             compute.compute(bank_id)
@@ -375,7 +372,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
         r["n_total"] = 0
     else:
         r["rates_hz"]["e"] = float("nan")
-    write_json_atomic(path, r)
+    write_fixture_json(path, r)
     resign(output.directory)
     with pytest.raises(PingstoreError):
         analyse.analyse(compute_id)
@@ -536,7 +533,7 @@ def test_adopted_sweep_only_allows_undeclared_refs_for_retained_point(
     cfg = load_json(retained)
     for key in refractory_configuration():
         cfg.pop(key)
-    write_json_atomic(retained, cfg)
+    write_fixture_json(retained, cfg)
     contract = evidence.training_contract(tmp_path)
     point = next(c for c in contract["cells"] if c["dt_ms"] == 0.1 and c["seed"] == 42)
     assert point["execution_dynamics"]["refractory_e_steps"] == 12
@@ -545,7 +542,7 @@ def test_adopted_sweep_only_allows_undeclared_refs_for_retained_point(
     fine = directories[(0.05, 42)] / "config.json"
     cfg = load_json(fine)
     cfg.pop("refractory_e_ms")
-    write_json_atomic(fine, cfg)
+    write_fixture_json(fine, cfg)
     with pytest.raises(PingstoreError, match="explicit refractory_e_ms"):
         evidence.training_contract(tmp_path)
 
@@ -563,6 +560,6 @@ def test_adopted_sweep_has_correct_duration_and_rejects_wrong_population(
     path = directories[(0.3, 42)] / "config.json"
     cfg = load_json(path)
     cfg["refractory_i_ms"] = 1.5
-    write_json_atomic(path, cfg)
+    write_fixture_json(path, cfg)
     with pytest.raises(PingstoreError, match="explicit refractory_i_ms"):
         evidence.training_contract(tmp_path)

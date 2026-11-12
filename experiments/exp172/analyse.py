@@ -453,7 +453,7 @@ def materialise_compute(source, destination):
     destination.mkdir(parents=True, exist_ok=False)
     reverse = {
         stored: original
-        for original, stored in source.record.get("scientific_artifacts", {})
+        for original, stored in source.details.get("scientific_artifacts", {})
         .get("native_paths", {})
         .items()
     }
@@ -734,7 +734,7 @@ def mechanism_analysis_run(computed, run_id=None):
             run.export / "results.json",
             dict(mechanism=measured, elapsed_seconds=perf_counter() - started),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     print(run.run_id, flush=True)
     return run.run_id
 
@@ -785,7 +785,7 @@ def analyse_candidate(data, baseline=None):
 
 def candidate_analysis_run(computed, run_id=None):
     started = perf_counter()
-    reference = computed.record["inputs"]["reference_compute"]
+    reference = computed.details["inputs"]["reference_compute"]
     original = source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -818,7 +818,7 @@ def candidate_analysis_run(computed, run_id=None):
             run.export / "results.json",
             dict(candidate=candidate, elapsed_seconds=perf_counter() - started),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -879,7 +879,7 @@ def background_analysis_run(computed, run_id=None):
     settings = descriptor["settings"]
     plan = background_sweep_plan(settings)
     compare_metrics(plan, descriptor["trials"])
-    ref = computed.record["inputs"]["reference_compute"]
+    ref = computed.details["inputs"]["reference_compute"]
     reference = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -887,7 +887,7 @@ def background_analysis_run(computed, run_id=None):
         stage="compute",
         reference=ref,
     )
-    baseline_cfg = reference.record["execution"]["configuration"]
+    baseline_cfg = reference.details["execution"]["configuration"]
     parameters = NetworkSnapshot.read(
         reference.file(descriptor["baseline_trial"], "start/snapshot.json")
     ).load_parameters()
@@ -989,7 +989,7 @@ def background_analysis_run(computed, run_id=None):
             run.export / "results.json",
             dict(background_sweep=export, elapsed_seconds=perf_counter() - started),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1002,7 +1002,7 @@ def cue_analysis_run(computed, run_id=None):
     settings = descriptor["settings"]
     plan = cue_sweep_plan(settings)
     compare_metrics(plan, descriptor["trials"])
-    ref = computed.record["inputs"]["reference_compute"]
+    ref = computed.details["inputs"]["reference_compute"]
     reference = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -1010,7 +1010,7 @@ def cue_analysis_run(computed, run_id=None):
         stage="compute",
         reference=ref,
     )
-    ref_analysis = computed.record["inputs"]["background_analyse"]
+    ref_analysis = computed.details["inputs"]["background_analyse"]
     background_analysis = source_run(
         REPO / ".pingstore",
         ref_analysis["run_id"],
@@ -1021,7 +1021,7 @@ def cue_analysis_run(computed, run_id=None):
     background = json.loads(background_analysis.file("results.json").read_text())[
         "background_sweep"
     ]
-    assert background_analysis.record["inputs"]["compute"] == ref
+    assert background_analysis.details["inputs"]["compute"] == ref
     assert settings["background_hz"] == best_background(background["summary"])
     baseline_cfg = json.loads(
         reference.file(descriptor["baseline_trial"], "configuration.json").read_text()
@@ -1125,7 +1125,7 @@ def cue_analysis_run(computed, run_id=None):
             run.export / "results.json",
             dict(cue_sweep=export, elapsed_seconds=perf_counter() - started),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1138,8 +1138,8 @@ def contrast_analysis_run(computed, run_id=None):
     settings = descriptor["settings"]
     plan = contrast_sweep_plan(settings)
     previous_rows = []
-    if "previous_analyse" in computed.record["inputs"]:
-        previous_ref = computed.record["inputs"]["previous_analyse"]
+    if "previous_analyse" in computed.details["inputs"]:
+        previous_ref = computed.details["inputs"]["previous_analyse"]
         previous = source_run(
             REPO / ".pingstore",
             previous_ref["run_id"],
@@ -1152,7 +1152,7 @@ def contrast_analysis_run(computed, run_id=None):
         assert {k: v for k, v in old["settings"].items() if k != "rates_hz"} == {
             k: v for k, v in settings.items() if k != "rates_hz"
         }
-        previous_compute_ref = previous.record["inputs"]["compute"]
+        previous_compute_ref = previous.details["inputs"]["compute"]
         previous_compute = source_run(
             REPO / ".pingstore",
             previous_compute_ref["run_id"],
@@ -1161,8 +1161,8 @@ def contrast_analysis_run(computed, run_id=None):
             reference=previous_compute_ref,
         )
         assert (
-            previous_compute.record["inputs"]["cue_analyse"]
-            == computed.record["inputs"]["cue_analyse"]
+            previous_compute.details["inputs"]["cue_analyse"]
+            == computed.details["inputs"]["cue_analyse"]
         )
         previous_rows = old["seed_rows"]
         plan = [
@@ -1171,7 +1171,7 @@ def contrast_analysis_run(computed, run_id=None):
             if item["contrast_ratio"] not in old["settings"]["rates_hz"]
         ]
     compare_metrics(plan, descriptor["trials"])
-    ref = computed.record["inputs"]["reference_compute"]
+    ref = computed.details["inputs"]["reference_compute"]
     reference = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -1179,7 +1179,7 @@ def contrast_analysis_run(computed, run_id=None):
         stage="compute",
         reference=ref,
     )
-    ref_analysis = computed.record["inputs"]["cue_analyse"]
+    ref_analysis = computed.details["inputs"]["cue_analyse"]
     cue_analysis = source_run(
         REPO / ".pingstore",
         ref_analysis["run_id"],
@@ -1188,7 +1188,7 @@ def contrast_analysis_run(computed, run_id=None):
         reference=ref_analysis,
     )
     cue = json.loads(cue_analysis.file("results.json").read_text())["cue_sweep"]
-    assert cue_analysis.record["inputs"]["compute"] == ref
+    assert cue_analysis.details["inputs"]["compute"] == ref
     assert settings["background_hz"] == cue["settings"]["background_hz"]
     baseline_cfg = json.loads(
         reference.file(descriptor["baseline_trial"], "configuration.json").read_text()
@@ -1313,7 +1313,7 @@ def contrast_analysis_run(computed, run_id=None):
             run.export / "results.json",
             dict(contrast_sweep=export, elapsed_seconds=perf_counter() - started),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1447,7 +1447,7 @@ def arrivals_analysis_run(computed, run_id=None):
     inputs = {"compute": computed}
     sources = {}
     for case in descriptor["cases"]:
-        ref = computed.record["inputs"][case["reference_role"]]
+        ref = computed.details["inputs"][case["reference_role"]]
         sources[case["label"]] = source_run(
             REPO / ".pingstore",
             ref["run_id"],
@@ -1520,7 +1520,7 @@ def arrivals_analysis_run(computed, run_id=None):
         measured = dict(
             settings=settings,
             panels=panels,
-            reference_pins=computed.record["inputs"],
+            reference_pins=computed.details["inputs"],
             exact_replay=True,
             limitation="Exact single seed-185 trials of Figures 1 and 6; all arrivals included, not just successful transmissions. Cycles and arrivals are correlated. Inhibitory trough is a phase reference and proxy, not a measured hard receptive-window boundary.",
         )
@@ -1530,7 +1530,7 @@ def arrivals_analysis_run(computed, run_id=None):
                 arrival_distribution=measured, elapsed_seconds=perf_counter() - started
             ),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1602,7 +1602,7 @@ def phase_inhibition_analysis_run(computed, run_id=None):
     plan = json.loads(computed.file("phase-inhibition-plan.json").read_text())
     trial, settings = plan["trial_id"], plan["settings"]
     cfg = json.loads(computed.file(trial, "configuration.json").read_text())
-    ref = computed.record["inputs"]["reference_compute"]
+    ref = computed.details["inputs"]["reference_compute"]
     source = source_run(
         REPO / ".pingstore",
         ref["run_id"],
@@ -1666,7 +1666,7 @@ def phase_inhibition_analysis_run(computed, run_id=None):
         configuration=settings,
     ) as run:
         dump(run.export / "results.json", dict(phase_inhibition=measured))
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1710,7 +1710,7 @@ def probe_response_window(phase, response, fraction):
 def probe_analysis_run(computed, run_id=None):
     started = perf_counter()
     plan = json.loads(computed.file("probe-plan.json").read_text())
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     settings = plan["settings"]
     dt = cfg["dt_ms"]
     assert plan["exact_control"]
@@ -1784,7 +1784,7 @@ def probe_analysis_run(computed, run_id=None):
         configuration=settings,
     ) as run:
         dump(run.export / "results.json", dict(probe_window=measured))
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -1941,7 +1941,7 @@ def used_phase_summary(events, settings):
 def used_window_analysis_run(computed, run_id=None):
     started = perf_counter()
     plan = json.loads(computed.file("used-window-plan.json").read_text())
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     settings = plan["settings"]
     analysis_protocol = used_window_configuration()
     for key, value in settings.items():
@@ -2055,7 +2055,7 @@ def used_window_analysis_run(computed, run_id=None):
         configuration=settings,
     ) as run:
         dump(run.export / "results.json", dict(used_window=measured))
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     return run.run_id
 
 
@@ -2068,7 +2068,7 @@ def main(source, run_id=None):
         experiment="exp172",
         stage="compute",
     )
-    cfg = computed.record["execution"]["configuration"]
+    cfg = computed.details["execution"]["configuration"]
     if cfg.get("stage_mode") == "used_window":
         return used_window_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "probe_window":
@@ -2087,7 +2087,7 @@ def main(source, run_id=None):
         return candidate_analysis_run(computed, run_id)
     if cfg.get("stage_mode") == "mechanism":
         return mechanism_analysis_run(computed, run_id)
-    reference = computed.record["inputs"]["parameter_reference"]
+    reference = computed.details["inputs"]["parameter_reference"]
     parameter_source = source_run(
         REPO / ".pingstore",
         reference["run_id"],
@@ -2137,7 +2137,7 @@ def main(source, run_id=None):
                 elapsed_seconds=perf_counter() - started,
             ),
         )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        run.details["execution"]["elapsed_seconds"] = perf_counter() - started
     print(f"Analysis {perf_counter() - started:.2f} s; no simulation")
     return run.run_id
 

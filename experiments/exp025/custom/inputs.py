@@ -23,7 +23,7 @@ def lineage(repo, identity, reference=None):
             return
         run = source_run(repo / ".pingstore", name, reference=pin)
         visiting.add(name)
-        for upstream in run.record["inputs"].values():
+        for upstream in run.details["inputs"].values():
             visit(upstream["run_id"], upstream)
         visiting.remove(name)
         found[name] = run
@@ -34,7 +34,7 @@ def lineage(repo, identity, reference=None):
 
 def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
     run = lineage(repo, identity, reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+    if run.details["stage"] != stage or run.details["experiment"] != experiment:
         raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
     return run
 
@@ -43,7 +43,7 @@ def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
 def execution(repo, stage, *, sources, run_id=None, configuration=None):
     ancestors = {}
     for run in sources.values():
-        ancestors.update(lineage(repo, run.record["run_id"], run.reference))
+        ancestors.update(lineage(repo, run.details["run_id"], run.reference))
     with stage_run(
         repo,
         recipe.SLUG,
@@ -64,7 +64,7 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
         or cfg.get("schema") not in ("exp025.recipe/v1", "exp025.recipe/v2")
@@ -74,7 +74,7 @@ def configuration(run):
             smoke=cfg["profile"] == "smoke",
             version=int(cfg["schema"].rsplit("v", 1)[1]),
         )
-        or set(run.record["inputs"]) != {"bank"}
+        or set(run.details["inputs"]) != {"bank"}
     ):
         raise PingstoreError("inconsistent exp025 compute recipe or bank input")
     return cfg
@@ -84,7 +84,7 @@ def compute_evidence(repo, run):
     from experiments.exp025.custom import evidence
 
     cfg = configuration(run)
-    pin = run.record["inputs"]["bank"]
+    pin = run.details["inputs"]["bank"]
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
     # Historical v4 imports retained this metadata envelope in the payload.
@@ -108,7 +108,7 @@ def analysis_evidence(repo, run):
     from experiments.exp025.analyse import MEASUREMENT, MEASUREMENT_V1
 
     result = load_json(run.export / "results.json")
-    refs = run.record["inputs"]
+    refs = run.details["inputs"]
     if result.get("schema") == "exp025.analysis/v3":
         from experiments.exp025.custom.full_mnist_baseline import (
             MEASUREMENT as BASELINE_MEASUREMENT,
@@ -133,7 +133,7 @@ def analysis_evidence(repo, run):
             experiment="exp022",
             reference=refs["baseline_bank"],
         )
-        if run.record["execution"].get("configuration") != BASELINE_MEASUREMENT:
+        if run.details["execution"].get("configuration") != BASELINE_MEASUREMENT:
             raise PingstoreError("baseline measurement contract differs")
         if result.get("baseline") != canonical_evidence(bank)[0]:
             raise PingstoreError("canonical baseline disagrees with the bank")
@@ -160,7 +160,7 @@ def analysis_evidence(repo, run):
         refs["bank"] != bank.reference
         or schema not in ("exp025.analysis/v1", "exp025.analysis/v2")
         or result.get("recipe") != cfg
-        or run.record["execution"].get("configuration") != measurement
+        or run.details["execution"].get("configuration") != measurement
         or (schema == "exp025.analysis/v1" and result.get("measurement") != measurement)
     ):
         raise PingstoreError("analysis evidence or bank pin differs")

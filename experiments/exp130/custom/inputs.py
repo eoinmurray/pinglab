@@ -23,7 +23,7 @@ def source(repo: Path, identity: str, stage: str, *, reference=None):
 
 
 def configuration(run):
-    cfg = run.record["execution"].get("configuration")
+    cfg = run.details["execution"].get("configuration")
     if not isinstance(cfg, dict) or cfg.get("schema") != "exp130.recipe/v1":
         raise PingstoreError("exp130 requires the theta-afferent recipe v1")
     if cfg.get("conditions") != list(recipe.CONDITIONS):

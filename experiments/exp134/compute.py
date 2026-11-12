@@ -56,7 +56,7 @@ def training_input(source, cfg):
 
 
 def image_bank(source):
-    definition = source.record["execution"]["configuration"]
+    definition = source.details["execution"]["configuration"]
     if definition.get("schema") != "exp123.compute/v3":
         raise ValueError("expected exp123's balanced shared sweep")
     cfg = definition["sweep"]
@@ -157,7 +157,7 @@ def compute(
         configuration=cfg,
         run_id=run_id,
     ) as run:
-        run.record["execution"]["software"] = dict(
+        run.details["execution"]["software"] = dict(
             snnlab=version("snnlab"), torch=torch.__version__
         )
         encoded = {}
@@ -173,7 +173,7 @@ def compute(
             # Encodings are generated once, then reused for every intervention.
             unit = run.export / f"image{index:05d}"
             unit.mkdir()
-        run.record["scientific_artifacts"] = {
+        run.details["scientific_artifacts"] = {
             "snapshot_stages": {
                 f"{condition['condition_id']}-execution": ["start"]
                 for condition in cfg["conditions"]
@@ -223,7 +223,7 @@ def compute(
             del model, bundle
         if file_sha256(checkpoint) != cfg["checkpoint_sha256"]:
             raise ValueError("checkpoint changed")
-        run.record["execution"].update(
+        run.details["execution"].update(
             encoding_sha256=hashes,
             performance=performance,
             observations=dict(

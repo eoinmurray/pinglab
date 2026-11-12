@@ -13,6 +13,7 @@ from experiments.exp038 import analyse as measurements
 from experiments.exp038 import recipe as exp022
 from experiments.exp038.custom import inputs
 from experiments.exp038.recipe import refractory_configuration
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 
 def _common_config() -> dict:
@@ -82,8 +83,6 @@ from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -91,9 +90,6 @@ from pingstore.library import (
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp038": "demo"}
-    )
     monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
@@ -117,7 +113,7 @@ def lab(tmp_path, monkeypatch):
                 else 0.041,
                 "fr_reg_upper_target_hz": cell["rate_target_hz"] or 0.0,
             }
-            write_json_atomic(directory / "config.json", cfg)
+            write_fixture_json(directory / "config.json", cfg)
             cps = {}
             for role, filename, epoch in (
                 ("best_validation", "weights.pth", 43),
@@ -130,7 +126,7 @@ def lab(tmp_path, monkeypatch):
                     "epoch": epoch,
                     "sha256": file_sha256(target),
                 }
-            write_json_atomic(
+            write_fixture_json(
                 directory / "metrics.json",
                 {
                     "config": cfg,
@@ -157,7 +153,7 @@ def lab(tmp_path, monkeypatch):
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(attachments / "request.json", request)
+        write_fixture_json(attachments / "request.json", request)
 
         def save(path, **arrays):
             np.savez_compressed(path, **arrays)
@@ -187,7 +183,7 @@ def lab(tmp_path, monkeypatch):
             )
         elif uniform:
             cfg["n_batch"] = request["trials"]
-            write_json_atomic(
+            write_fixture_json(
                 out / "metrics.json",
                 {
                     "config": {
@@ -202,7 +198,7 @@ def lab(tmp_path, monkeypatch):
             )
         else:
             n = cfg["max_samples"]
-            write_json_atomic(
+            write_fixture_json(
                 out / "metrics.json",
                 {
                     "config": {
@@ -223,10 +219,10 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    path = directory / "run.json"
+    path = directory / "details.json"
     record = load_json(path)
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
 
 
 def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
@@ -264,7 +260,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
         "numbers.json",
         *recipe.FIGURES,
     }
-    assert p.record["inputs"] == {"analysis": a.reference}
+    assert p.details["inputs"] == {"analysis": a.reference}
     assert not (root / ".artifacts").exists()
     assert not (root / ".pingstore/runs" / f".{pid}.tmp").exists()
     bank.check_unchanged()
@@ -363,7 +359,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
         else:
             d = load_json(p)
             d["n_total"] -= 1
-            write_json_atomic(p, d)
+            write_fixture_json(p, d)
     resign(c.directory)
     with pytest.raises((PingstoreError, OSError, ValueError)):
         analyse.analyse(cid)
@@ -373,10 +369,10 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
 def test_inputs_allow_upstream_metadata_amendment(lab):
     root, bank, _ = lab
     cid = compute.compute(bank)
-    p = root / ".pingstore/runs" / bank / "run.json"
+    p = root / ".pingstore/runs" / bank / "details.json"
     d = load_json(p)
     d["execution"]["extra"] = "changed"
-    write_json_atomic(p, d)
+    write_fixture_json(p, d)
     assert analyse.analyse(cid).endswith("-analyse")
 
 
@@ -398,10 +394,10 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
     cid = compute.compute(bank_id)
     with pytest.raises(PingstoreError, match="not a"):
         present.present(cid)
-    path = root / ".pingstore/runs" / cid / "run.json"
+    path = root / ".pingstore/runs" / cid / "details.json"
     record = load_json(path)
     record["schema"] = "pingstore.run/v2"
-    write_json_atomic(path, record)
+    write_fixture_json(path, record)
     with pytest.raises(PingstoreError):
         analyse.analyse(cid)
 
@@ -428,7 +424,7 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
     path = source.export / "results.json"
     result = load_json(path)
     result["ei_sweep"].pop()
-    write_json_atomic(path, result)
+    write_fixture_json(path, result)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="incomplete"):
         present.present(aid)

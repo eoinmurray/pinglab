@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 from experiments import exp082
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 """Synthetic contract tests; never use the workspace store or real inference."""
 
@@ -33,8 +34,6 @@ from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -42,9 +41,6 @@ from pingstore.library import (
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(
-        core, "memberships", lambda _: {"exp022": "demo", "exp082": "demo"}
-    )
 
     def code(*args):
         return {"git_commit": "fixture", "dirty": False, "code_dirty": False}
@@ -78,7 +74,7 @@ def lab(tmp_path, monkeypatch):
                     "official_test_used_during_training": False,
                 },
             }
-            write_json_atomic(folder / "config.json", cfg)
+            write_fixture_json(folder / "config.json", cfg)
             cps = {}
             for role, filename, epoch in (
                 ("best_validation", "weights.pth", 43),
@@ -90,7 +86,7 @@ def lab(tmp_path, monkeypatch):
                     "epoch": epoch,
                     "sha256": file_sha256(folder / filename),
                 }
-            write_json_atomic(
+            write_fixture_json(
                 folder / "metrics.json",
                 {
                     "config": cfg,
@@ -144,7 +140,7 @@ def lab(tmp_path, monkeypatch):
             )
             attachment = self.directory / ".scratch/simulations" / job["path"]
             attachment.mkdir(parents=True)
-            write_json_atomic(attachment / "command.json", {"fixture": True})
+            write_fixture_json(attachment / "command.json", {"fixture": True})
 
         def stream(self, name):
             calls.append(name)
@@ -165,7 +161,7 @@ def lab(tmp_path, monkeypatch):
                 spikes_i=np.zeros((bounds[-1], 256), dtype=np.int8),
                 spikes_out=out,
             )
-            write_json_atomic(
+            write_fixture_json(
                 folder / "stream.json",
                 {"labels": [0] * 5, "boundaries": bounds, "conditions": conditions},
             )
@@ -225,11 +221,11 @@ def lab(tmp_path, monkeypatch):
                 spikes_i=np.zeros((bounds[-1], 256), dtype=np.int8),
                 spikes_out=out,
             )
-            write_json_atomic(
+            write_fixture_json(
                 folder / "stream.json",
                 {"labels": labels, "boundaries": bounds, "conditions": conditions},
             )
-        write_json_atomic(
+        write_fixture_json(
             showcase.export / "evidence.json",
             {
                 "schema": evidence.showcase_configuration()["schema"],
@@ -254,9 +250,9 @@ def lab(tmp_path, monkeypatch):
 
 
 def resign(folder):
-    record = load_json(folder / "run.json")
+    record = load_json(folder / "details.json")
     record["payload_digest"] = payload_digest(folder)
-    write_json_atomic(folder / "run.json", record)
+    write_fixture_json(folder / "details.json", record)
 
 
 def test_retained_aggregate_rows_are_still_validated(tmp_path):
@@ -275,10 +271,10 @@ def test_retained_aggregate_rows_are_still_validated(tmp_path):
         rate_i_hz=1.0,
     )
     path = tmp_path / "condition.json"
-    write_json_atomic(path, row)
+    write_fixture_json(path, row)
     assert evidence.aggregate(path, job, cfg) == row
     row["accuracy"] = 0.5
-    write_json_atomic(path, row)
+    write_fixture_json(path, row)
     with pytest.raises(PingstoreError, match="condition totals"):
         evidence.aggregate(path, job, cfg)
 
@@ -474,13 +470,13 @@ def test_source_corruption_rejected(lab, target):
     if target == "payload":
         (folder / "export/changed").write_text("corruption")
     elif target == "manifest":
-        record = load_json(folder / "run.json")
+        record = load_json(folder / "details.json")
         record["extra"] = 1
-        write_json_atomic(folder / "run.json", record)
+        write_fixture_json(folder / "details.json", record)
     elif target == "v2":
-        record = load_json(folder / "run.json")
+        record = load_json(folder / "details.json")
         record["schema"] = "pingstore.run/v2"
-        write_json_atomic(folder / "run.json", record)
+        write_fixture_json(folder / "details.json", record)
     elif target == "root":
         (folder / "unexpected").write_text("invalid root")
         resign(folder)
@@ -698,7 +694,7 @@ def test_plot_failure_preserves_sources_and_stays_hidden(lab, monkeypatch):
     cid = compute.compute(bank)
     aid = analyse.analyse(cid, showcase)
     before = {
-        p.name: file_sha256(p / "run.json")
+        p.name: file_sha256(p / "details.json")
         for p in (repo / ".pingstore/runs").iterdir()
     }
     monkeypatch.setattr(
@@ -709,7 +705,7 @@ def test_plot_failure_preserves_sources_and_stays_hidden(lab, monkeypatch):
     with pytest.raises(RuntimeError, match="plot failure"):
         present.present(aid)
     assert {
-        p.name: file_sha256(p / "run.json")
+        p.name: file_sha256(p / "details.json")
         for p in (repo / ".pingstore/runs").iterdir()
         if not p.name.startswith(".")
     } == before
@@ -906,7 +902,7 @@ def test_showcase_rejects_changed_condition(lab):
     path = source.export / "evidence.json"
     saved = load_json(path)
     saved["configuration"]["conditions"][0][0] = 75.0
-    write_json_atomic(path, saved)
+    write_fixture_json(path, saved)
     with pytest.raises(PingstoreError, match="contract differs"):
         evidence.validate_showcase(source.export)
 
@@ -921,15 +917,15 @@ def test_showcase_recipe_preserves_old_versions_and_requires_current_parameters(
     assert document["configuration"]["refractory_e_steps"] == 12
     assert document["configuration"]["refractory_i_steps"] == 6
     document["configuration"]["refractory_i_ms"] = 1.5
-    write_json_atomic(directory / "evidence.json", document)
+    write_fixture_json(directory / "evidence.json", document)
     with pytest.raises(PingstoreError, match="selection contract"):
         evidence.validate_showcase(directory)
     document["configuration"] = evidence.showcase_configuration(version=1)
     with pytest.raises(PingstoreError, match="selection contract"):
-        write_json_atomic(directory / "evidence.json", document)
+        write_fixture_json(directory / "evidence.json", document)
         evidence.validate_showcase(directory)
     document["schema"] = "exp082.showcase-selection/v1"
-    write_json_atomic(directory / "evidence.json", document)
+    write_fixture_json(directory / "evidence.json", document)
     assert evidence.validate_showcase(directory) == document
 
 
@@ -938,7 +934,7 @@ def test_historical_import_cannot_adopt_a_new_execution_recipe(tmp_path, monkeyp
     run = SimpleNamespace(
         export=tmp_path,
         file=lambda *parts: tmp_path.joinpath(*parts),
-        record={
+        details={
             "execution": {"operation": "historical-import"},
             "historical_import": {
                 "schema": evidence.RETAINED_SCHEMA,
@@ -964,7 +960,7 @@ def test_combined_compute_supplies_analysis_and_presentation(lab, monkeypatch):
     identity = compute.compute(bank)
     source = inputs.source(repo, identity, "compute")
     assert load_json(source.export / "evidence.json")["schema"] == "exp082.compute/v3"
-    assert evidence.showcase_evidence(repo, source)[0].record["run_id"] == bank
+    assert evidence.showcase_evidence(repo, source)[0].details["run_id"] == bank
     aid = analyse.analyse(identity)
     fake_plots(monkeypatch)
     pid = present.present(aid)
@@ -977,9 +973,9 @@ def test_combined_compute_rejects_changed_showcase_configuration(lab):
     repo, bank, _, _ = lab
     identity = compute.compute(bank)
     directory = repo / ".pingstore/runs" / identity
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["showcase_configuration"]["training_seed"] = 999
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
     with pytest.raises(PingstoreError, match="showcase execution configuration"):
         analyse.analyse(identity)
 

@@ -135,7 +135,7 @@ def draw_schematics():
 def present(identity, *, run_id=None):
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    if set(analysis.record["inputs"]) != {"compute"}:
+    if set(analysis.details["inputs"]) != {"compute"}:
         raise PingstoreError("exp117 analysis must pin one compute run")
     results = load_json(analysis.export / "results.json")
     coordinates = load_json(analysis.export / "plot_coordinates.json")
@@ -153,7 +153,7 @@ def present(identity, *, run_id=None):
         configuration=cfg,
     ) as run:
         if cfg["schema"] == "exp117.recipe/v4":
-            reference = analysis.record["inputs"]["compute"]
+            reference = analysis.details["inputs"]["compute"]
             computed = inputs.source(
                 REPO, reference["run_id"], "compute", reference=reference
             )

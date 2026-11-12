@@ -8,7 +8,6 @@ from pingstore.library import (
     PingstoreError,
     initialize_layout,
     load_json,
-    payload_digest,
     write_json_atomic,
 )
 
@@ -79,8 +78,9 @@ def completed_volume(tmp_path, receipt, inputs=None):
         "execution": {},
         "provenance": {},
     }
-    record["payload_digest"] = payload_digest(source)
-    write_json_atomic(source / "run.json", record)
+    from pingstore.tests.fixtures import write_fixture_json
+
+    write_fixture_json(source / "details.json", record)
     files = {
         f"{receipt['remote_path']}/{p.relative_to(source)}": p.read_bytes()
         for p in source.rglob("*")
@@ -192,7 +192,7 @@ def test_collect_after_dispatcher_exits_and_repeat_without_network(tmp_path):
     )
     assert result["status"] == "collected"
     destination = tmp_path / "runs" / receipt["run_id"]
-    record = load_json(destination / "run.json")
+    record = load_json(destination / "details.json")
     assert record["execution"]["modal"]["function_call_id"] == "fc-fixture"
     assert not (tmp_path / "runs" / f".{receipt['run_id']}.tmp").exists()
     assert jobs.check(tmp_path, receipt["run_id"])["status"] == "collected"
@@ -223,7 +223,7 @@ def test_interrupted_transfer_retries_without_spawning(tmp_path):
     )
 
 
-@pytest.mark.parametrize("corruption", ["path", "origin", "digest"])
+@pytest.mark.parametrize("corruption", ["path", "origin", "identity"])
 def test_invalid_download_never_becomes_visible(tmp_path, corruption):
     receipt = submission(tmp_path)
     volume = completed_volume(tmp_path, receipt)
@@ -233,12 +233,15 @@ def test_invalid_download_never_becomes_visible(tmp_path, corruption):
         marker["files"].append("../../escape")
         volume.files[key] = json.dumps(marker).encode()
     elif corruption == "origin":
-        key = f"{receipt['remote_path']}/run.json"
+        key = f"{receipt['remote_path']}/details.json"
         record = json.loads(volume.files[key])
         record["origin"] = "wrong"
         volume.files[key] = json.dumps(record).encode()
     else:
-        volume.files[f"{receipt['remote_path']}/export/result.json"] = b"bad digest"
+        key = f"{receipt['remote_path']}/run.json"
+        record = json.loads(volume.files[key])
+        record["id"] = "different"
+        volume.files[key] = json.dumps(record).encode()
     with pytest.raises(PingstoreError):
         jobs.check(
             tmp_path,
@@ -266,7 +269,7 @@ def test_collect_phase_preserves_scope(tmp_path):
     }
     write_json_atomic(tmp_path / "runs" / f".{identity}.tmp" / jobs.RECEIPT, receipt)
     volume = completed_volume(tmp_path, receipt)
-    key = f"{receipt['remote_path']}/run.json"
+    key = f"{receipt['remote_path']}/details.json"
     record = json.loads(volume.files[key])
     record.update(scope="phase", phase="gpu-benchmark")
     volume.files[key] = json.dumps(record).encode()
@@ -275,5 +278,6 @@ def test_collect_phase_preserves_scope(tmp_path):
     )
     assert result["status"] == "collected"
     assert (
-        load_json(tmp_path / "runs" / identity / "run.json")["phase"] == "gpu-benchmark"
+        load_json(tmp_path / "runs" / identity / "details.json")["phase"]
+        == "gpu-benchmark"
     )

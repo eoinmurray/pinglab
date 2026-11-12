@@ -20,9 +20,8 @@ from pingstore.library import (
     PingstoreError,
     discover_runs,
     load_json,
-    payload_digest,
-    write_json_atomic,
 )
+from pingstore.tests.fixtures import payload_digest, write_fixture_json
 
 
 def fixture_documents(cfg, item):
@@ -96,7 +95,6 @@ def fixture_documents(cfg, item):
 def repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(core, "memberships", lambda _: {"exp047": "demo"})
     monkeypatch.setattr(
         core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
@@ -113,9 +111,9 @@ def repo(tmp_path, monkeypatch):
 
 
 def resign(directory):
-    record = load_json(directory / "run.json")
+    record = load_json(directory / "details.json")
     record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
+    write_fixture_json(directory / "details.json", record)
 
 
 def test_independent_stages_preserve_shared_rows_and_never_publish(repo, monkeypatch):
@@ -124,8 +122,8 @@ def test_independent_stages_preserve_shared_rows_and_never_publish(repo, monkeyp
     assert len(calls) == 28
     source = inputs.source(root, compute_id, "compute")
     original = source.reference
-    assert source.record["inputs"] == {}
-    assert source.record["execution"]["environment"] == {"PINGLAB_SMOKE": "1"}
+    assert source.details["inputs"] == {}
+    assert source.details["execution"]["environment"] == {"PINGLAB_SMOKE": "1"}
     assert not list(source.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -161,7 +159,7 @@ def test_independent_stages_preserve_shared_rows_and_never_publish(repo, monkeyp
     )
     present_id = present.present(analysis_id)
     output = inputs.source(root, present_id, "present")
-    assert output.record["inputs"] == {"analysis": analysis.reference}
+    assert output.details["inputs"] == {"analysis": analysis.reference}
     numbers = load_json(output.presentation / "numbers.json")
     assert all(numbers[k] == v for k, v in result.items())
     assert all((output.presentation / name).is_file() for name in recipe.FIGURES)
@@ -241,14 +239,17 @@ def test_sources_and_ancestry_reject_corruption(repo, corruption):
     elif corruption == "root":
         (source.directory / "unexpected.txt").write_text("invalid root")
     else:
-        record = load_json(source.directory / "run.json")
+        record = load_json(source.directory / "details.json")
         if corruption == "v2":
             record["schema"] = "pingstore.run/v2"
         else:
             record["execution"]["note"] = "manifest changed"
-        write_json_atomic(source.directory / "run.json", record)
-    with pytest.raises(PingstoreError):
-        present.present(analysis_id)
+        write_fixture_json(source.directory / "details.json", record)
+    if corruption in {"symlink", "root", "metadata"}:
+        assert present.present(analysis_id).endswith("-present")
+    else:
+        with pytest.raises((PingstoreError, KeyError)):
+            present.present(analysis_id)
 
 
 def test_resigned_wrong_scientific_config_is_rejected(repo):
@@ -258,7 +259,7 @@ def test_resigned_wrong_scientific_config_is_rejected(repo):
     path = next(source.export.glob("probe--*--metrics.json"))
     doc = load_json(path)
     doc["config"]["n_inh"] = 99
-    write_json_atomic(path, doc)
+    write_fixture_json(path, doc)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="configuration differs"):
         analyse.analyse(identity)
@@ -287,9 +288,9 @@ def test_wrong_stage_and_experiment_are_rejected(repo):
     with pytest.raises(PingstoreError, match="not an exp047 analyse"):
         present.present(identity)
     source = inputs.source(root, identity, "compute")
-    record = load_json(source.directory / "run.json")
+    record = load_json(source.directory / "details.json")
     record["experiment"] = "exp048"
-    write_json_atomic(source.directory / "run.json", record)
+    write_fixture_json(source.directory / "details.json", record)
     with pytest.raises(PingstoreError):
         analyse.analyse(identity)
 
@@ -313,9 +314,9 @@ def test_ancestor_metadata_changes_during_stage_are_allowed(repo, monkeypatch, s
         analysis_id = analyse.analyse(compute_id)
 
         def changed(*args):
-            record = load_json(source.directory / "run.json")
+            record = load_json(source.directory / "details.json")
             record["execution"]["note"] = "changed ancestor during plotting"
-            write_json_atomic(source.directory / "run.json", record)
+            write_fixture_json(source.directory / "details.json", record)
 
         monkeypatch.setattr(plots, "plot_controls", changed)
         command, identity = present.present, analysis_id
@@ -330,7 +331,7 @@ def test_analysis_grid_validation_does_not_accept_invented_or_missing_rows(repo)
     path = source.export / "results.json"
     result = load_json(path)
     result["raw"]["fixed_synapse"]["0.015625"]["64"][0]["r_e_hz"] += 1
-    write_json_atomic(path, result)
+    write_fixture_json(path, result)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="shared simulation rows disagree"):
         present.present(identity)

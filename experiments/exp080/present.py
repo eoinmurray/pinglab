@@ -135,7 +135,7 @@ def draw_schematics():
 def present(identity: str, *, run_id: str | None = None) -> str:
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    pin = analysis.record["inputs"]["compute"]
+    pin = analysis.details["inputs"]["compute"]
     compute = inputs.source(REPO, pin["run_id"], "compute", reference=pin)
     result = load_json(analysis.export / "results.json")
     if (
@@ -152,10 +152,12 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        historical = compute.record["execution"].get("operation") == "historical-import"
+        historical = (
+            compute.details["execution"].get("operation") == "historical-import"
+        )
         if historical:
             evidence.require(
-                bool(compute.record.get("historical_import", {}).get("producer")),
+                bool(compute.details.get("historical_import", {}).get("producer")),
                 "historical import lacks original producer identity",
             )
         illustration = result["illustration"]
@@ -168,7 +170,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             shutil.copyfile(
                 compute.file(illustration["path"]), run.export / "feature_images.png"
             )
-            run.record["retained_figures"] = {
+            run.details["retained_figures"] = {
                 "feature_images.png": {
                     "source": compute.reference,
                     "path": illustration["path"],

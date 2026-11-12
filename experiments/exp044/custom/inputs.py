@@ -10,9 +10,7 @@ from pathlib import Path
 
 from experiments.exp044 import recipe
 from pingstore.library import (
-    RUN_SCHEMA,
     PingstoreError,
-    load_json,
     run_root,
     source_run,
     stage_run,
@@ -42,18 +40,16 @@ def lineage(repo: Path, identity: str, *, reference: dict | None = None) -> dict
             raise PingstoreError(
                 f"exp044 requires complete v4 input lineage: missing {run_id}"
             )
-        if load_json(directory / "run.json").get("schema") != RUN_SCHEMA:
-            raise PingstoreError(f"exp044 requires v4 evidence: {run_id}")
         run = source_run(repo / ".pingstore", run_id, reference=pin)
         visiting.add(run_id)
         # The user selected the self-contained bank as exp044's new source.
         # Validate its entire payload and manifest, but do not turn its older
         # import history into additional execution dependencies or rewrite it.
         is_bank = (
-            run.record["experiment"] == "exp022" and run.record["stage"] == "compute"
+            run.details["experiment"] == "exp022" and run.details["stage"] == "compute"
         )
         if not is_bank:
-            for upstream in run.record["inputs"].values():
+            for upstream in run.details["inputs"].values():
                 visit(upstream["run_id"], upstream)
         visiting.remove(run_id)
         found[run_id] = run
@@ -71,7 +67,7 @@ def source(
     reference: dict | None = None,
 ):
     run = lineage(repo, identity, reference=reference)[identity]
-    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+    if run.details["stage"] != stage or run.details["experiment"] != experiment:
         raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
     return run
 
@@ -82,7 +78,7 @@ def execution(
 ):
     ancestors = {}
     for run in sources.values():
-        ancestors.update(lineage(repo, run.record["run_id"], reference=run.reference))
+        ancestors.update(lineage(repo, run.details["run_id"], reference=run.reference))
     with stage_run(
         repo,
         recipe.SLUG,
@@ -91,17 +87,17 @@ def execution(
         run_id=run_id,
         configuration=configuration,
     ) as run:
-        run.record["source_boundary"] = {
+        run.details["source_boundary"] = {
             "policy": SOURCE_POLICY,
             "scope": "user-selected bank is starting evidence for exp044; not a repository-wide ancestry exception",
             "banks": {
                 identity: {
                     "reference": ancestor.reference,
-                    "historical_inputs_not_traversed": ancestor.record["inputs"],
+                    "historical_inputs_not_traversed": ancestor.details["inputs"],
                 }
                 for identity, ancestor in ancestors.items()
-                if ancestor.record["experiment"] == "exp022"
-                and ancestor.record["stage"] == "compute"
+                if ancestor.details["experiment"] == "exp022"
+                and ancestor.details["stage"] == "compute"
             },
         }
         yield run
@@ -117,7 +113,7 @@ def execution(
 
 
 def configuration(compute) -> dict:
-    cfg = compute.record["execution"].get("configuration")
+    cfg = compute.details["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
         or cfg.get("schema") != "exp044.recipe/v3"
@@ -128,6 +124,6 @@ def configuration(compute) -> dict:
         )
     ):
         raise PingstoreError("unsupported or inconsistent retained exp044 recipe")
-    if set(compute.record["inputs"]) != {"bank"}:
+    if set(compute.details["inputs"]) != {"bank"}:
         raise PingstoreError("exp044 compute must pin exactly its training bank")
     return cfg

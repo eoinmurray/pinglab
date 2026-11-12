@@ -142,7 +142,7 @@ def compute(*, run_id=None):
         REPO, "compute", sources={}, run_id=run_id, configuration=cfg
     ) as run:
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
-        run.record["execution"]["environment"] = environment
+        run.details["execution"]["environment"] = environment
         for item in recipe.jobs(cfg):
             metrics, metadata = simulate_probe(
                 cfg, item, run.export / f"{item['id']}--simulation"
@@ -151,7 +151,7 @@ def compute(*, run_id=None):
             write_json_atomic(
                 run.export / f"probe--{item['id']}--metrics.json", metrics
             )
-            run.record["execution"].setdefault("trials", []).append(metadata)
+            run.details["execution"].setdefault("trials", []).append(metadata)
         evidence.rows(run.export, cfg)
         write_json_atomic(
             run.export / "evidence.json",

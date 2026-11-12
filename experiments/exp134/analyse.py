@@ -92,8 +92,11 @@ def analyse(identity, workers=4):
     source = source_run(
         REPO / ".pingstore", identity, stage="compute", experiment=recipe.SLUG
     )
-    cfg = source.record["execution"]["configuration"]
-    if source.record.get("scope") != "full" or cfg.get("schema") != "exp134.compute/v1":
+    cfg = source.details["execution"]["configuration"]
+    if (
+        source.details.get("scope") != "full"
+        or cfg.get("schema") != "exp134.compute/v1"
+    ):
         raise ValueError("requires a complete membrane-sweep compute run")
     units = {
         index: str(source.unit(f"image{index:05d}")) for index in cfg["image_indices"]
