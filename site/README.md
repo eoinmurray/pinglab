@@ -548,13 +548,15 @@ fingerprint on each request and reuses layout validation only when its version,
 record and complete fingerprint match. Changes still invalidate cached evidence;
 this does not relax ancestry, byte-verification or publication checks.
 
-Production builds use R2 exclusively and freeze catalog/selection reads for the
-build. Set `PINGLAB_RUN_SOURCE=remote` to test without local evidence, `auto` for
-the development union, or `local` for an offline local build. Set
+Production publication builds use local evidence and freeze selection reads for
+the build. Use `bun run build:remote` for the separate remote-only validation
+required before eviction. In development, set `PINGLAB_RUN_SOURCE=remote` to
+test without local evidence, `auto` for the union, or `local` for offline reads. Set
 `PINGLAB_RUNS_ROOT` to override the local runs directory and
 `PINGLAB_ASSET_BASE_URL` to use another catalog/asset origin. Empty origin is
 supported only in local mode. Browser animation JSON uses public GET/HEAD CORS.
-Figures and videos use direct R2 URLs in production. Local development routes
+Production publication bundles figures, videos and animation JSON on Pages.
+Remote-only validation still checks direct R2 assets. Local development routes
 serve local exports, proxy verified remote animation JSON, and redirect remote images/video to R2.
 
 `RunFigure` and `PublishedFigure` resolve a figure by its filename stem within
@@ -617,46 +619,47 @@ and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
 
-`.github/workflows/pages.yml` runs on pushes to `main`, manual dispatch and
-`repository_dispatch` of type `pingstore-updated`. It tests the readers, registers
-incoming evidence in the shared R2 coordination record and freezes the exact
-remote catalog/index for rendering. `PINGLAB_CATALOG_PATH`,
-`PINGLAB_REPORT_INDEX_PATH` and `PINGLAB_EVIDENCE_PATH` bind the build to those
-prepared files. The rendered manifest must match the incoming registration.
-Every deployment attempt registers that frozen manifest again before deploying,
-including a retry of the deploy job alone. A deployment failure keeps its
-incoming evidence protected because Pages may already have received the artifact.
-Activation runs in a following job after the Pages environment job succeeds;
-GitHub cannot report that deployment successful while its own job is still running.
-A verified replacement releases completed incoming attempts while keeping the
-inputs of other pending workflows.
-
-The private `PINGLAB_RCLONE_CONFIG` repository Actions secret supplies the existing
-R2 remote. The workflow installs rclone, PyYAML and boto3 without the scientific
-runtime. `actions/upload-pages-artifact` and `actions/deploy-pages` deploy `site/dist`
-directly. After deployment, GitHub's successful active deployment and the deployed
-manifest must agree before previous evidence is released. Failed/incomplete work
-keeps the previous deployment protected. An unresolved outcome keeps both roots.
-There is no manual `gh-pages` branch or separate publishing framework.
+Build and publish from the local checkout:
 
 ```sh
 cd site
 bun install --frozen-lockfile
-bun run build
-bun run preview --port 3001
+bun run publish
 ```
 
-Report HTML, bound values and inventory tables are build-time snapshots. New
-backups need another Actions run to appear; backup does not publish code or
-trigger deployment automatically. Assets already referenced by deployed pages
-load directly from immutable R2 run paths.
+`bun run build` builds without publishing; `bun run preview --port 3001` previews
+that output. The build freezes core's local index, renders Astro and copies only
+the run assets referenced by the generated pages, notes, slide decks and animation
+JSON into `dist/run-images/`. Figures and animations are served by Pages; raw
+scientific arrays and checkpoints are never copied into the site. Local selected
+evidence must be valid and available. Restore evicted inputs before publishing.
+No R2 catalog or payload is required for the local build.
 
-`pingstore backup` publishes a new checksummed catalog only after verifying run
-bytes and complete ancestry. Bootstrap also verifies existing remote backups;
-remote-only historical runs remain in the catalog. Use its separate dry-run and
-hash-confirmation invocations. Do not remove local runs until they are cataloged
-and a remote-only build succeeds. Scientific execution still requires local
-inputs; restore selected runs and their ancestry before running new stages.
+The publisher uses a separate temporary Git repository to push the output to
+`gh-pages`, preserving its history and rejecting competing pushes. It leaves the
+source checkout's branch and uncommitted work untouched. The manifest records the
+source revision and whether the source checkout had uncommitted changes.
+
+`.github/workflows/pages.yml` deploys pushes to `gh-pages`; pushes to `main` no
+longer publish. To retry manually, dispatch the workflow on `gh-pages`. Actions
+stamps the deployment identity, retains its evidence, and uploads the prebuilt
+site to Pages. It does not install Astro, rebuild the site, or transfer scientific
+payloads. The workflow itself is included on the publication branch; publication
+tools are checked out from `main`.
+
+The private `PINGLAB_RCLONE_CONFIG` Actions secret supplies small R2 coordination
+writes that protect active and incoming evidence from pruning. A self-contained
+local build can publish before its scientific runs are backed up. Cataloged
+records must still match; backup remains a separate operation. Deployment retries
+retain their evidence again. Activation follows successful Pages deployment and
+checks both GitHub's deployment identity and the served manifest before releasing
+old roots. An uncertain outcome keeps the previous and incoming evidence protected.
+
+Report HTML, bound values and inventory tables are build-time snapshots. New
+results require another local publish. `pingstore backup` neither builds nor
+publishes the site. Scientific backup and eviction requirements remain unchanged;
+a bundled figure is not a backup of its originating run. Pruning checks the
+complete retained graph across both stores and blocks if evidence is missing.
 
 The Git-ignored PDF library stays local; do not upload the library to the public assets bucket.
 Production paper links come from the tracked `papers/index.yaml` citation index.

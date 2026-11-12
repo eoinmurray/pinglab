@@ -9,7 +9,7 @@ export async function GET() {
   const index = await runStore.index();
   const revision = process.env.GITHUB_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const value = evidenceManifest(index, {
-    id: process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT ?? '1'}` : `local:${revision}`,
+    id: process.env.PINGLAB_BUILD_ID ?? (process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT ?? '1'}` : `local:${revision}`),
     revision,
   });
   if (process.env.PINGLAB_EVIDENCE_PATH) {

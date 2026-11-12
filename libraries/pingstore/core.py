@@ -3151,7 +3151,9 @@ def validate_publications(value):
     return value
 
 
-def _publication_reasons(publications, records, reasons, *, complete=True):
+def _publication_reasons(
+    publications, records, reasons, *, complete=True, allow_unbacked=False
+):
     validate_publications(publications)
     manifests = (
         [("deployment", publications["active"])] if publications.get("active") else []
@@ -3160,7 +3162,14 @@ def _publication_reasons(publications, records, reasons, *, complete=True):
         ("incoming", manifest) for manifest in publications["incoming"].values()
     ]
     for label, manifest in manifests:
-        validate_evidence_manifest(manifest, records if complete else None)
+        bundled = (
+            allow_unbacked
+            and manifest.get("publication_mode") == "bundled"
+            and manifest.get("source") == "local"
+        )
+        validate_evidence_manifest(
+            manifest, records if complete and not bundled else None
+        )
         for identity in manifest["runs"]:
             if identity not in records:
                 continue
@@ -4312,14 +4321,16 @@ def update_publications(destination, previous, revised):
         "active"
     ):
         # Preserve an unchanged deployment even if its old catalog entries have
-        # disappeared. New incoming evidence remains strict, and pruning still
-        # requires complete deployment evidence before it can remove anything.
+        # disappeared. Bundled incoming sites may use unbacked local evidence;
+        # pruning still requires the complete graph across the two stores.
         _publication_reasons(
             dict(revised, incoming={}), records, reasons, complete=False
         )
-        _publication_reasons(dict(revised, active=None), records, reasons)
+        _publication_reasons(
+            dict(revised, active=None), records, reasons, allow_unbacked=True
+        )
     else:
-        _publication_reasons(revised, records, reasons)
+        _publication_reasons(revised, records, reasons, allow_unbacked=True)
     replace_control(
         destination,
         control,
@@ -4357,7 +4368,12 @@ def publication_retain(destination, manifest):
     """Retain frozen evidence again before a deployment, including job retries."""
     catalog = read_catalog(destination)
     records = {identity: entry["record"] for identity, entry in catalog["runs"].items()}
-    validate_evidence_manifest(manifest, records)
+    _publication_reasons(
+        dict(empty_publications(), incoming={manifest["build"]["id"]: manifest}),
+        records,
+        defaultdict(set),
+        allow_unbacked=True,
+    )
     previous = read_control(destination)["publications"]
     revised = dict(
         previous,

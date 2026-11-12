@@ -8,7 +8,9 @@
   "scripts": {
     "debug:refresh": "node scripts/refresh-log.mjs",
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/build.mjs",
+    "build:remote": "PINGLAB_RUN_SOURCE=remote astro build",
+    "publish": "node scripts/publish.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

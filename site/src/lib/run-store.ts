@@ -1,4 +1,4 @@
-/** Resolve exact run identities locally in development, otherwise from R2. */
+/** Resolve exact run identities locally; remote reads remain an explicit option. */
 import { createHash } from 'node:crypto';
 import { resolveRunIndex, validateRunIndex, type RunIndex } from './run-index.ts';
 import { requestValue } from './run-context.ts';
@@ -35,7 +35,7 @@ export class RunStore {
     this.root = resolve(options.runsRoot ?? process.env.PINGLAB_RUNS_ROOT ?? '../.pingstore/runs');
     this.base = (options.baseUrl ?? assetBase()).replace(/\/$/, '');
     const source = options.source ?? (options.runsRoot ? 'local' : process.env.PINGLAB_RUN_SOURCE
-      ?? (process.env.NODE_ENV === 'production' ? 'remote' : 'auto'));
+      ?? (process.env.NODE_ENV === 'production' ? 'local' : 'auto'));
     if (!['auto', 'local', 'remote'].includes(source)) throw new Error(`Invalid run source: ${source}`);
     this.source = source as StoreOptions['source'] & string;
     const loadCatalog = options.catalog ?? (async (refresh = false) => process.env.PINGLAB_CATALOG_PATH
@@ -163,7 +163,7 @@ export class RunStore {
     const load = async () => {
       if (process.env.PINGLAB_REPORT_INDEX_PATH) {
         const index = validateRunIndex(JSON.parse(await readFile(process.env.PINGLAB_REPORT_INDEX_PATH, 'utf8')));
-        if (this.source !== 'remote' || index.source !== 'remote') throw new Error('Frozen publication indexes require remote-only rendering');
+        if (this.source !== index.source) throw new Error('Frozen publication index source differs from rendering source');
         return index;
       }
       // Independent public metadata reads can share the same network round trip.

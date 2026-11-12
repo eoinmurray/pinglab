@@ -6,6 +6,9 @@ import { latestPresentation } from '../../../lib/pingstore';
 import { assetTypes, isRunAsset, selectAsset } from '../../../lib/run-assets';
 
 export async function getStaticPaths() {
+  // The local publisher copies exactly the assets referenced by rendered pages,
+  // including notes and slide decks, after Astro finishes rendering.
+  if (process.env.PINGLAB_BUNDLE_REFERENCES === '1') return [];
   const paths = [];
   const seen = new Set<string>();
   for (const report of await getReports()) {

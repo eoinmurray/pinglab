@@ -360,3 +360,57 @@ def test_pages_activation_waits_for_the_environment_job_and_retries_retain_input
         or "publication_failed(" in step.get("run", "")
         for step in deploy_steps
     )
+
+
+def test_bundled_local_site_can_retain_unbacked_runs_but_pruning_requires_evidence(
+    stores,
+):
+    repo, paths, state = stores
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    manifest = manifest_for(records, [paths["latest"].name], "456/1")
+    manifest.update(source="local", publication_mode="bundled")
+    for identity in manifest["runs"]:
+        state["catalog"]["runs"].pop(identity)
+    core.publication_retain(DESTINATION, manifest)
+    assert state["control"]["publications"]["incoming"] == {"456/1": manifest}
+    plan = core.unified_prune_plan(repo, ["exp001"])
+    retained = {row["run_id"] for row in plan["keep"]}
+    assert set(manifest["runs"]) <= retained
+    with pytest.raises(core.PingstoreError, match="deployed evidence is missing"):
+        core._publication_reasons(
+            state["control"]["publications"], {}, {}, complete=True
+        )
+
+
+def test_bundled_local_publication_still_rejects_changed_remote_evidence(stores):
+    _, paths, state = stores
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    manifest = manifest_for(records, [paths["latest"].name], "456/1")
+    manifest.update(source="local", publication_mode="bundled")
+    manifest["runs"][paths["latest"].name]["payload_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(core.PingstoreError, match="published evidence differs"):
+        core.publication_retain(DESTINATION, manifest)
+
+
+def test_pages_deploys_prebuilt_branch_without_rebuilding_or_uploading_raw_data():
+    import yaml
+
+    workflow = yaml.safe_load(
+        (
+            Path(__file__).resolve().parents[3] / ".github/workflows/pages.yml"
+        ).read_text()
+    )
+    # PyYAML's YAML 1.1 parser reads the GitHub Actions "on" key as True.
+    assert workflow[True]["push"]["branches"] == ["gh-pages"]
+    build = workflow["jobs"]["build"]["steps"]
+    commands = "\n".join(step.get("run", "") for step in build)
+    assert "publication_retain(" in commands
+    assert "publication_prepare(" not in commands
+    assert "bun run build" not in commands
+    assert "rclone copy" not in commands

@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Status, backup, cleanup, publication retention and recovery procedures.
 created_at: "2026-10-29T17:42:34Z"
-updated_at: "2026-11-10T12:10:57Z"
+updated_at: "2026-11-12T11:53:08Z"
 ---
 
 # Pingstore operations
@@ -174,40 +174,43 @@ or start an unrelated cleanup to work around an unfinished operation.
 
 ## Publication retention
 
-Backup availability does not prove publication. The normal Pages workflow first
-freezes a remote-only catalog/index and registers the exact incoming evidence in
-`pingstore/control.json`. It then builds and deploys `/pingstore-evidence.json`
-with the site. This manifest contains the build/revision identity, selections,
-input digests and unavailable-report declarations.
+Build and publish locally with `cd site && bun run publish`. The local build
+freezes core's local index, renders Astro, and bundles only run assets referenced
+by the rendered pages, notes, slide decks and animation data. Raw scientific
+arrays and checkpoints remain outside the site. Missing or invalid selected
+local evidence fails the build; restore evicted inputs before publishing.
+`bun run build` performs the same build without pushing.
 
-The previous active deployment and all incoming manifests remain retention roots.
-Old roots are released only when GitHub reports the replacement as the active
-successful deployment and the deployed manifest bytes match. A failed build or
-deployment cannot release the previous active evidence. Pruning independently
-rechecks the deployment proof. Missing or unreconciled publication state retains
-potentially referenced data and names the unresolved state.
+The publisher pushes the static output and deployment workflow to `gh-pages`
+with a normal fast-forward push. Source pushes to `main` do not deploy. GitHub
+Actions uploads the prebuilt site to Pages without rebuilding Astro or fetching
+scientific payloads from R2. `/pingstore-evidence.json` records the frozen source
+revision, dirty-source flag, selections, payload/input digests and unavailable
+reports. Actions stamps the Pages workflow/revision identity separately from the
+source revision.
 
-If old catalog entries are already missing, publication may register complete new
-evidence while preserving the unchanged active manifest. Existing catalog entries
-must still match their declared digests. Pruning remains blocked by incomplete
-active evidence until a verified replacement supersedes that deployment.
+The private `PINGLAB_RCLONE_CONFIG` Actions secret remains necessary for small
+publication coordination records. This is independent of backup: a bundled local
+site may register evidence that has not been uploaded to R2. Existing cataloged
+records must still match. No scientific payload upload is required to publish.
 
-Each deployment attempt registers its frozen evidence again, including a retry
-of only the deploy job. Activation runs in a following job, after the Pages
-environment job succeeds. An uncertain deployment keeps its incoming evidence;
-a verified replacement releases completed incoming attempts and preserves the
-roots of other pending workflows.
+The previous active deployment and incoming manifests remain retention roots
+under the shared maintenance fence. Every deployment attempt, including retries,
+registers its evidence before deployment. Activation runs after the Pages
+environment job succeeds and requires GitHub's successful deployment and the
+served manifest bytes to match. Failed or uncertain deployment keeps the previous
+roots. A verified replacement releases completed incoming attempts and preserves
+pending workflows.
+
+Pruning still requires the complete deployed evidence graph across local and R2
+holdings. Missing or changed scientific evidence blocks cleanup; a self-contained
+site is not a scientific backup. Eviction continues to require verified R2 copies.
 
 Legacy publication bootstrap uses the authenticated artifact of the active
 successful Pages run and validates its declared run ancestry against the store.
-The explicitly self-contained `recovered/exp124/published.html` is a text archive:
-its historical Dataset labels are not current Pingstore roots. Its deployed
-self-hosted assets remain part of the Pages artifact. Current exp124 evidence is
-selected from its actual completed v4 runset.
-
-Pages requires the private `PINGLAB_RCLONE_CONFIG` repository Actions secret.
-There is no manual `gh-pages` branch or separate publishing framework. A build
-manifest alone is not proof of deployment success.
+The self-contained `recovered/exp124/published.html` is a text archive: its
+historical Dataset labels are not current Pingstore roots. Its bundled assets
+remain part of the Pages artifact.
 
 ## Eviction and recovery
 
