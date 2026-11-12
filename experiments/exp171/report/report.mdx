@@ -3,7 +3,7 @@ id: exp171
 title: "Learning with Artificial Inhibition"
 author: "Eoin Murray"
 created_at: "2026-11-04T11:28:06Z"
-updated_at: "2026-11-10T15:45:11Z"
+updated_at: "2026-11-12T11:45:13Z"
 description: "Native TR02 COBA fine-tuning under private image-conditioned GABA input."
 collection: ["experiments"]
 tags: ["data", "v0.32.3"]
@@ -32,53 +32,118 @@ import ActivityFrontier from './ActivityFrontier.astro';
 
 ## Methods
 
-- **PING targets.** For each image, a frozen PING forward pass supplied each E
-  neuron's inhibitory conductance. We measured its temporal mean and variance
-  over the presentation:
+These quantities apply separately to each image and recipient E neuron $j$.
 
-  $$
-  \mu_j=\frac{1}{N}\sum_{n=0}^{N-1}g^{\mathrm{PING}}_{j,n},
-  \qquad
-  v_j=\frac{1}{N}\sum_{n=0}^{N-1}
-  \left(g^{\mathrm{PING}}_{j,n}-\mu_j\right)^2.
-  $$
+**Parameters taken from the teacher PING**
 
-  Here, j indexes E neurons, n indexes timesteps, N is the number of timesteps,
-  and g denotes inhibitory conductance. The student received the same sensory
-  spike train.
+1. $\mu_j$: temporal mean of inhibitory conductance arriving at E neuron $j$.
+2. $v_j$: temporal variance of that inhibitory conductance.
 
-- **Private Poisson input.** Each E neuron received independent Poisson counts,
-  scaled by a fixed event amplitude and filtered through GABA:
+**Derived parameters for artificial I**
 
-  $$
-  K_{j,n}\sim\operatorname{Poisson}(\lambda_j\Delta t),
-  \qquad
-  g_{j,n+1}=a g_{j,n}+q_jK_{j,n},
-  \qquad
-  a=\exp(-\Delta t/\tau).
-  $$
+1. $q_j$: conductance jump per artificial event,
 
-  K is the event count, lambda the rate in Hz, q the conductance increment per
-  event, a the decay factor, and delta t and tau the timestep and GABA decay
-  constant in seconds. The update includes a one-timestep delay.
+   $$
+   q_j=\frac{(1+\beta)v_j}{\mu_j}.
+   $$
 
-- **Moment fit.** Solving the discrete filter's stationary mean and variance
-  equations gave the per-image, per-neuron parameters:
+2. $\lambda_j$: artificial Poisson event rate,
 
-  $$
-  q_j=\frac{(1+a)v_j}{\mu_j},
-  \qquad
-  \lambda_j=\frac{\mu_j^2(1-a)}{\Delta t(1+a)v_j}.
-  $$
+   $$
+   \lambda_j=\frac{\mu_j^2(1-\beta)}
+   {\Delta t(1+\beta)v_j}.
+   $$
 
-  Zero-conductance targets received no events. Fitted parameters remained fixed
-  during fine-tuning; event draws changed each epoch. Biological I was silent.
+Here $\beta=e^{-\Delta t/\tau_I}$, where $\Delta t=0.1$ ms is the timestep
+and $\tau_I=6$ ms is the inhibitory decay time. Use seconds for $\Delta t$;
+$\lambda_j$ is in events/s. Zero-mean channels receive $q_j=\lambda_j=0$.
 
-- **Initialisation and test.** Inhibition-only prehistory initialised conductance;
-  neurons started afresh at stimulus onset. Test-image fits used frozen PING
-  passes without labels or weight updates. COBA/PING test scores were reused
-  from TR02.
+**What is matched**
 
-- **Scope.** Expected conductance moments were matched; spike timing, phase,
-  shared correlations and feedback were not. Finite draws fluctuate around
-  those moments.
+1. Mean inhibitory conductance: $\mathbb{E}[g_j]=\mu_j$.
+2. Inhibitory conductance variance: $\operatorname{Var}(g_j)=v_j$.
+
+Here $g_j$ is artificial inhibitory conductance. Matching holds in **stationary
+expectation**; finite trials fluctuate. Teacher spike rate, timing, phase and
+correlations are not matched.
+
+### Detailed procedure
+
+The fit was performed separately for each image and each recipient E neuron j.
+
+1. **Parameters taken from the teacher PING.** From the frozen teacher's
+   inhibitory conductance arriving at E neuron j, we measured the temporal mean
+   and variance over the 200-ms presentation:
+
+   <a id="eq-teacher-moments"></a>
+
+   $$
+   \mu_j=\operatorname{mean}_n g_j^{P}[n],
+   \qquad
+   v_j=\operatorname{var}_n g_j^{P}[n]. \tag{1}
+   $$
+
+   Here, P denotes the PING teacher, n indexes timesteps, and g denotes
+   inhibitory conductance. The quantities mu and v are its temporal mean and
+   variance, respectively. Teacher I spike counts were recorded separately but
+   did not enter this fit. The student received the same sensory spike train.
+
+2. **Output parameters of the fitting.** The fit returned event amplitude q and
+   Poisson event rate lambda for each image and E neuron:
+
+   <a id="eq-poisson-fit"></a>
+
+   $$
+   q_j=\frac{(1+\beta)v_j}{\mu_j},
+   \qquad
+   \lambda_j=\frac{\mu_j^2(1-\beta)}{\Delta t(1+\beta)v_j}.
+   \tag{2}
+   $$
+
+   The fixed decay factor was
+
+   <a id="eq-poisson-decay"></a>
+
+   $$
+   \beta=e^{-\Delta t/\tau_I}. \tag{3}
+   $$
+
+   Here, q is the conductance jump per event, lambda is the event rate in
+   inverse seconds, delta t is the 0.1-ms timestep, and tau I is the 6-ms
+   inhibitory decay time. Delta t is expressed in seconds when computing the
+   rate. Zero-mean conductance targets received zero rate and amplitude.
+
+3. **What was matched and held fixed.** Each E neuron received independent
+   Poisson event counts, filtered through GABA with a one-timestep delay:
+
+   <a id="eq-poisson-input"></a>
+
+   $$
+   N_j[n]\sim\operatorname{Poisson}(\lambda_j\Delta t),
+   \qquad
+   g_j[n]=\beta g_j[n-1]+q_jN_j[n-1]. \tag{4}
+   $$
+
+   Here, N is the event count and g is the artificial inhibitory conductance.
+   This discrete filter has stationary moments
+
+   <a id="eq-matched-moments"></a>
+
+   $$
+   \mathbb{E}[g_j]
+   =\frac{q_j\lambda_j\Delta t}{1-\beta}=\mu_j,
+   \qquad
+   \operatorname{Var}(g_j)
+   =\frac{q_j^2\lambda_j\Delta t}{1-\beta^2}=v_j. \tag{5}
+   $$
+
+   Mean and variance were matched in stationary expectation. Each image's fitted
+   rate and amplitude remained frozen during fine-tuning; event draws changed
+   each epoch. Finite-trial moments fluctuated. Teacher spike rate, timing,
+   phase, temporal correlations and correlations between neurons were not
+   matched; artificial inhibition supplied no E-to-I feedback. Biological I was
+   silent in the student.
+
+   A 60-ms inhibition-only prehistory initialised conductance; neurons started
+   afresh at stimulus onset. Test-image fits used frozen PING passes without
+   labels or weight updates. COBA/PING test scores were reused from TR02.
