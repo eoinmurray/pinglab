@@ -1,1 +1,0 @@
-export{WebGPURenderer}from"./lib.CzhJF11W.js";

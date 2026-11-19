@@ -1,0 +1,1 @@
+export{WebGLRenderer}from"./lib.Bz19fRr5.js";
