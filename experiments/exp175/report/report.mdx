@@ -3,40 +3,59 @@ id: exp175
 title: "Reconstructing attended MNIST digits"
 author: "Eoin Murray"
 created_at: "2026-11-18T11:01:49Z"
-updated_at: "2026-11-18T11:10:15Z"
-description: "Report scaffold for cue-dependent image reconstruction through a fixed spiking attention circuit."
+updated_at: "2026-11-25T12:42:00Z"
+description: "Saved validation results for direct relay training and single-PING reconstruction transferred into a fixed attention circuit."
 collection: ["experiments"]
 tags: ["draft"]
 inputs: ["exp175"]
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Results from './Results.astro';
 
 ## Abstract
 
-We ask whether a fixed contrast cue can select which of two MNIST images is
-reconstructed by a spiking readout. The shared input encoder and pixel readout
-are trainable; the intervening attention connections remain fixed. This report
-is a scaffold: no completed training result for the spiking pixel readout is
-available, and reconstruction performance has not been established.
+<Results abstract />
 
 ## Results
 
+<Results />
+
 ### Training curves
 
-<RunFigure report="exp175" experiment="exp175" file="learning-curves.svg" number={1} id="fig-training-curves" alt="Placeholder for training and validation reconstruction-loss curves across epochs." allowUnavailable={true}>
-  Placeholder. Training and validation reconstruction MSE by epoch, with the
-  initial validation loss and selected checkpoint marked. Training loss is online;
-  validation uses fixed weights. Results pending.
+<RunFigure experiment="exp175" file="learning-curves.svg" number={1} id="fig-training-curves" alt="Training and validation pixel MSE across ten epochs for direct relay training and single-PING training.">
+  Direct relay training (left) and single-PING training (right). Solid curves show
+  fixed-weight validation MSE; dashed curves show online training MSE. Stars mark
+  the selected checkpoint. Epoch zero is the initial validation baseline. Vertical
+  scales differ; both runs use seed 175001 and select epoch 10.
 </RunFigure>
 
-### Example reconstruction and spike raster
+### Direct relay reconstructions
 
-<RunFigure report="exp175" experiment="exp175" file="successful-raster.svg" number={2} id="fig-successful-raster" alt="Placeholder for a successful reconstruction example showing both input digits, cue timing, population spike rasters and reconstructed output images." allowUnavailable={true}>
-  Placeholder. A: both input digits and their cue-selected reconstructions on a
-  shared grayscale scale. B: A/B/C and readout spikes from the same trial, with
-  cue switch and scoring windows marked; I neurons are red above black E neurons.
-  Successful-example selection and reconstruction errors are pending.
+<RunFigure experiment="exp175" file="reconstructions.svg" number={2} id="fig-reconstructions" alt="Input images, attended targets and direct relay reconstructions for eight predetermined validation presentations.">
+  First two validation targets in all four cue conditions, retained without
+  selection by reconstruction quality. Columns show image A, image B, the attended
+  target and the directly trained relay output. Row labels give the attended sender
+  and scoring phase: 50–90 ms or 150–190 ms, around a cue switch at 100 ms.
+  All images share a fixed 0–1 intensity scale; predictions are clipped only for
+  display. This figure contains reconstructions, not spike rasters.
+</RunFigure>
+
+### Single-PING transfer
+
+<RunFigure experiment="exp175" file="transfer-comparison.svg" number={3} id="fig-transfer" alt="Paired validation MSE before and after transfer from a single PING into the relay.">
+  Paired single-draw evaluation of 400 presentations from 100 validation images.
+  The encoder and decoder are copied into the frozen relay with zero fine-tuning
+  updates. Lower pixel MSE is better. This comparison does not establish that the
+  relay selects attended content.
+</RunFigure>
+
+<RunFigure experiment="exp175" file="transfer-reconstructions.svg" number={4} id="fig-transfer-examples" alt="Matched single-PING and transferred relay reconstructions for the first two validation targets across cue conditions.">
+  The first two validation targets in all four cue conditions, using the paired
+  evaluation draw. Columns show both inputs, target, single-PING output and
+  transferred relay output. Rows are chosen by dataset order, not performance;
+  grayscale uses the same fixed 0–1 display range as Figure 2. The single PING
+  receives only the target sender's stream; the relay receives both inputs.
 </RunFigure>
 
 ## Methods

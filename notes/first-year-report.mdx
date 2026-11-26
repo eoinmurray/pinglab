@@ -4,8 +4,10 @@ author: Eoin Murray
 collection: notes
 description: "First year report with a drafted background and literature review on the computational functions and mechanisms of gamma oscillations."
 created_at: "2026-11-09T12:20:04Z"
-updated_at: "2026-11-24T13:11:01Z"
+updated_at: "2026-11-26T10:38:37Z"
 ---
+
+import EquationBox from '../site/src/components/EquationBox.astro';
 
 ## 1. Background and literature review
 
@@ -44,6 +46,10 @@ updated_at: "2026-11-24T13:11:01Z"
 
 <figcaption><strong>Figure 2. Feedback inhibition generates gamma-frequency structure in pyramidal firing.</strong> [Sohal and colleagues (2009)](https://doi.org/10.1038/nature07991), Fig. 2e. Example pyramidal-cell spike-train spectra during non-rhythmic excitatory input, without feedback inhibition (black) and with spike-triggered optogenetic recruitment of parvalbumin interneurons (red). Frequency is in Hz and power in spikes². Adding the inhibitory feedback produces a gamma-frequency peak. This is a representative cell, not a population-average spectrum or a field-potential recording. Single plot cropped from the published figure, with white margins added; no data redrawn. © 2009 Macmillan Publishers Limited.</figcaption>
 </figure>
+
+<p>Sustaining PING depends on the effective excitation from pyramidal cells to interneurons (E→I) and the inhibition returned to pyramidal cells (I→E). E→I weights govern interneuron recruitment, while I→E weights govern the strength of feedback inhibition. With suitable coupling and continuing drive, fixed weights can support the repeated cycle; synaptic modification is not required on each cycle. The two pathways have different effects: in sparse-network simulations, strengthening E→I connections improved synchronisation, whereas strengthening I→E connections did not provide the same benefit [Börgers and Kopell (2003)](https://doi.org/10.1162/089976603321192059).</p>
+
+<p>In computational models, these weights may be chosen from physiological constraints, tuned to obtain a dynamical regime, or changed through training or explicit plasticity rules. These cases separate maintenance of a rhythm at fixed coupling from the question of how the circuit reaches that regime. Biological synapses can also change with experience: [Froemke and colleagues (2007)](https://doi.org/10.1038/nature06289) observed auditory cortical excitation being retuned, followed by activity-dependent changes in inhibition over hours. In modelling, inhibitory plasticity can establish and maintain a balance of excitatory and inhibitory inputs [Vogels and colleagues (2011)](https://doi.org/10.1126/science.1211095). That study produced asynchronous irregular states, so regulating excitation–inhibition balance and preserving a PING regime are separate questions.</p>
 
 <p>ING places the rhythm-generating interaction within the inhibitory population. Sufficiently driven interneurons coordinate through mutual inhibition, with recovery from one inhibitory volley permitting subsequent firing. Pyramidal cells may become phase-locked to the resulting rhythm without being required to generate it. [Wang and Buzsáki (1996)](https://doi.org/10.1523/JNEUROSCI.16-20-06402.1996) showed in simulations that inhibitory networks could synchronise at gamma frequencies under suitable conditions of drive, connectivity and synaptic kinetics. Rhythmic pyramidal activity alone therefore does not identify a PING mechanism.</p>
 
@@ -92,7 +98,67 @@ updated_at: "2026-11-24T13:11:01Z"
 
 ### 2.1 Simulation
 
+<p>Simulation makes a proposed mechanism explicit by specifying its cells, connections and dynamics, then examining the behaviour produced by their interaction. It links cellular assumptions to population activity and computational outcomes, while allowing controlled changes to individual circuit properties. This supports an iterative relationship with experiment: observations constrain candidate models, and simulations generate predictions that distinguish their explanations [Einevoll and colleagues (2019)](https://doi.org/10.1016/j.neuron.2019.03.027).</p>
+
+<p>Spiking neural networks are useful when the question depends on individual spike timing and its interaction with membrane and synaptic dynamics. They allow inhibitory feedback, transmission delays, irregular firing and synchronisation to be represented explicitly. Integrate-and-fire neurons retain these temporal interactions while simplifying the cellular processes that produce each spike [Gerstner and colleagues (2014)](https://neuronaldynamics.epfl.ch/online/Ch1.S3.html). For PING, this makes it possible to examine how excitatory recruitment and inhibitory recovery generate a population rhythm, and how the resulting timing influences downstream responses. Population-rate models can also produce oscillations; the choice of a spiking model therefore rests on the temporal and cellular questions being investigated.</p>
+
+<p>The resulting evidence is conditional on the model assumptions. Reproducing gamma activity establishes that a mechanism can generate the observation; identifying the biological mechanism requires further comparison with experimental data. Perturbing coordination within a model can test its computational consequences, with controls to distinguish timing effects from changes in rates, inhibition and excitability. Numerical implementation also requires attention because integration strategy and temporal resolution can affect spike timing and network dynamics [Brette and colleagues (2007)](https://pmc.ncbi.nlm.nih.gov/articles/PMC2638500/).</p>
+
 ### 2.2 Circuits
+
+<p>The circuit description follows the conductance-based spiking model documented in the [manuscript’s Methods](/notes/manuscript#loc-20). Excitatory pyramidal cells (E) receive external spike input and recruit an inhibitory population (I), which returns inhibition to E. The classifier architecture contains input→E, E→I, I→E and E→readout projections, with E→E and I→I recurrence disabled. The loop-on condition retains the reciprocal E–I connections; loop-off removes both pathways. These are simplified population models, with each hidden neuron represented by a single membrane voltage.</p>
+
+<p>Between spikes, a hidden neuron follows conductance-based leaky integrate-and-fire dynamics. Synaptic input changes both the current entering the cell and its total membrane conductance:</p>
+
+<span id="circuit-membrane" />
+<EquationBox label="Conductance-based membrane dynamics">
+
+$$
+C_m \frac{\mathrm{d}V}{\mathrm{d}t}
+= -g_L(V-E_L)-g_E(V-E_E)-g_I(V-E_I).
+\tag{1}
+$$
+
+</EquationBox>
+
+<p>Here, $V$ is membrane voltage and $t$ is time; $C_m$ is membrane capacitance; $g_L$ is leak conductance; and $g_E$ and $g_I$ are the time-varying excitatory and inhibitory synaptic conductances. The corresponding reversal potentials are $E_L$, $E_E$ and $E_I$. Voltages are expressed in mV, time in ms, capacitance in nF and conductances in µS, giving each term in [Equation 1](#circuit-membrane) units of nA. The products $g_E(V-E_E)$ and $g_I(V-E_I)$ retain the dependence of synaptic current on the neuron’s voltage, including the effect of inhibition on membrane conductance.</p>
+
+<p>Outside its refractory period, a neuron emits a spike when its voltage reaches the threshold $V_{\mathrm{th}}$. Its voltage is then set to $V_{\mathrm{reset}}$ and held there for an absolute refractory duration $\tau_{\mathrm{ref}}$, measured in ms. Both voltage parameters are in mV. Synaptic conductances continue evolving during this hold. This threshold-and-reset rule represents spike timing without modelling the action-potential waveform [Gerstner and colleagues (2014)](https://neuronaldynamics.epfl.ch/online/Ch1.S3.html).</p>
+
+<p>Each incoming spike produces a conductance increment, while existing conductance decays exponentially. For a particular postsynaptic neuron, the discrete update is</p>
+
+<span id="circuit-synapses" />
+<EquationBox label="Synaptic conductance update">
+
+$$
+g_x[k+1]
+= g_x[k]\exp\!\left(-\frac{\Delta t_{\mathrm{sim}}}{\tau_x}\right)
++ \sum_j w_{xj}s_j[k],
+\qquad x\in\{E,I\}.
+\tag{2}
+$$
+
+</EquationBox>
+
+<p>The index $k$ counts simulation updates, and $\Delta t_{\mathrm{sim}}$ is the timestep in ms. The label $x$ identifies the excitatory or inhibitory conductance, rather than the postsynaptic population. The decay constant $\tau_x$ is in ms; $w_{xj}$ is the non-negative conductance increment in µS from presynaptic neuron $j$; and $s_j[k]\in\{0,1\}$ indicates a spike delivered in that update. The sum runs over sources of the corresponding synaptic type. Excitatory and inhibitory decay constants represent AMPA- and GABA-mediated synaptic timescales. In the manuscript implementation, decay precedes spike increments, updated conductances are used for exponential-Euler voltage integration, and newly emitted recurrent spikes reach the partner population on the following update. This ordering is specified in the [manuscript’s discrete dynamics](/notes/manuscript#appendix-a1).</p>
+
+<p>The reciprocal connections use separate weight distributions, allowing E→I recruitment and I→E feedback to be varied independently. For these recurrent projections, the manuscript’s initialisation is</p>
+
+<span id="circuit-weights" />
+<EquationBox label="Recurrent synaptic weight initialisation">
+
+$$
+X_{ji}\sim\mathcal{N}(\mu_{\mathrm{init}},\sigma_{\mathrm{init}}^2),
+\qquad
+w_{ji}=\frac{\max(0,X_{ji})}{N_{\mathrm{pre}}}.
+\tag{3}
+$$
+
+</EquationBox>
+
+<p>Here, $j$ indexes the presynaptic neuron and $i$ the postsynaptic neuron. The Gaussian draw $X_{ji}$, parent mean $\mu_{\mathrm{init}}$, parent standard deviation $\sigma_{\mathrm{init}}$ and resulting weight $w_{ji}$ are in µS; $N_{\mathrm{pre}}$ is the number of neurons in the source population. Lower clamping keeps conductance increments non-negative, while division by $N_{\mathrm{pre}}$ normalises their scale with population size. Excitatory and inhibitory actions are specified by the synaptic reversal potentials, rather than by assigning negative inhibitory weights. The more general input-weight initialisation additionally includes random zeroing and compensation for that zeroing, as specified in the [manuscript’s initialisation procedure](/notes/manuscript#appendix-a4).</p>
+
+<p>Together, the reciprocal connections and synaptic timescales permit the excitation–inhibition–recovery sequence associated with PING. They do not guarantee that every parameter setting produces gamma: coupling, external drive and cellular properties determine the resulting regime. Loop-off is therefore an architectural control; asynchronous irregular activity must be established from the simulated activity rather than assumed from the absence of the loop.</p>
 
 ### 2.3 Training
 

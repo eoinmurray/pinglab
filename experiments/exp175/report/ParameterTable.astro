@@ -1,0 +1,66 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const single = await reportSnapshots('exp175', { computeInput: 'compute', snapshots: { single: 'best-validation/snapshot.json', transfer: 'relay-evaluation-start/snapshot.json' } });
+const direct = await reportSnapshots('exp175', { computeInput: 'direct', snapshots: { direct: 'best-validation/snapshot.json' } });
+const configs = [direct.configuration, single.configuration, single.configuration];
+const snapshots = [direct.snapshots.direct, single.snapshots.single, single.snapshots.transfer];
+const labels = ['Direct relay', 'Single PING', 'Transferred relay'];
+const symbols = { A_E: 'E_A', A_I: 'I_A', B_E: 'E_B', B_I: 'I_B', C_E: 'E_C', C_I: 'I_C', readout: 'R', X_A: 'X_A', X_B: 'X_B', X_C: 'X_C', score_window: 'M' };
+const math = id => ({ math: symbols[id] });
+const row = (label, read) => [label, ...snapshots.map((s, i) => read(s.network, configs[i], i))];
+const pop = (net, id) => net.populations.find(p => p.id === id);
+const groups = [
+ { label: 'Simulation', rows: [
+ row('Integration timestep', net => `${n(net.timebase.dt.value)} ms`),
+ row('Trial duration / cue switch', (_, c) => `${n(c.duration_ms)} / ${n(c.switch_ms)} ms`),
+ row('Execution / split seed', (_, c) => `${c.seed} / ${c.split_seed}`),
+ ] },
+ { label: 'Populations', rows: [
+ ...['A_E','A_I','B_E','B_I','C_E','C_I','readout'].map(id => row(math(id), net => { const p=pop(net,id); return p ? `${n(p.size)} ${p.neuron.kind}` : 'Absent'; })),
+ ...['X_A','X_B','X_C','score_window'].map(id => row(math(id), net => { const p=net.inputs.find(p=>p.id===id); return p ? id==='score_window' ? 'Scalar measurement mask' : `${n(p.shape.at(-1))} channels` : 'Absent'; })),
+ ] },
+ { label: 'Neuron dynamics', rows: [
+ row('E / I membrane time constant', net => `${n(pop(net,'A_E').neuron.tau_mem.value)} / ${n(pop(net,'A_I').neuron.tau_mem.value)} ms`),
+ row('E / I refractory period', net => `${n(pop(net,'A_E').neuron.refractory.value)} / ${n(pop(net,'A_I').neuron.refractory.value)} ms`),
+ row('Readout decay / soft-reset threshold', net => `${n(pop(net,'readout').neuron.tau.value)} ms / ${n(pop(net,'readout').neuron.soft_reset_threshold)}`),
+ ] },
+ { label: 'Input and manipulation', rows: [
+ row('Mean sensory rate / contrast ratio', (_, c) => `${n(c.mean_input_hz)} Hz/channel / ${n(c.contrast_ratio)}`),
+ row('AMPA / GABA decay', (_, c) => `${n(c.tau_ampa_ms)} / ${n(c.tau_gaba_ms)} ms`),
+ row('Relay decay / delay', (_, c,i) => i===1 ? 'Inapplicable' : `${n(c.relay_tau_ms)} / ${n(c.relay_delay_ms)} ms`),
+ ] },
+ { label: 'Training and measurement', rows: [
+ row('Training / validation images', (_,c) => `${n(c.train_images)} / ${n(c.validation_images)}`),
+ row('Epochs / effective / physical batch', (_,c,i) => i===2 ? 'No relay updates' : `${n(c.epochs)} / ${n(c.batch_size)} / ${n(c.microbatch_size)}`),
+ row('AdamW learning rate / weight decay', (_,c,i) => i===2 ? 'Inapplicable' : `${n(c.lr)} / ${n(c.weight_decay)}`),
+ row('Scoring windows', (_,c) => c.windows_ms.map(w=>`${n(w[0])}–${n(w[1])} ms`).join('; ')),
+ row('White-pixel spike count', (_,c) => n(c.white_pixel_count)),
+ row('Validation encoding draws', (_,c,i) => i===2 ? n(1) : n(c.validation_draws)),
+ ] },
+];
+const matrices = snapshots.map((s, index) => {
+ const net=s.network;
+ return { headers:['Source ↓ / target →',...net.populations.map(p=>math(p.id))], rows:[...net.inputs,...net.populations].map(source=>[math(source.id),...net.populations.map(target=>{
+  const p=net.projections.find(p=>p.source.split('.')[0]===source.id && p.target.split('.')[0]===target.id);
+  if(!p) return 'Absent';
+  if(!s.parameters[p.parameters[0]]) throw new Error(`Missing native weight ${p.id}`);
+  return p.enabled===false ? {math:`${n(100)}\\%;\\quad ${n(0)}\\,\\mathrm{\\mu S}\\;\\text{(disabled)}`} : {math:`${n(100)}\\%;\\quad W^{(${index+1})}_{${symbols[target.id]}${symbols[source.id]},ji}\\,\\mathrm{\\mu S}`};
+ })]) };
+});
+---
+<Table number="A1" headers={['Parameter', ...labels]} groups={groups} id="parameters">
+  Settings are read from each selected source's native snapshots and recorded
+  configuration. E and I are excitatory and inhibitory populations, R the pixel
+  readout, X external inputs and M the measurement mask. Numerical quantities use
+  two significant figures; seed identifiers are exact. The transferred relay uses
+  the single-PING checkpoint with no further training. X_C is silent.
+</Table>
+{matrices.map((m,i)=><Table number={`A${i+2}`} headers={m.headers} rows={m.rows} rowHeaders label={`${labels[i]} connectivity`}>
+  Sources are rows and targets columns. W denotes the exact per-connection matrix
+  retained in this model's snapshot, in µS; j indexes target neurons and i source
+  neurons. Density counts eligible pairs, including zero weights; autapses are
+  excluded where specified by the native graph. Disabled zero projections remain
+  distinct from absent connections. M controls measurement and has no projection.
+</Table>)}

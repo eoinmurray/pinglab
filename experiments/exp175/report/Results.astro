@@ -1,0 +1,11 @@
+---
+import { reportData, round } from '../../../site/src/lib/report-data';
+const { abstract = false } = Astro.props;
+const data = await reportData('exp175');
+const mse = value => round(value, 5);
+---
+{abstract ? <p>We ask whether a fixed contrast cue can select which of two MNIST images is reconstructed by a spiking readout. Ten epochs of direct relay training reduced validation pixel MSE from {mse(data.direct.initial_validation_mse)} to {mse(data.direct.selected_validation_mse)}. Separately, a single-PING encoder and decoder scored {mse(data.transfer.comparison.single.pixel_mse)} before transfer and {mse(data.transfer.comparison.relay.pixel_mse)} after transfer into the relay without fine-tuning, in a paired single-draw evaluation. These are single-seed validation results. The split was already used for source-model selection; no independent test or attention-selection criterion has been evaluated.</p> : <>
+<p>Direct relay training reduced validation pixel MSE from {mse(data.direct.initial_validation_mse)} to {mse(data.direct.selected_validation_mse)}. Single-PING training reduced it from {mse(data.initial_validation_mse)} to {mse(data.selected_validation_mse)}. Both selected epoch {data.selected_epoch} after ten epochs on 1,000 training images and 100 validation images, with three encoding draws across all four cue conditions.</p>
+<p>In a separate paired evaluation of {data.transfer.presentations} presentations with one encoding draw, the single PING scored {mse(data.transfer.comparison.single.pixel_mse)} and its transferred relay scored {mse(data.transfer.comparison.relay.pixel_mse)}. Transfer copied the encoder and decoder without relay fine-tuning. This is a different evaluation protocol from the training curves.</p>
+
+</>}

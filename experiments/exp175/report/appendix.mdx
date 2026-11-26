@@ -1,55 +1,21 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
+import ParameterTable from './ParameterTable.astro';
 
-export const populations = [['A_E', 'E_A'], ['A_I', 'I_A'], ['B_E', 'E_B'], ['B_I', 'I_B'], ['C_E', 'E_C'], ['C_I', 'I_C'], ['readout', 'R']];
-export const inputs = [['X_A', 'X_A'], ['X_B', 'X_B'], ['X_C', 'X_C'], ['score_window', 'M']];
-export const pending = 'Unavailable — native evidence pending';
+## A. Native architectures
 
-## A. Native architecture
+<RunFigure experiment="exp175" file="circuit.svg" number="A1" id="fig-single-network" alt="Native single-PING architecture with a trainable sensory encoder and spiking pixel readout.">
+  Single-PING pretraining architecture. Only the target sender's contrast-modulated
+  stream enters A; local E/I feedback stays frozen. The encoder and decoder train.
+  The scoring mask controls measurement only.
+</RunFigure>
 
-<RunFigure report="exp175" experiment="exp175" file="circuit.svg" number="A1" id="fig-network" alt="Placeholder for the native A/B/C attention circuit with a shared input encoder and spiking pixel readout." allowUnavailable={true}>
-  Placeholder. Native A/B/C circuit and spiking pixel readout, distinguishing
-  trainable encoder/readout projections from frozen attention connections. The
-  scoring mask controls measurement only. Diagram pending.
+<RunFigure experiment="exp175" file="relay-circuit.svg" number="A2" id="fig-network" alt="Native A/B/C relay circuit with a shared encoder and spiking pixel readout.">
+  Relay architecture used for direct training and transfer evaluation. A and B
+  receive the two images and project into C. The shared encoder and decoder train
+  in the direct run; transfer copies them from the single PING without relay
+  updates. Local E/I and relay weights stay frozen.
 </RunFigure>
 
 ## B. Parameters
 
-<Table number="A1" id="table-parameters" headers={['Parameter', 'Selected run']} groups={[
-  { label: 'Simulation', rows: [
-    ['Integration timestep', pending],
-    ['Trial duration / cue switch', pending],
-    ['Network / input / training seeds', pending],
-  ] },
-  { label: 'Populations', rows: [
-    ...populations.map(([id, symbol]) => [{ math: symbol }, `${id} — ${pending}`]),
-    ...inputs.map(([id, symbol]) => [{ math: symbol }, `${id} — ${pending}`]),
-  ] },
-  { label: 'Neuron dynamics', rows: [
-    ['E / I membrane time constants', pending],
-    ['E / I refractory periods', pending],
-    ['Readout time constant / soft-reset threshold', pending],
-  ] },
-  { label: 'Input and manipulation', rows: [
-    ['Input encoding / mean rate / contrast cue', pending],
-    ['Relay and local synaptic dynamics', pending],
-  ] },
-  { label: 'Training and readout', rows: [
-    ['Source encoder / frozen weights', pending],
-    ['Trainable projections / readout initialisation', pending],
-    ['Training / validation image counts', pending],
-    ['Epochs / optimiser / batch sizes', pending],
-    ['Scoring windows / white-pixel spike count', pending],
-    ['Loss / checkpoint selection', pending],
-  ] },
-] }>
-  Parameter-summary placeholder; native evidence pending. A/B/C contain separate
-  E/I populations; R is the pixel readout, X_A/X_B/X_C are external inputs, and M
-  is the measurement-only mask.
-</Table>
-
-<Table number="A2" id="table-connectivity" rowHeaders={true} headers={['Source ↓ / target →', ...populations.map(([, symbol]) => ({ math: symbol }))]} rows={[...inputs, ...populations].map(([id, symbol]) => [{ math: symbol }, ...populations.map(() => 'Unavailable')])}>
-  Connectivity placeholder: source rows, target columns. Connection densities
-  and weights await native evidence; zero-weight projections remain distinct
-  from absent connections.
-</Table>
+<ParameterTable />
