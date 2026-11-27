@@ -42,6 +42,12 @@ collections:
       early olfactory recordings to cortical synchrony, binding debates, inhibitory
       mechanisms, attention, and causal tests.
 
+  rivalry:
+    label: Rivalry
+    description: >-
+      Perceptual rivalry, multistability, attention and oscillatory timing, including
+      predictive-coding accounts and psychophysical and electrophysiological constraints.
+
 papers:
   # Keys are local PDF paths relative to this directory; an indexed PDF may not yet be held.
   # Existing citation details describe the saved version, including preprints.
@@ -2020,3 +2026,93 @@ papers:
     tags: ["review", "communication-through-coherence", "resonance", "nonlinear-integration", "predictive-processing"]
     venue: "Neuron"
     doi: "10.1016/j.neuron.2023.03.015"
+
+  hohwy-et-al-2008.pdf:
+    id: "P134"
+    title: "Predictive coding explains binocular rivalry: An epistemological review"
+    authors: ["Jakob Hohwy", "Andreas Roepstorff", "Karl Friston"]
+    year: 2008
+    collection: ["proposed-functions", "rivalry"]
+    tags: ["rivalry", "review"]
+    venue: "Cognition"
+    doi: "10.1016/j.cognition.2008.05.010"
+
+  carter-pettigrew-2003.pdf:
+    id: "P135"
+    title: "A Common Oscillator for Perceptual Rivalries?"
+    authors: ["Olivia L Carter", "John D Pettigrew"]
+    year: 2003
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "psychophysics"]
+    venue: "Perception"
+    doi: "10.1068/p3472"
+
+  lumer-et-al-1998.pdf:
+    id: "P136"
+    title: "Neural Correlates of Perceptual Rivalry in the Human Brain"
+    authors: ["Erik D. Lumer", "Karl J. Friston", "Geraint Rees"]
+    year: 1998
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "neural-recording"]
+    venue: "Science"
+    doi: "10.1126/science.280.5371.1930"
+
+  qiu-et-al-2020.pdf:
+    id: "P137"
+    title: "Binocular rivalry from luminance and contrast"
+    authors: ["S.X. Qiu", "C.L. Caldwell", "J.Y. You", "J.D. Mendola"]
+    year: 2020
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "psychophysics"]
+    venue: "Vision Research"
+    doi: "10.1016/j.visres.2020.06.006"
+
+  canales-johnson-et-al-2020.pdf:
+    id: "P138"
+    title: "Dissociable Neural Information Dynamics of Perceptual Integration and Differentiation during Bistable Perception"
+    authors: ["Andrés Canales-Johnson", "Alexander J Billig", "Francisco Olivares", "Andrés Gonzalez", "María del Carmen Garcia", "Walter Silva", "Esteban Vaucheret", "Carlos Ciraolo", "Ezequiel Mikulan", "Agustín Ibanez", "David Huepe", "Valdas Noreika", "Srivas Chennu", "Tristan A Bekinschtein"]
+    year: 2020
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "neural-recording"]
+    venue: "Cerebral Cortex"
+    doi: "10.1093/cercor/bhaa058"
+
+  logothetis-et-al-1996.pdf:
+    id: "P139"
+    title: "What is rivalling during binocular rivalry?"
+    authors: ["Nikos K. Logothetis", "David A. Leopold", "David L. Sheinberg"]
+    year: 1996
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "psychophysics"]
+    venue: "Nature"
+    doi: "10.1038/380621a0"
+
+  zhang-et-al-2011.pdf:
+    id: "P140"
+    title: "Binocular Rivalry Requires Visual Attention"
+    authors: ["Peng Zhang", "Keith Jamison", "Stephen Engel", "Bin He", "Sheng He"]
+    year: 2011
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "neural-recording"]
+    venue: "Neuron"
+    doi: "10.1016/j.neuron.2011.05.035"
+
+  katyal-et-al-2019.pdf:
+    id: "P141"
+    title: "Frequency of alpha oscillation predicts individual differences in perceptual stability during binocular rivalry"
+    authors: ["Sucharit Katyal", "Sheng He", "Bin He", "Stephen A. Engel"]
+    year: 2019
+    collection: ["experimental-tests", "rivalry"]
+    tags: ["rivalry", "neural-recording"]
+    venue: "Human Brain Mapping"
+    doi: "10.1002/hbm.24533"
+
+  blake-logothetis-2002.pdf:
+    id: "P142"
+    title: "Visual competition"
+    authors: ["Randolph Blake", "Nikos K. Logothetis"]
+    year: 2002
+    collection: ["criticism-competing-explanations", "rivalry"]
+    tags: ["rivalry", "review"]
+    venue: "Nature Reviews Neuroscience"
+    doi: "10.1038/nrn701"

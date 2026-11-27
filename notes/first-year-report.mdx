@@ -4,10 +4,60 @@ author: Eoin Murray
 collection: notes
 description: "First year report with a drafted background and literature review on the computational functions and mechanisms of gamma oscillations."
 created_at: "2026-11-09T12:20:04Z"
-updated_at: "2026-11-26T10:38:37Z"
+updated_at: "2026-11-26T13:58:17Z"
+inputs: ["exp023", "exp054", "exp025", "exp082", "exp172"]
 ---
 
 import EquationBox from '../site/src/components/EquationBox.astro';
+import PublishedFigure from '../site/src/components/PublishedFigure.astro';
+import { reportData, display, mean, percent, round } from '../site/src/lib/report-data';
+
+export const [circuitEvidence, couplingEvidence, classifierEvidence, streamingEvidence, attentionEvidence] = await Promise.all([
+  reportData('first-year-report', { experiment: 'exp023' }),
+  reportData('first-year-report', { experiment: 'exp054' }),
+  reportData('first-year-report', { experiment: 'exp025' }),
+  reportData('first-year-report', { experiment: 'exp082' }),
+  reportData('first-year-report', { experiment: 'exp172' }),
+]);
+export const frontierPoint = (model, target) => {
+  const point = classifierEvidence.frontier_statistics.find(row => row.model === model && row.rate_target_hz === target);
+  if (!point) throw new Error(`Missing accuracy–rate condition: ${model}/${target}`);
+  return point;
+};
+export const offUnpenalised = frontierPoint('coba', null);
+export const onUnpenalised = frontierPoint('ping', null);
+export const offAt10 = frontierPoint('coba', 10);
+export const onAt10 = frontierPoint('ping', 10);
+export const excitatoryRateReduction = display(round(offUnpenalised.rate_mean / onUnpenalised.rate_mean, 1));
+export const accuracyCost = display(round(offUnpenalised.acc_mean - onUnpenalised.acc_mean, 1));
+export const streamAccuracy = (duration, rate) => {
+  const rows = streamingEvidence.grid_per_seed.filter(row => row.duration_ms === duration && row.rate_hz === rate);
+  if (rows.length !== streamingEvidence.config.seeds.length) throw new Error(`Missing streaming replicates: ${duration} ms/${rate} Hz`);
+  return percent(mean(rows.map(row => row.accuracy)));
+};
+export const attentionConfig = attentionEvidence.configuration;
+export const attentionExample = attentionEvidence.figure2_selection;
+export const attentionContrast = (() => {
+  const sweep = attentionEvidence.contrast_sweep;
+  if (sweep?.settings.profile_version !== 'mean-matched/v1' || sweep.matched_mean_sensory_rates !== true) throw new Error('Section 3.2 requires completed mean-matched contrast evidence');
+  return sweep;
+})();
+export const attentionContrastExample = attentionEvidence.contrast_raster_selection;
+export const usedTransmission = (() => {
+  const measurement = attentionEvidence.used_window;
+  if (measurement?.reference_trial !== attentionExample.trial_id || measurement.seed !== attentionExample.seed || measurement.exact_control !== true) throw new Error('Transmission-phase evidence must match the displayed trial and have exact control continuations');
+  return measurement;
+})();
+export const uniformSelection = attended => {
+  const row = attentionEvidence.background_sweep.seed_rows.find(row => row.trial_id === attentionExample.trial_id && row.attended === attended);
+  if (!row) throw new Error(`Missing displayed uniform-cue trial metrics: ${attended}`);
+  return row;
+};
+export const contrastSelection = (attended, ratio) => {
+  const row = attentionContrast.summary.find(row => row.attended === attended && row.contrast_ratio === ratio);
+  if (!row) throw new Error(`Missing contrast condition: ${attended}/${ratio}`);
+  return row;
+};
 
 ## 1. Background and literature review
 
@@ -162,23 +212,299 @@ $$
 
 ### 2.3 Training
 
+<p>The training description follows the manuscript’s [MNIST classifier protocol](/notes/manuscript#loc-21). Most comparisons trained the input→E and E→readout weights while holding E→I and I→E coupling fixed. A separate comparison also trained the reciprocal connections to examine how their modification affected the circuit. Independent image presentations began with freshly initialised hidden and output states. Continuous-stream evaluation instead retained hidden state between images.</p>
+
+<p>Pixel intensities were divided by 255 and converted into independent stochastic spike channels:</p>
+
+<span id="training-encoding" />
+<EquationBox label="Stochastic input encoding">
+
+$$
+s_j[k]\sim\operatorname{Bernoulli}(p_j),
+\qquad
+p_j=a_j r_{\mathrm{input,max}}\Delta t_{\mathrm{sim}}.
+\tag{4}
+$$
+
+</EquationBox>
+
+<p>Here, $j$ indexes an input pixel, $k$ the simulation update, $s_j[k]\in\{0,1\}$ its spike indicator, and $a_j\in[0,1]$ its normalised intensity. The maximum-pixel firing rate $r_{\mathrm{input,max}}$ is in Hz. In [Equation 4](#training-encoding), $\Delta t_{\mathrm{sim}}$ is expressed in seconds, making $p_j$ a dimensionless per-step probability. The product must lie between zero and one. Fresh draws were generated across pixels, timesteps and training presentations.</p>
+
+<p>Ten dimensionless, current-based spiking output units received weighted excitatory spikes, one unit per digit class. Their states decayed exponentially, integrated incoming spikes and underwent subtractive reset when they emitted an output spike. Ordinary classification used the mean state before reset as the class score. With minibatch cross-entropy,</p>
+
+<span id="training-objective" />
+<EquationBox label="Readout scores and classification objective">
+
+$$
+\begin{aligned}
+z_{b,c}
+&=\frac{1}{N_t}\sum_{k=1}^{N_t}\tilde{u}_{b,c}[k],\\
+L_{\mathrm{CE}}
+&=-\frac{1}{B}\sum_{b=1}^{B}
+\log\!\left(\frac{\exp(z_{b,y_b})}{\sum_{c=0}^{9}\exp(z_{b,c})}\right).
+\end{aligned}
+\tag{5}
+$$
+
+</EquationBox>
+
+<p>The index $b$ identifies a presentation in a minibatch of size $B$, $c\in\{0,\ldots,9\}$ identifies a class, and $N_t$ is the number of simulation steps per presentation. The dimensionless state $\tilde{u}_{b,c}[k]$ is the output state before threshold subtraction, $z_{b,c}$ is its mean score, and $y_b$ is the true digit label. The predicted class maximises $z_{b,c}$; $L_{\mathrm{CE}}$ is the dimensionless mean cross-entropy. The manuscript’s continuous-stream classifiers instead used accumulated output-spike counts as scores. The exact output recurrence is given in the [manuscript’s readout specification](/notes/manuscript#appendix-a2).</p>
+
+<p>Optimisation used full, untruncated backpropagation through the temporal unrolling of each presentation. Forward spikes remained binary. During the backward pass, the non-differentiable threshold operation was assigned a fast-sigmoid surrogate derivative, following the surrogate-gradient approach reviewed by [Neftci and colleagues (2019)](https://doi.org/10.1109/MSP.2019.2931595):</p>
+
+<span id="training-surrogate" />
+<EquationBox label="Surrogate spike derivative">
+
+$$
+\frac{\partial s}{\partial\xi}\approx\psi(\xi)
+=\frac{\beta}{(1+\beta|\xi|)^2}.
+\tag{6}
+$$
+
+</EquationBox>
+
+<p>Here, $s$ is the binary spike indicator, $\xi$ is the numerical distance from threshold, and $\psi$ is the surrogate derivative used in backpropagation. Hidden-neuron distances were evaluated numerically in mV and output-neuron distances in normalised state units; the surrogate slope parameter was $\beta=1$ in those numerical conventions. This supplies a backward sensitivity around threshold without replacing the forward spike with a smooth-valued output.</p>
+
+<p>The manuscript additionally damped gradients through each hidden E and I membrane increment. This was an implementation-specific modification of the backward calculation, expressed using a stop-gradient operator:</p>
+
+<span id="training-damping" />
+<EquationBox label="Hidden-voltage gradient damping">
+
+$$
+\begin{aligned}
+\mathcal{D}_{\alpha_{\mathrm{grad}}}(x)
+&=\alpha_{\mathrm{grad}}x
+ +(1-\alpha_{\mathrm{grad}})\operatorname{sg}(x),\\
+\alpha_{\mathrm{grad}}&=\frac{1}{d_{\mathrm{grad}}},
+\qquad d_{\mathrm{grad}}=1000,\\
+\bar{V}[k+1]&=V[k]+\mathcal{D}_{\alpha_{\mathrm{grad}}}(F[k]).
+\end{aligned}
+\tag{7}
+$$
+
+</EquationBox>
+
+<p>The operation $\operatorname{sg}(x)$ returns $x$ in the forward pass and has zero backward derivative. The dimensionless divisor $d_{\mathrm{grad}}$ therefore gives $\alpha_{\mathrm{grad}}=10^{-3}$. Here, $x$ denotes the argument of the damping operation; in the voltage update it is $F[k]$, the unclipped exponential-Euler voltage increment computed from [Equation 1](#circuit-membrane), with updated conductances held constant over the timestep. The quantity $\bar{V}[k+1]$ is voltage before clipping, reset and refractory handling. Thus, $x$, $F[k]$, $V[k]$ and $\bar{V}[k+1]$ are in mV. Forward values are preserved, while derivatives through $F[k]$, including its dependence on conductances and previous voltage, are multiplied by $\alpha_{\mathrm{grad}}$. The additive $V[k]$ path retains unit derivative.</p>
+
+<p>At fixed updated conductances, this produces the backward voltage sensitivity</p>
+
+<span id="training-damped-jacobian" />
+<EquationBox label="Backward sensitivity of hidden voltage">
+
+$$
+\left(\frac{\partial\bar{V}[k+1]}{\partial V[k]}\right)_{\mathrm{BP}}
+=1-\alpha_{\mathrm{grad}}\left[
+1-\exp\!\left(-\frac{\Delta t_{\mathrm{sim}}g_{\mathrm{tot}}[k+1]}{C_m}\right)
+\right].
+\tag{8}
+$$
+
+</EquationBox>
+
+<p>The subscript $\mathrm{BP}$ identifies the derivative used by backpropagation. Total conductance is $g_{\mathrm{tot}}[k+1]=g_L+g_E[k+1]+g_I[k+1]$, in µS. Here, $\Delta t_{\mathrm{sim}}$ is again in ms and $C_m$ is in nF, as in section 2.2, so the exponential argument is dimensionless. The same damping applied to both hidden populations in loop-on and loop-off networks. Conductance recurrences and the surrogate spike function received no separate damping factor, and output-state updates were undamped. Hidden reset and refractory masks were not differentiated; the eligible spike-output branch retained surrogate gradients, while reset, refractory holds and voltage clipping blocked the corresponding retained-voltage gradients. These paths are specified in the [manuscript’s gradient calculations](/notes/manuscript#appendix-a3).</p>
+
+<p>For comparisons of accuracy and excitatory activity, the manuscript supplemented cross-entropy with a one-sided rate penalty:</p>
+
+<span id="training-rate-penalty" />
+<EquationBox label="Optional excitatory-rate penalty">
+
+$$
+L_{\mathrm{total}}=L_{\mathrm{CE}}
++\frac{\lambda_{\mathrm{rate}}}{B}\sum_{b=1}^{B}
+\left[\frac{\max(0,r_{E,b}-r_{E,\mathrm{ceil}})}{1\,\mathrm{Hz}}\right]^2.
+\tag{9}
+$$
+
+</EquationBox>
+
+<p>The rate $r_{E,b}$ is the excitatory spike count for presentation $b$, divided by excitatory population size and duration in seconds; $r_{E,\mathrm{ceil}}$ is the selected reference ceiling, also in Hz. Division by $1\,\mathrm{Hz}$ makes the excess dimensionless, and $\lambda_{\mathrm{rate}}$ sets its dimensionless penalty strength. Setting $\lambda_{\mathrm{rate}}=0$ recovers unpenalised training. The penalty is applied to each presentation before minibatch averaging and does not enforce a hard firing-rate limit.</p>
+
+<p>The documented protocol used 50 epochs of AdamW with learning rate 0.0004, minibatches of 256 images and zero weight decay. Before each update, the global Euclidean gradient norm was clipped to a maximum of one; trainable weights were subsequently clamped below at zero. This global clipping was separate from the local membrane-gradient damping above. Checkpoint selection minimised held-out validation cross-entropy, averaged over three spike encodings per image with seeds fixed across epochs. The activity penalty was excluded from validation loss. The test partition remained separate from optimisation and checkpoint selection. Analyses using final-epoch networks were distinguished from those using the best-validation checkpoint.</p>
+
 ### 2.4 Toolbox and implementation
+
+<p>[SNNLab](https://github.com/eoinmurray/snnlab) provides the software framework for constructing, simulating and training the spiking circuits described above. It is implemented in Python and PyTorch, with neuronal states and synaptic interactions represented as tensor operations that support GPU execution and automatic differentiation. Network definitions specify populations, connections, synaptic dynamics and transmission delays, while execution settings control input presentation, recording and training. This separation allows circuit architecture and experimental conditions to be varied within a common numerical implementation.</p>
+
+<p>The library also supports recording spikes, membrane voltages and synaptic conductances, alongside analysis of population firing rates and rhythmic activity. These measurements connect task performance to the underlying circuit dynamics: a change in classification accuracy can be examined alongside changes in inhibitory feedback, excitability and population timing.</p>
+
+<p>Verification addresses both the simulated dynamics and the procedures used to train and restore networks. The [simulator test suite](https://github.com/eoinmurray/snnlab/tree/main/tests/sim) covers neuronal and synaptic updates, spike and refractory timing, surrogate gradients, checkpoint restoration and continued training. Numerical checks include analytical solutions and preserved reference outputs, together with independent [Brian2 comparisons for conductance-based dynamics](https://github.com/eoinmurray/snnlab/blob/main/tests/sim/test_brian2_conformance.py) and [snnTorch comparisons for current-based dynamics](https://github.com/eoinmurray/snnlab/blob/main/tests/sim/test_snntorch_conformance.py). Such comparisons require matched equations, parameters and update conventions, since differences in spike timing can arise from the ordering of otherwise similar numerical operations.</p>
+
+<p>Saved network definitions, checkpoints and recordings make the model and its outputs available for inspection. Reproducing an experiment additionally requires its software revision, numerical settings, random seeds and training configuration, together with the checkpoint-selection and evaluation procedures. These details identify the particular implementation and protocol underlying each reported result.</p>
 
 ## 3. Research Plan
 
 ### 3.1 Efficiency and robustness
 
+<p>The first strand of work asks whether PING can support useful computation with fewer excitatory spikes, and how that computation depends on the strength and duration of its input. The completed experiments establish a low-rate rhythmic operating regime, test its accuracy–activity trade-off in digit classification, and examine performance when inputs arrive as continuous streams. The figures below reproduce the corresponding results from the [manuscript](/notes/manuscript).</p>
+
+<p>The starting comparison used untrained conductance-based networks with reciprocal E→I and I→E coupling either enabled or disabled. With the loop disabled, excitatory spikes were dispersed and inhibitory neurons remained silent. Enabling the loop produced recurring excitatory and inhibitory volleys, with an excitatory-population spectral peak near {display(round(circuitEvidence.f_gamma_hz.ping, 1))} Hz ([Figure 4](#efficiency-circuit)C–E,G). The two illustrative rasters used different input rates, chosen to display the contrasting regimes. Their firing rates therefore cannot be treated as a matched-input comparison.</p>
+
+<p>The input–output sweeps provide that comparison. Across the same input-rate range, loop-off excitatory firing rose from {display(round(Math.min(...circuitEvidence.fi_curves.coba.e), 1))} to {display(round(Math.max(...circuitEvidence.fi_curves.coba.e), 1))} Hz, whereas loop-on firing remained between {display(round(Math.min(...circuitEvidence.fi_curves.ping.e), 1))} and {display(round(Math.max(...circuitEvidence.fi_curves.ping.e), 1))} Hz ([Figure 4](#efficiency-circuit)F,H). Inhibitory firing increased with drive, showing that the low excitatory rate was maintained alongside greater recruitment of the inhibitory population.</p>
+
+<PublishedFigure experiment="exp023" file="overview_compound.png" id="efficiency-circuit" alt="Loop-off and loop-on circuit diagrams, illustrative spike rasters and spectra, and matched input–output firing-rate sweeps.">
+  **Figure 4. Reciprocal feedback produces rhythmic population activity with low excitatory rates.** From [manuscript Figure 1](/notes/manuscript#loc-5), source [exp023](/exp023). **(A–B)** Loop-off and loop-on architectures: X denotes input channels, E excitatory neurons and I inhibitory neurons. Diagram weight subscripts identify target then source; arrowheads indicate excitation and bars inhibition. **(C–D)** {circuitEvidence.raster.coba.duration_ms}-ms illustrative responses of {circuitEvidence.config.n_e} E and {circuitEvidence.config.n_i} I neurons to {circuitEvidence.config.drive.raster_operating_points.coba.n_in} Poisson channels, at {circuitEvidence.config.drive.raster_operating_points.coba.input_rate_hz} Hz per channel for loop-off and {circuitEvidence.config.drive.raster_operating_points.ping.input_rate_hz} Hz for loop-on. E spikes are black and I spikes red. **(E,G)** Mean-subtracted E-population power spectral density in arbitrary units; the dashed line marks the interpolated loop-on peak. **(F,H)** Mean per-neuron E/I rates over matched 2–100-Hz input sweeps, using the same networks and fixed weights. Each condition comprises one seed-42 trial, without uncertainty estimates. F and H use different vertical scales.
+</PublishedFigure>
+
+<p>The low-rate regime depended on both directions of coupling. An 11×11 sweep varied E→I recruitment and I→E feedback independently while holding external drive fixed. Removing either pathway left excitatory firing near {display(round(couplingEvidence.grid.rate_e_hz[0][0]))} Hz. With both present, a broad region of the sampled parameter plane combined lower excitatory firing with stronger temporal structure ([Figure 5](#efficiency-coupling)A–C). The selected rasters show the progression from dense activity to increasingly separated volleys. At the strongest sampled pair, mean excitatory firing was {display(round(couplingEvidence.grid.rate_e_hz.at(-1).at(-1), 1))} Hz.</p>
+
+<PublishedFigure experiment="exp054" file="turnon_maps_compound.png" id="efficiency-coupling" alt="Three maps of excitatory rate, inhibitory rate and autocorrelation contrast across reciprocal coupling strengths, followed by three representative spike rasters.">
+  **Figure 5. Reciprocal coupling controls firing rates and temporal structure.** The six spiking-network panels corresponding to [manuscript Figure 2A–F](/notes/manuscript#loc-6), using the existing [exp054](/exp054) figure from the same analysis source. **(A–C)** Mean per-neuron E rate, I rate and autocorrelation lobe–trough contrast across the 11×11 grid. Here, the horizontal label $W_{EI}$ denotes the E→I Gaussian parent mean and the vertical label $W_{IE}$ the I→E parent mean, in µS before lower clamping and division by presynaptic population size. Each E neuron received a private {couplingEvidence.config.input_rate_hz}-Hz Poisson channel. Measurements use {couplingEvidence.config.sim_ms - couplingEvidence.config.burn_ms} ms after discarding the first {couplingEvidence.config.burn_ms} ms; B’s grayscale is clipped at the 92nd percentile. **(D–F)** Illustrative 200-ms rasters at parent-mean pairs (0, 0), (0.6, 1.2) and (3, 6) µS, respectively, showing 160 E neurons in black and 48 I neurons in red. Each grid condition uses one untrained network and seed, without uncertainty estimates.
+</PublishedFigure>
+
+<p>This sweep shows that fixed reciprocal weights can sustain sparse, temporally organised activity without learning the loop. It does not establish a unique optimum or the extent of variability across network initialisations. The contrast score measures autocorrelation lobe–trough structure rather than oscillation frequency; the [input-sharing controls](/exp054#loc-9) also show that shared afferents can elevate it without reciprocal inhibition. Its interpretation therefore rests on the accompanying activity and circuit comparisons.</p>
+
+<p>We next asked whether the constrained excitatory activity remained sufficient for computation. Loop-on and loop-off networks were trained to classify MNIST digits, learning their input and readout weights while holding recurrence fixed. Both architectures learned the task, although the full-MNIST reference classifiers reached different mean final validation accuracies: {display(round(classifierEvidence.baseline.curves.coba.acc_mean.at(-1), 1))}% for loop-off and {display(round(classifierEvidence.baseline.curves.ping.acc_mean.at(-1), 1))}% for loop-on ([Figure 6](#efficiency-classification)A–C). These learning curves are distinct from the reduced-training-pool test comparison in panel D.</p>
+
+<p>In that separate comparison, unpenalised loop-on classifiers achieved {display(round(onUnpenalised.acc_mean, 1))}% test accuracy at {display(round(onUnpenalised.rate_mean, 1))} Hz mean excitatory firing, compared with {display(round(offUnpenalised.acc_mean, 1))}% at {display(round(offUnpenalised.rate_mean, 1))} Hz for loop-off. This was a {excitatoryRateReduction}-fold reduction in excitatory firing with a {accuracyCost}-percentage-point accuracy cost. Adding progressively tighter activity penalties reduced firing and accuracy in both architectures. At the 10-Hz training ceiling, their realised mean rates were close—{display(round(onAt10.rate_mean, 2))} Hz for loop-on and {display(round(offAt10.rate_mean, 2))} Hz for loop-off—while loop-on retained higher accuracy, {display(round(onAt10.acc_mean, 1))}% versus {display(round(offAt10.acc_mean, 1))}% ([Figure 6](#efficiency-classification)D). Equal penalty ceilings did not generally produce equal firing rates, so the complete curves must be interpreted using their measured horizontal coordinates.</p>
+
+<PublishedFigure experiment="exp025" file="results_compound.png" id="efficiency-classification" alt="Illustrative trained loop-off and loop-on responses, full-MNIST validation learning curves and a separate reduced-pool test accuracy–firing-rate comparison.">
+  **Figure 6. Classification accuracy and excitatory activity with fixed reciprocal coupling.** From [manuscript Figure 3](/notes/manuscript#loc-8), source [exp025](/exp025). **(A–B)** Illustrative 200-ms responses to digit-0 sample 0 from final unpenalised full-MNIST checkpoints, seed 42; E spikes are black and I spikes red. **(C)** Validation learning curves, averaged across three independently trained networks per architecture without uncertainty intervals. A–C use 54,000 optimisation and 6,000 validation images. **(D)** Separate classifiers trained on 6,300 optimisation and 700 validation images, evaluated at their final checkpoints on the same 1,000 held-out test images. Points and both-axis bars show means ± standard error of the mean across three independent training replicates. Loop-off is shown by red squares and loop-on by black diamonds. Numerical labels denote training ceilings of 1, 2.5, 5, 10 and 25 Hz; stars indicate unpenalised training. The loop-on 25-Hz point nearly coincides with its unpenalised star.
+</PublishedFigure>
+
+<p>These results support an accuracy–activity advantage for reciprocal inhibition under the tested conditions. Establishing an energetic advantage requires accounting for the inhibitory activity and synaptic processing that accompany the reduction in excitatory spikes. The comparison also changes inhibition, excitability and temporal coordination together, so it does not isolate a causal contribution of gamma timing.</p>
+
+<p>A further test examined whether the loop-on circuit could process successive inputs without resetting its hidden state. Three classifiers were trained on isolated images with input rates varying between 0.5 and 25 Hz, then evaluated on continuous five-image streams using accumulated output-spike counts. Hidden neuronal and synaptic states persisted between images; output states and counts reset at supplied boundaries. A separately selected example correctly classified five successive digits despite changes in presentation duration and input strength ([Figure 7](#efficiency-streaming)A–D). The first candidate satisfied the predefined five-correct criterion, making this an illustration of capability rather than an estimate of reliability.</p>
+
+<p>The quantitative evaluation reused the same 40 ordered five-image streams for every network and duration–rate condition, with separate spike-encoding draws. At 25-Hz maximum-pixel input, increasing presentation duration from 25 to 200 ms raised mean accuracy from {streamAccuracy(25, 25)} to {streamAccuracy(200, 25)}. At 200 ms, increasing input from 0.5 to 5 Hz raised accuracy from {streamAccuracy(200, 0.5)} to {streamAccuracy(200, 5)} ([Figure 7](#efficiency-streaming)E–F). Performance therefore depended on both input strength and the time available to accumulate evidence.</p>
+
+<PublishedFigure experiment="exp082" file="continuous_stream_compound.png" id="efficiency-streaming" alt="A selected correctly classified five-digit stream with excitatory and inhibitory rasters and output-count shares, alongside repeated duration–rate evaluations.">
+  **Figure 7. Spike-count classification with continuing hidden state.** From [manuscript Figure 10](/notes/manuscript#loc-17), source [exp082](/exp082). Three validation-selected classifiers were evaluated with frozen weights. **(A–C)** Selected seed-42 example: digits 1, 7, 9, 5 and 2 at duration–rate pairs (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and (200 ms, 10 Hz). A shows images and labels; B/C show the first 200 E/64 I neurons in black/red. Dotted lines mark supplied image boundaries. **(D)** Softmax-normalised cumulative output-spike counts, with the true class red and others grey. Shares are not calibrated probabilities, and the dashed 0.5 line is not a decision threshold; the largest final count determines classification. **(E)** Mean percentage accuracy over four durations and eleven rates, without uncertainty intervals. Each network and condition used the same 40 ordered five-image streams, giving 200 decisions, with separate encoding draws. Duration and rate were constant within each quantitative stream. **(F)** The same 200-ms evaluations, showing mean ± standard error of the mean across the three networks on a logarithmic input-rate axis. The illustrative stream was selected separately from this image bank.
+</PublishedFigure>
+
+<p>Continuous-stream classification extends the result beyond independently reset inputs, but these experiments do not show that retaining hidden state improves accuracy or that PING is more robust than another circuit: neither comparison was made. Presentation duration and readout accumulation time also changed together. The uncertainty across three trained networks is conditional on one sampled image bank, and supplied boundaries leave autonomous segmentation unresolved.</p>
+
+<p>The next stage should separate these contributions. Comparisons that match excitatory and inhibitory activity, alongside controlled changes to inhibitory timing, would test whether temporal organisation contributes beyond activity suppression. Streaming controls that reset hidden state, vary preceding-image order and separate stimulus duration from the readout window would examine carry-over and evidence accumulation. Testing additional image banks and input perturbations would then assess how broadly the observed operating regime supports reliable computation. This would turn the present demonstration of low-rate task performance into a more direct test of efficiency and robustness.</p>
+
 ### 3.2 Selective communication and attention
+
+<p>The second strand asks whether a receiver can preferentially represent one of two simultaneous inputs, and whether rhythmic timing helps organise that selection. Communication through coherence proposes that a sender’s influence depends partly on its alignment with fluctuations in a receiver’s excitability [Fries (2005)](https://doi.org/10.1016/j.tics.2005.08.011). [Experiment 172](/exp172) examines this question in a fixed spiking circuit, using distinguishable spatial patterns to measure what the receiver represents.</p>
+
+<p>Two sender areas, A and B, project to a shared receiver, C ([Figure 8](#attention-circuit)). Each area contains excitatory and inhibitory neurons with local recurrence. A and B receive simultaneous Gaussian profiles of sensory firing rates, centred at different positions on a circular spatial map. Fixed sensory and sender-to-receiver weights favour nearby spatial positions; the A→C and B→C matrices are identical. A spatially uniform cue adds {attentionExample.cue_hz} Hz per channel to the attended sender, switching from A to B at {attentionConfig.switch_ms} ms while both sensory patterns remain present. The cue changes sender drive without specifying which spatial neurons should fire.</p>
+
+<PublishedFigure experiment="exp172" file="circuit.svg" id="attention-circuit" alt="Saved native A/B-to-C spatial relay circuit with separate sensory and uniform cue inputs and local excitatory–inhibitory recurrence.">
+  **Figure 8. Circuit for selecting between simultaneous spatial inputs.** From [exp172 Figure 1](/exp172#fig-circuit). Each area contains {attentionConfig.network.populations.E.size} E and {attentionConfig.network.populations.I.size} I neurons; each external stream has {attentionConfig.network.input_channels} channels. X denotes sensory input to A/B and uniform background input to C; U denotes the cue. Complementary gates route the cue to A before the switch and B afterwards. E populations are black and I populations red. Weight subscripts identify target then source; grey sender-E→C-I paths have zero weights. All weights are fixed, with no task learning.
+</PublishedFigure>
+
+<p>Selection is decoded from complete C excitatory-population cycles, bounded by troughs between successive detected peaks. Within each cycle, the spatial firing-rate profile is fitted by nonnegative least squares to a uniform background and fixed A/B Gaussian templates. The larger fitted pattern amplitude determines dominance. A cycle is unresolved if the amplitudes tie or their sum is below {attentionConfig.minimum_total_amplitude_hz} Hz. The following three operational metrics distinguish correctness, stability and response onset; they are the definitions used in this experiment.</p>
+
+<p>For cue period $e$, selection success is the fraction of retained cycles dominated by the attended pattern:</p>
+
+<span id="attention-success" />
+<EquationBox label="Selection success">
+
+$$
+S_e=\frac{N_{\mathrm{correct},e}}{N_e}.
+\tag{10}
+$$
+
+</EquationBox>
+
+<p>Here, $e$ identifies the attend-A or attend-B period, $N_e$ counts complete C cycles within its settled measurement window, and $N_{\mathrm{correct},e}$ counts those dominated by the attended pattern. Counts and $S_e$ are dimensionless. Unresolved cycles remain in the denominator and count as failures; no retained cycles makes the score unavailable. A score of one means every retained cycle is correct. When the experiment summarises both periods with one success score, it averages their two scores equally.</p>
+
+<p>Flickering measures changes in the dominant pattern between adjacent resolved cycles within a cue period:</p>
+
+<span id="attention-flicker" />
+<EquationBox label="Cycle-to-cycle flickering">
+
+$$
+F_e=\frac{N_{\mathrm{changes},e}}{N_{\mathrm{pairs},e}}.
+\tag{11}
+$$
+
+</EquationBox>
+
+<p>The count $N_{\mathrm{pairs},e}$ includes adjacent cycle pairs for which both patterns are resolved, and $N_{\mathrm{changes},e}$ counts pairs whose dominance differs. Unresolved cycles break adjacency, and pairs do not cross cue-period boundaries. The dimensionless score ranges from zero for unchanged dominance to one for alternation at every eligible boundary; it is unavailable without eligible pairs. A stable wrong response can therefore have low flickering and low success. If periods are pooled, their change counts and eligible-pair counts are summed before division.</p>
+
+<p>Latency records the beginning of the first run of three consecutive attended-dominant cycles after cue onset:</p>
+
+<span id="attention-latency" />
+<EquationBox label="Sustained-selection onset latency">
+
+$$
+L_e=\min\!\left\{
+k\in\{1,\ldots,M_e-2\}:
+z_{e,k}=z_{e,k+1}=z_{e,k+2}=a_e
+\right\}.
+\tag{12}
+$$
+
+</EquationBox>
+
+<p>Here, $M_e$ is the number of complete C cycles wholly contained in the full cue period, $k$ indexes them from one, $z_{e,k}$ is cycle $k$’s dominant-pattern label, and $a_e\in\{A,B\}$ is the attended label. Unlike the settled windows used for success and flickering, latency includes the initial response after cue onset. A cycle straddling onset is excluded, and an unresolved cycle breaks the run. $L_e$ is reported in cycles: one means the first eligible cycle begins the qualifying run, rather than zero elapsed time. If no run occurs before the period ends, latency is not observed. A short latency does not guarantee that selection remains stable afterwards.</p>
+
+<p>The uniform-cue example shows C’s spatial response shifting with the cue, with intermittent excursions towards the competing pattern ([Figure 9](#attention-uniform)). For this displayed seed-{attentionExample.seed} trial, success was {display(round(uniformSelection('A').S, 2))} during attend A and {display(round(uniformSelection('B').S, 2))} during attend B; flickering was {display(round(uniformSelection('A').F, 2))} and {display(round(uniformSelection('B').F, 2))}, respectively. The corresponding onset latencies were {uniformSelection('A').latency_cycles} and {uniformSelection('B').latency_cycles} cycles, illustrating why response onset and subsequent stability require separate measures.</p>
+
+<PublishedFigure experiment="exp172" file="rasters.svg" id="attention-uniform" alt="A, B and C excitatory–inhibitory spike rasters during a uniform cue that switches from sender A to sender B.">
+  **Figure 9. Uniform cueing biases the receiver’s spatial response.** From [exp172 Figure 2](/exp172#fig-rasters). **(A–C)** Sender A, sender B and receiver C rasters: E spikes black, I spikes red. The cue switches at {attentionConfig.switch_ms} ms; dotted lines delimit settled windows of {attentionConfig.stability_search.windows_ms[0][0]}–{attentionConfig.stability_search.windows_ms[0][1]} ms and {attentionConfig.stability_search.windows_ms[1][0]}–{attentionConfig.stability_search.windows_ms[1][1]} ms. Each sender receives a Gaussian sensory profile with baseline {attentionConfig.spatial_baseline_hz} and spatial mean {attentionConfig.spatial_mean_hz} Hz/channel. The uniform cue contributes {attentionExample.cue_hz} Hz/channel to A before the switch and B afterwards. C receives independent uniform background at {attentionExample.background_hz} Hz/channel and no cue. Inhibitory populations have no direct external drive. This trial was selected after inspecting input seeds 185–189 for smoother detected relative phase, rather than higher selection scores; it is one illustration, not a seed average. Figure 10 uses the same recording.
+</PublishedFigure>
+
+<p>The timing analysis relates this changing representation to sender–receiver phase ([Figure 10](#attention-phase)). Dominant patterns cluster around a preferred wrapped phase, while the unwrapped traces retain whole-cycle drift. The plotted local phase locking, $E(t)$, is a trailing phase-locking value over {attentionExample.entrainment.window_cycles} receiver-peak samples, with $t$ denoting time in ms. It is the length of the mean unit vector formed from the sampled phase differences, a moving-window application of the [phase-locking value](https://doi.org/10.1002/%28SICI%291097-0193%281999%298:4%3C194::AID-HBM4%3E3.0.CO;2-C). Values near one indicate a stable circular phase relationship; they do not identify which spatial pattern dominates. Integer-cycle slips are also invisible to this circular statistic.</p>
+
+<p>The grey phase band was measured through an existing intervention, rather than inferred from inhibitory spike times. Each naturally occurring sender volley was removed separately from its input to C, with an exact matched continuation from the same native state. Spatial-pattern losses were measured over one and two complete C cycles using fixed baseline boundaries. The retained effect was the minimum of the removed sender’s own-pattern loss and its own-minus-competing-pattern loss across both horizons, with the two-cycle result normalised per cycle. This tests whether a packet supports its spatial representation beyond a brief timing displacement. The [full procedure](/exp172#used-transmission-measurement) identifies strong transmission phases used in this recording; it does not locate a universal receptive-window boundary.</p>
+
+<PublishedFigure experiment="exp172" file="relative-phase.svg" id="attention-phase" alt="Unwrapped and wrapped sender-minus-receiver phase and local phase locking, with spatial-dominance markers and a measured used-transmission phase band.">
+  **Figure 10. Spatial dominance and sender–receiver phase.** From [exp172 Figure 3](/exp172#fig-relative-phase), using the same seed-{attentionExample.seed} trial as Figure 9. **(A)** Unwrapped sender-minus-C phase in cycles. **(B)** Phase wrapped to ±0.5 cycles; traces break at the wrap. **(C)** Local phase locking over the latest {attentionExample.entrainment.window_cycles} C-peak samples; incomplete windows are unavailable. A is black and B red. Lines sample each C excitatory peak; dots identify the spatial pattern dominant in C. Phase is peak-interpolated, without transmission-delay correction. The cue switches at {attentionConfig.switch_ms} ms. The grey band in B uses {usedTransmission.packets} observed packets across {usedTransmission.states} receiver states: selected bins contain at least {usedTransmission.settings.minimum_events} packets and have median persistent deletion effects at least half the positive supported peak, at a resolution of 1/{usedTransmission.settings.phase_bins} cycle. Native delays are retained in the intervention, and control continuations reproduce the original spikes. Sparse phases remain unmeasured; weaker effects outside the band are possible.
+</PublishedFigure>
+
+<p>A complementary condition replaced the uniform cue with a change in sensory contrast. The attended Gaussian’s modulation amplitude increased while its uniform baseline decreased, preserving each sensory input’s expected spatial mean at {attentionContrast.configuration.spatial_mean_hz} Hz/channel ([Figure 11](#attention-contrast-profiles)). The contrast ratio is the attended-to-unattended modulation-amplitude ratio, not a ratio of spatial mean rates. Gaussian widths, weights and the unattended profile remained fixed. This asks whether redistributing a fixed mean sensory drive towards the represented location can bias selection.</p>
+
+<PublishedFigure experiment="exp172" file="contrast-examples.svg" id="attention-contrast-profiles" alt="Lower- and higher-contrast Gaussian sensory profiles with equal spatial means, showing compensating reductions in the attended baseline.">
+  **Figure 11. Sensory contrast cues with matched expected mean rates.** From [exp172 Figure 4](/exp172#fig-contrast-examples). Before the switch, A is attended (red solid) and B unattended (blue dashed). **(A–B)** Attended Gaussian modulation is multiplied by {attentionContrast.settings.example_ratios[0]} and {attentionContrast.settings.example_ratios[1]}, respectively, while its uniform baseline compensates to preserve the shared spatial mean of {attentionContrast.configuration.spatial_mean_hz} Hz/channel (dotted line). Spatial position is dimensionless on the unit circle. At {attentionContrast.configuration.switch_ms} ms, B receives the higher contrast and A returns to the unattended profile. The separate uniform cue is off. Equal expected external means do not guarantee equal realised spike counts or sender firing rates.
+</PublishedFigure>
+
+<p>At {attentionContrastExample.contrast_ratio}-fold contrast, an illustrative trial retained both patterns and switched its preferred response, with intermittent competing activity ([Figure 12](#attention-contrast-example)). Its success scores were {display(round(attentionContrastExample.success_by_epoch.A, 2))} and {display(round(attentionContrastExample.success_by_epoch.B, 2))} for attend A and attend B. This example was selected after inspecting the saved trials to place both scores near {attentionContrastExample.target_success}; its partial selection is therefore illustrative rather than an independently sampled estimate.</p>
+
+<PublishedFigure experiment="exp172" file="contrast-rasters.svg" id="attention-contrast-example" alt="A/B/C excitatory–inhibitory rasters during a mean-matched contrast cue, showing partial spatial selection before and after the contrast switch.">
+  **Figure 12. Partial selection under a mean-matched contrast cue.** From [exp172 Figure 5](/exp172#fig-contrast-rasters). **(A–C)** A/B/C rasters: E black, I red. Seed {attentionContrastExample.seed}, attended Gaussian modulation {attentionContrastExample.contrast_ratio}×, uniform cue {attentionContrastExample.cue_hz} Hz/channel and C background {attentionContrastExample.background_hz} Hz/channel. A has higher contrast before {attentionContrast.configuration.switch_ms} ms and B afterwards. Dotted lines mark the same settled windows as Figure 9. The trial was selected post hoc to minimise the larger absolute distance of its two period-success scores from {attentionContrastExample.target_success}, across saved contrast trials. Its pooled retained-cycle success is {display(round(attentionContrastExample.pooled_success, 2))}; this pooled value differs in definition from the equally weighted period average described above. No seed averaging is applied to this raster.
+</PublishedFigure>
+
+<p>The sweep provides the quantitative comparison across {attentionContrast.settings.seeds.length} input seeds ([Figure 13](#attention-contrast-sweep)). Low contrast ratios did not yield a monotonic improvement in selection. At threefold modulation, mean success was {display(round(contrastSelection('A', 3).S.mean, 2))} for attend A and {display(round(contrastSelection('B', 3).S.mean, 2))} for attend B. At sixfold modulation, these rose to {display(round(contrastSelection('A', 6).S.mean, 2))} and {display(round(contrastSelection('B', 6).S.mean, 2))}, while flickering fell to {display(round(contrastSelection('A', 6).F.mean, 2))} and {display(round(contrastSelection('B', 6).F.mean, 2))}. The corresponding mean onset latencies were {display(round(contrastSelection('A', 6).latency_cycles.mean, 1))} and {display(round(contrastSelection('B', 6).latency_cycles.mean, 1))} cycles. Receiver excitatory and inhibitory rates also changed, showing that the spatial redistribution affected the circuit’s operating state despite the matched external means.</p>
+
+<PublishedFigure experiment="exp172" file="contrast-sweep.svg" id="attention-contrast-sweep" alt="Selection success, flickering, onset latency and receiver firing rates across mean-matched sensory contrast ratios for attend-A and attend-B periods.">
+  **Figure 13. Selection improves at stronger sensory contrasts in the tested circuit.** From [exp172 Figure 6](/exp172#fig-contrast-sweep). **(A–B)** Attend-A and attend-B periods. Success S is solid with circles and flickering F dashed with triangles on the left axis; latency L is dotted with squares on the green right axis, in cycles. Attend A is red and attend B blue. **(C–D)** Mean per-neuron C excitatory rates (solid circles) and inhibitory rates (dashed triangles), in Hz. Lines show means and shading/bars ±1 sample standard deviation across input seeds {attentionContrast.settings.seeds.join(', ')}. Latency summaries include observed values only; count labels flag missing observations. Ratio one has no contrast cue, so A/B are nominal periods. The uniform cue is off and C background is {attentionContrast.settings.background_hz} Hz/channel. Both sensory inputs retain equal expected spatial means. The seeds are input realisations of one fixed circuit, include previously used tuning seeds, and do not constitute held-out validation across circuit initialisations.
+</PublishedFigure>
+
+<p>The uniform and contrast conditions therefore demonstrate two ways of biasing a fixed circuit’s spatial response. They use different receiver backgrounds—{attentionExample.background_hz} and {attentionContrast.settings.background_hz} Hz/channel—so they are not a matched comparison of cue mechanisms. Matching external sensory means also leaves sender firing rates and temporal structure free to change. Spatial decoding measures which pattern C expresses; the packet-deletion analysis supplies separate evidence about the contribution of particular sender volleys. Neither alone establishes that phase alignment is sufficient for selective communication.</p>
+
+<p>Further work should test this relationship across held-out input realisations and independently initialised circuits. Paired timing interventions that preserve sender spike counts, projection weights and receiver starting state would help distinguish temporal alignment from increased effective drive. Testing whether the measured transmission-phase dependence predicts the consequences of these interventions would provide a stronger link between PING dynamics and selective communication. The present results establish a controllable but imperfect spatial relay, with explicit measures of its correctness, instability and response onset.</p>
 
 ### 3.3 Perceptual binding and grouping
 
+<p>A proposed extension would test whether temporal coordination helps a downstream circuit group features belonging to the same object. The task would present two objects simultaneously, with different conjunctions of features such as colour and orientation. Individual feature identities and mean input rates would be held constant while their grouping changed. A readout would have to recover the correct conjunctions, making grouping errors distinguishable from failures to detect the individual features. This addresses the decoding requirement central to criticisms of temporal binding [Shadlen and Movshon (1999)](https://doi.org/10.1016/S0896-6273(00)80822-3).</p>
+
+<p>The first simulation would impose controlled timing relationships between feature populations and test whether a downstream circuit could read them. Relative shifts of complete spike trains would change their alignment while preserving individual spike counts and within-population temporal structure. Performance would be compared with a rate-based readout and tested on held-out feature combinations. This would identify the timing precision, connectivity and readout operations required for a synchrony-based grouping code.</p>
+
+<p>A subsequent model would ask whether coupled PING circuits could generate the useful coordination from sensory structure without supplying object membership through imposed synchrony. Separating generation from decoding would clarify which parts of a binding mechanism the circuit actually explains.</p>
+
 ### 3.4 Sensory gain, temporal gating and phase coding
+
+<p>A further simulation would map how a PING receiver responds to inputs of different strengths arriving at different phases of its ongoing activity. Identical probe volleys would be delivered across the cycle, accounting for transmission delays when measuring arrival phase. Spike probability, response magnitude and first-spike latency would be recorded alongside membrane voltage and excitatory and inhibitory conductances. Input–output curves at each phase would distinguish changes in response slope from shifts in firing threshold. This would provide a circuit-level counterpart to the phase-dependent sensory responses reported by [Cardin and colleagues (2009)](https://doi.org/10.1038/nature08002) and gamma-rhythmic gain modulation examined by [Ni and colleagues (2016)](https://doi.org/10.1016/j.neuron.2016.09.003).</p>
+
+<p>The same framework could then test whether response phase carries stimulus information beyond spike count. Held-out decoding would compare counts alone with counts plus phase, using a phase reference estimated from activity preceding the probe. Rhythmic and aperiodic controls would be matched as closely as possible for mean inhibition and baseline firing. These comparisons could distinguish a recurring window of responsiveness from a phase code that adds information useful to a downstream circuit.</p>
 
 ### 3.5 Prediction-error signalling and alternative predictive functions
 
+<p>The proposed predictive-processing study would place a sensory PING circuit within a small hierarchy containing a learned predictor and feedback representing the expected input. Predictive coding associates feedforward gamma with prediction-error signalling [Bastos and colleagues (2012)](https://doi.org/10.1016/j.neuron.2012.10.038), whereas predictable-structure accounts emphasise the integration of regular sensory features [Vinck and Bosman (2016)](https://doi.org/10.3389/fnsys.2016.00035). A third possibility is that expectations regulate routing between populations [Bastos and colleagues (2020)](https://doi.org/10.1073/pnas.2014868117). The simulations would seek conditions under which these accounts make distinguishable predictions.</p>
+
+<p>After learning regular sequences, the model would encounter expected inputs, substitutions and omissions. The same physical stimulus would be presented under different expectations, with controls for recent repetition history and sensory adaptation. Analyses would test whether gamma-related activity carries the observed stimulus, the mismatch from its prediction, or the signal selected for onward transmission. Message identity would be assessed through decoding and pathway interventions, rather than inferred from gamma power alone.</p>
+
+<p>This could establish which circuit operations are needed for each proposed function and identify observations that separate them. In particular, an omission response could help distinguish internally generated mismatch activity from a response requiring an incoming sensory volley, provided the model’s adaptation and timing mechanisms were also controlled.</p>
+
 ### 3.6 Memory organisation, sequencing and routing
 
+<p>A proposed memory task would present several items in sequence, remove the input during a delay, and then require their identities and order to be recalled. Recurrent assemblies would provide a candidate storage mechanism, while slower modulation would organise local PING activity. Theta–gamma theories motivate testing whether successive population cycles can organise distinct items within a slower cycle [Lisman and Jensen (2013)](https://doi.org/10.1016/j.neuron.2013.03.007). The model would compare slow modulation alone, local gamma alone, their combination and tonic drive, with comparable training opportunities and controls for mean activity.</p>
+
+<p>Measurements would include retention accuracy, order errors, interference between items and the number of reliably recoverable items as delay and sequence length increased. Shifting or disrupting selected cycles while preserving input spike counts would test whether timing contributes to recall. The analysis would allow representations to occur in bursts, following the working-memory observations of [Lundqvist and colleagues (2016)](https://doi.org/10.1016/j.neuron.2016.02.028), without assuming that each gamma cycle stores exactly one item.</p>
+
+<p>If reliable retention were established, a later extension could test whether a contextual cue routes a stored item to different receivers. Measuring the representation before and after transmission would help separate failure to retain an item from failure to retrieve or communicate it.</p>
+
 ### 3.7 Synaptic plasticity and spike timing
+
+<p>The plasticity proposals would address how reciprocal weights reach and remain within a regime supporting PING. An initial study would apply explicit spike-timing-dependent rules to controlled presynaptic and postsynaptic spike trains, varying their relative phase while preserving spike counts. This builds on the timing dependence demonstrated by [Bi and Poo (1998)](https://doi.org/10.1523/JNEUROSCI.18-24-10464.1998). Rules would be chosen separately for excitatory and inhibitory pathways, with their biological assumptions stated explicitly.</p>
+
+<p>The next step would allow selected synapses to adapt within the recurrent circuit, combining timing-dependent modification with activity regulation. Inhibitory plasticity can regulate excitatory–inhibitory balance [Vogels and colleagues (2011)](https://doi.org/10.1126/science.1211095), but whether a chosen rule also preserves a useful PING regime would be tested. Measurements would track E→I and I→E weight distributions, firing rates, rhythmicity and task performance as learning proceeded. Frozen checkpoints evaluated on new inputs would separate changes stored in the weights from effects requiring ongoing plasticity.</p>
+
+<p>These simulations could identify conditions under which learning stabilises, weakens or eliminates rhythmic activity, and whether those changes help computation. They would connect the manually selected coupling used in the completed work to a prospective account of circuit development and adaptation.</p>
 
 ## 4. Discussion and outlook
 

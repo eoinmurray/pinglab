@@ -1,0 +1,138 @@
+{
+  "source_run": "exp175-r20261118160856869264858065-compute",
+  "artifact": "reconstructions.npz",
+  "rows": [
+    {
+      "row": 1,
+      "target_group": 1,
+      "sender": "A",
+      "window_ms": [
+        50,
+        90
+      ],
+      "target_mse": 0.04609159716934578,
+      "distractor_mse": 0.08578412111502907,
+      "target_cosine": 0.6961937382356272,
+      "distractor_cosine": 0.5292981428729416,
+      "blank_target_mse": 0.08818037018729061,
+      "target_closer_mse": true
+    },
+    {
+      "row": 2,
+      "target_group": 1,
+      "sender": "A",
+      "window_ms": [
+        150,
+        190
+      ],
+      "target_mse": 0.0459839291052587,
+      "distractor_mse": 0.04014246556041987,
+      "target_cosine": 0.6982579009122659,
+      "distractor_cosine": 0.44354206165025656,
+      "blank_target_mse": 0.08818037018729061,
+      "target_closer_mse": false
+    },
+    {
+      "row": 3,
+      "target_group": 1,
+      "sender": "B",
+      "window_ms": [
+        50,
+        90
+      ],
+      "target_mse": 0.04745232885061907,
+      "distractor_mse": 0.08639179638308865,
+      "target_cosine": 0.6825304427388242,
+      "distractor_cosine": 0.7464182834428386,
+      "blank_target_mse": 0.08818037018729061,
+      "target_closer_mse": true
+    },
+    {
+      "row": 4,
+      "target_group": 1,
+      "sender": "B",
+      "window_ms": [
+        150,
+        190
+      ],
+      "target_mse": 0.047457456010153325,
+      "distractor_mse": 0.09493238676731681,
+      "target_cosine": 0.6796767275086705,
+      "distractor_cosine": 0.6648609632325554,
+      "blank_target_mse": 0.08818037018729061,
+      "target_closer_mse": true
+    },
+    {
+      "row": 5,
+      "target_group": 2,
+      "sender": "A",
+      "window_ms": [
+        50,
+        90
+      ],
+      "target_mse": 0.03552632014240221,
+      "distractor_mse": 0.05325173334118285,
+      "target_cosine": 0.545336814454322,
+      "distractor_cosine": 0.6079841800523668,
+      "blank_target_mse": 0.04560516363408109,
+      "target_closer_mse": true
+    },
+    {
+      "row": 6,
+      "target_group": 2,
+      "sender": "A",
+      "window_ms": [
+        150,
+        190
+      ],
+      "target_mse": 0.03617339138374371,
+      "distractor_mse": 0.06033573259106481,
+      "target_cosine": 0.5402276313324743,
+      "distractor_cosine": 0.5607787690704349,
+      "blank_target_mse": 0.04560516363408109,
+      "target_closer_mse": true
+    },
+    {
+      "row": 7,
+      "target_group": 2,
+      "sender": "B",
+      "window_ms": [
+        50,
+        90
+      ],
+      "target_mse": 0.03414195371180622,
+      "distractor_mse": 0.0812752680437161,
+      "target_cosine": 0.5534037520738784,
+      "distractor_cosine": 0.21644672279939575,
+      "blank_target_mse": 0.04560516363408109,
+      "target_closer_mse": true
+    },
+    {
+      "row": 8,
+      "target_group": 2,
+      "sender": "B",
+      "window_ms": [
+        150,
+        190
+      ],
+      "target_mse": 0.03695264071169008,
+      "distractor_mse": 0.06407903980592518,
+      "target_cosine": 0.5486643211036117,
+      "distractor_cosine": 0.6104328626848077,
+      "blank_target_mse": 0.04560516363408109,
+      "target_closer_mse": true
+    }
+  ],
+  "output_clipped": false,
+  "similarity_scope": "Eight retained Fig. 2 examples; two target identities, four cue conditions each",
+  "mean_target_mse": 0.041222452135627384,
+  "mean_distractor_mse": 0.07077406795096791,
+  "mean_blank_target_mse": 0.06689276691068585,
+  "mean_target_cosine": 0.6180364160449593,
+  "mean_distractor_cosine": 0.5474702482256997,
+  "target_closer_mse_count": 7,
+  "target_closer_cosine_count": 4,
+  "relative_mse_reduction_vs_blank": 0.38375322117162625,
+  "limitation": "Descriptive analysis of two validation target identities; rows are dependent. No population significance test or independent test-set claim.",
+  "elapsed_seconds": 0.027465082937851548
+}
